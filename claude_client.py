@@ -122,21 +122,36 @@ def format_api_error(e: Exception) -> str:
     """Extract the API's actual error message from an exception.
 
     Anthropic 4xx/5xx errors carry the real reason (e.g. "prompt is too long",
-    "at most 100 images") in the response body, which the default str() may omit.
+    "at most 100 images") in the response body. For streaming requests the body
+    is not read yet, so we read it explicitly before parsing.
     """
     if isinstance(e, anthropic.APIStatusError):
-        detail = ""
+        # 1. SDK-parsed body, if present.
+        body = getattr(e, "body", None)
+        if isinstance(body, dict):
+            err = body.get("error")
+            if isinstance(err, dict) and err.get("message"):
+                return f"HTTP {e.status_code} — {err['message']}"
+
+        # 2. Read the raw response (streaming responses aren't read yet).
         try:
-            body = e.response.json()
-            if isinstance(body, dict):
-                detail = body.get("error", {}).get("message", "") or str(body)
+            e.response.read()
         except Exception:  # noqa: BLE001
-            try:
-                detail = e.response.text
-            except Exception:  # noqa: BLE001
-                detail = getattr(e, "message", "")
-        return f"HTTP {e.status_code} — {detail}"
-    return str(e)
+            pass
+        try:
+            data = e.response.json()
+            err = data.get("error", {}) if isinstance(data, dict) else {}
+            return f"HTTP {e.status_code} — {err.get('message') or data}"
+        except Exception:  # noqa: BLE001
+            pass
+        try:
+            txt = e.response.text
+            if txt:
+                return f"HTTP {e.status_code} — {txt}"
+        except Exception:  # noqa: BLE001
+            pass
+        return f"HTTP {e.status_code} — {getattr(e, 'message', '') or repr(e)}"
+    return f"{type(e).__name__}: {e}"
 
 
 def material_to_markdown(m: MeetingMaterial) -> str:
