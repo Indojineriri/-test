@@ -147,8 +147,34 @@ def format_api_error(e: Exception) -> str:
                 return f"HTTP {e.status_code} — {txt}"
         except Exception:  # noqa: BLE001
             pass
-        return f"HTTP {e.status_code} — {getattr(e, 'message', '') or repr(e)}"
+        # Empty/non-JSON body: include request URL + edge headers for diagnosis.
+        diag = []
+        try:
+            diag.append(f"url={e.request.url}")
+        except Exception:  # noqa: BLE001
+            pass
+        try:
+            ct = e.response.headers.get("content-type")
+            ray = e.response.headers.get("cf-ray")
+            if ct:
+                diag.append(f"content-type={ct}")
+            if ray:
+                diag.append(f"cf-ray={ray}")
+        except Exception:  # noqa: BLE001
+            pass
+        suffix = f" [{' '.join(diag)}]" if diag else ""
+        return f"HTTP {e.status_code} — {getattr(e, 'message', '') or '(本文なし)'}{suffix}"
     return f"{type(e).__name__}: {e}"
+
+
+def test_connection(client: anthropic.Anthropic, model: str) -> str:
+    """Minimal request (no PPT/images) to isolate key/account/endpoint issues."""
+    resp = client.messages.create(
+        model=model,
+        max_tokens=16,
+        messages=[{"role": "user", "content": "ping"}],
+    )
+    return "".join(b.text for b in resp.content if b.type == "text") or "(応答テキストなし)"
 
 
 def material_to_markdown(m: MeetingMaterial) -> str:

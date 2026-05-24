@@ -40,6 +40,22 @@ with st.sidebar:
     if not key_ready:
         st.warning("API キーが未設定です。")
 
+    # Diagnostics: confirm key shape and endpoint, and test the account/key
+    # in isolation from any PPT content.
+    key_val = api_key or os.getenv("ANTHROPIC_API_KEY", "")
+    if key_val:
+        st.caption(f"key: {key_val[:10]}… (len {len(key_val)})")
+    if st.button("接続テスト（最小リクエスト）", disabled=not key_ready):
+        try:
+            c = claude_client.get_client(api_key or None)
+            st.caption(f"base_url: {c.base_url}")
+            out = claude_client.test_connection(c, model)
+            st.success(f"接続OK: {out}")
+        except Exception as e:  # noqa: BLE001
+            m = claude_client.format_api_error(e)
+            print("CONNTEST ERROR:", repr(e), "|", m, flush=True)
+            st.error(m)
+
 
 def client():
     return claude_client.get_client(api_key or None)
