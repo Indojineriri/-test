@@ -1,10 +1,11 @@
 #!/usr/bin/env bash
 # Deploy the meeting-support app to Google Cloud Run.
 #
-# Usage:
-#   PROJECT_ID=your-project GCS_BUCKET=your-bucket ./deploy.sh
+# Usage (defaults baked in for this project):
+#   ./deploy.sh
 #
 # Optional overrides:
+#   PROJECT_ID (default clean-pen-422206-d7), GCS_BUCKET (default test_reseach),
 #   REGION (default asia-northeast1), SERVICE (default meeting-support),
 #   ANTHROPIC_MODEL (default claude-opus-4-7), RUNTIME_SA (default compute SA)
 #
@@ -12,8 +13,8 @@
 # and an existing GCS bucket.
 set -euo pipefail
 
-PROJECT_ID="${PROJECT_ID:?Set PROJECT_ID}"
-GCS_BUCKET="${GCS_BUCKET:?Set GCS_BUCKET (existing bucket name, no gs:// prefix)}"
+PROJECT_ID="${PROJECT_ID:-clean-pen-422206-d7}"
+GCS_BUCKET="${GCS_BUCKET:-test_reseach}"
 REGION="${REGION:-asia-northeast1}"
 SERVICE="${SERVICE:-meeting-support}"
 MODEL="${ANTHROPIC_MODEL:-claude-opus-4-7}"
