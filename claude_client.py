@@ -118,6 +118,27 @@ def generate_material(
     return response.parsed_output, response.usage
 
 
+def format_api_error(e: Exception) -> str:
+    """Extract the API's actual error message from an exception.
+
+    Anthropic 4xx/5xx errors carry the real reason (e.g. "prompt is too long",
+    "at most 100 images") in the response body, which the default str() may omit.
+    """
+    if isinstance(e, anthropic.APIStatusError):
+        detail = ""
+        try:
+            body = e.response.json()
+            if isinstance(body, dict):
+                detail = body.get("error", {}).get("message", "") or str(body)
+        except Exception:  # noqa: BLE001
+            try:
+                detail = e.response.text
+            except Exception:  # noqa: BLE001
+                detail = getattr(e, "message", "")
+        return f"HTTP {e.status_code} — {detail}"
+    return str(e)
+
+
 def material_to_markdown(m: MeetingMaterial) -> str:
     lines = [f"# {m.meeting_title}", "", f"**会議の目的**: {m.overall_objective}", "", "## アジェンダ"]
     for i, item in enumerate(m.agenda, 1):

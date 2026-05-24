@@ -128,7 +128,9 @@ if ss.slides and st.button("資料を理解する", disabled=not key_ready):
     try:
         ss.understanding = st.write_stream(gen)
     except Exception as e:  # noqa: BLE001
-        st.error(f"理解の生成に失敗しました: {e}")
+        msg = claude_client.format_api_error(e)
+        print("ANALYZE ERROR:", msg, flush=True)
+        st.error(f"理解の生成に失敗しました: {msg}")
     if usage_sink.get("usage"):
         u = usage_sink["usage"]
         st.caption(
@@ -167,7 +169,9 @@ if st.button(
                 f"cache_read:{usage.cache_read_input_tokens}"
             )
         except Exception as e:  # noqa: BLE001
-            st.error(f"生成に失敗しました: {e}")
+            msg = claude_client.format_api_error(e)
+            print("GENERATE ERROR:", msg, flush=True)
+            st.error(f"生成に失敗しました: {msg}")
 
 if ss.material:
     st.markdown(claude_client.material_to_markdown(ss.material))
