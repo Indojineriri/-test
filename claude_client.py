@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from typing import Iterator
-
 import anthropic
 from pydantic import BaseModel
 
@@ -67,24 +65,23 @@ def _deck_blocks(slides: list[Slide], minutes_text: str | None) -> list[dict]:
     return blocks
 
 
-def stream_analysis(
+def analyze_deck(
     client: anthropic.Anthropic,
     slides: list[Slide],
     minutes_text: str | None,
     model: str,
-    usage_sink: dict,
-) -> Iterator[str]:
+) -> tuple[str, object]:
+    """Understand the deck. Non-streaming so API errors carry a readable body."""
     content = _deck_blocks(slides, minutes_text)
     content.append({"type": "text", "text": ANALYZE_INSTRUCTION})
-    with client.messages.stream(
+    response = client.messages.create(
         model=model,
         max_tokens=8000,
         system=SYSTEM_PROMPT,
         messages=[{"role": "user", "content": content}],
-    ) as stream:
-        for text in stream.text_stream:
-            yield text
-        usage_sink["usage"] = stream.get_final_message().usage
+    )
+    text = "".join(b.text for b in response.content if b.type == "text")
+    return text, response.usage
 
 
 def generate_material(

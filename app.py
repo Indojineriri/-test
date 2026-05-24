@@ -121,22 +121,21 @@ if ss.slides:
 # --- Step 3: understand ------------------------------------------------------
 st.header("③ 内容の理解")
 if ss.slides and st.button("資料を理解する", disabled=not key_ready):
-    usage_sink: dict = {}
-    gen = claude_client.stream_analysis(
-        client(), ss.slides, ss.minutes_text, model, usage_sink
-    )
-    try:
-        ss.understanding = st.write_stream(gen)
-    except Exception as e:  # noqa: BLE001
-        msg = claude_client.format_api_error(e)
-        print("ANALYZE ERROR:", msg, flush=True)
-        st.error(f"理解の生成に失敗しました: {msg}")
-    if usage_sink.get("usage"):
-        u = usage_sink["usage"]
-        st.caption(
-            f"tokens — in:{u.input_tokens} out:{u.output_tokens} "
-            f"cache_write:{u.cache_creation_input_tokens} cache_read:{u.cache_read_input_tokens}"
-        )
+    with st.spinner("資料を理解中..."):
+        try:
+            text, u = claude_client.analyze_deck(
+                client(), ss.slides, ss.minutes_text, model
+            )
+            ss.understanding = text
+            st.markdown(text)
+            st.caption(
+                f"tokens — in:{u.input_tokens} out:{u.output_tokens} "
+                f"cache_write:{u.cache_creation_input_tokens} cache_read:{u.cache_read_input_tokens}"
+            )
+        except Exception as e:  # noqa: BLE001
+            msg = claude_client.format_api_error(e)
+            print("ANALYZE ERROR:", repr(e), "|", msg, flush=True)
+            st.error(f"理解の生成に失敗しました: {msg}")
 elif ss.understanding:
     st.markdown(ss.understanding)
 
