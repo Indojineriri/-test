@@ -70,6 +70,12 @@ def _pptx_to_pdf(pptx_bytes: bytes, workdir: str) -> str:
 def _render_pdf(pdf_path: str, long_edge: int) -> list[str]:
     import fitz  # PyMuPDF
 
+    # Silence harmless MuPDF structure-tree warnings so real errors stand out.
+    try:
+        fitz.TOOLS.mupdf_display_errors(False)
+    except Exception:  # noqa: BLE001
+        pass
+
     images: list[str] = []
     doc = fitz.open(pdf_path)
     try:
