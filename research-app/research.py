@@ -71,6 +71,8 @@ STRUCTURE_INSTRUCTION = """\
 - 『高い性能』『難しい』のような抽象表現は禁止。技術名・数値・固有名詞を必ず残す。
 - リサーチ本文に書かれていない事実は決して創作しないこと。
 - `subtitle` はスライド帯に入る 1〜2 文の要約。事例の特徴がひと目で分かる文にする。
+- `headline` はスライド中央の見出しバナーに入る短文。『〇〇 × 技術名』形式が望ましい
+  （例: 'NVIDIA Eureka × LLM-based reward design'）。空欄でも OK。
 - `link_text` はリンクのアンカーテキスト。論文タイトル、ブログタイトル、デモ動画のタイトル等。
 - `image_url` は **論文のプロジェクトページ / ブログ記事 / GitHub README** の URL を優先する
   （arXiv abstract ページは og:image を持たないので避ける）。なければ null。

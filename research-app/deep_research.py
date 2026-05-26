@@ -48,7 +48,8 @@ INITIAL_PROMPT_TPL = """\
 過去 1〜2 年の事例を中心に、各事例ごとに複数の一次情報源を当たってください。
 
 各事例について次の項目を埋めます（submit_findings スキーマ参照）：
-- title / subtitle / organization / year / url / link_text / image_url
+- title / subtitle / headline / organization / year / url / link_text / image_url
+  - headline はスライド中央の見出しバナー（『〇〇 × 技術名』形式が望ましい）
 - overview（**最大 4 個 / 各 40〜60 文字**）: 何をするシステムか、入出力、対象タスク、規模、性能
 - challenges（**最大 4 個 / 各 40〜60 文字**）: 既存技術の構造的限界、データ・物理・計算の制約
 - solutions（**最大 4 個 / 各 40〜60 文字**）: 提案手法のキモ、技術要素、新規性

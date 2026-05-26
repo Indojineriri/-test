@@ -71,8 +71,8 @@ def _to_arxiv_pdf_url(url: str) -> str | None:
 
 def _extract_first_pdf_figure(
     pdf_url: str,
-    max_pages: int = 3,
-    min_pixels: int = 300 * 200,
+    max_pages: int = 4,
+    min_pixels: int = 200 * 150,
 ) -> tuple[bytes, str] | None:
     """Download a PDF and extract the largest embedded image from the first few
     pages. Skips tiny logos/icons by enforcing min_pixels.
@@ -150,32 +150,55 @@ def _render_pdf_first_page(pdf_url: str) -> tuple[bytes, str] | None:
         return None
 
 
-def get_case_image(url: str, image_url: str | None = None) -> tuple[bytes, str] | None:
+def get_case_image(
+    url: str,
+    image_url: str | None = None,
+    trace: list[str] | None = None,
+) -> tuple[bytes, str] | None:
     """Best-effort image for a case. Priority:
 
     1. explicit `image_url` if provided
     2. og:image / twitter:image on the page
     3. for arXiv URLs: biggest figure embedded in the PDF
     4. for arXiv URLs: page 1 rendered as PNG (fallback)
+
+    If `trace` is provided, append a short status line for each attempt.
     """
+    def log(msg: str) -> None:
+        if trace is not None:
+            trace.append(msg)
+
     if image_url:
         got = download_image(image_url)
         if got is not None:
+            log(f"image_url OK ({len(got[0])} bytes)")
             return got
+        log(f"image_url failed ({image_url})")
 
     og = find_og_image(url)
     if og:
         got = download_image(og)
         if got is not None:
+            log(f"og:image OK ({og})")
             return got
+        log(f"og:image found but download failed ({og})")
+    else:
+        log(f"og:image not found on {url}")
 
     pdf_url = _to_arxiv_pdf_url(url)
     if pdf_url:
+        log(f"trying arXiv PDF: {pdf_url}")
         got = _extract_first_pdf_figure(pdf_url)
         if got is not None:
+            log(f"PDF embedded figure OK ({len(got[0])} bytes)")
             return got
+        log("no embedded figure ≥200x150; rendering page 1")
         got = _render_pdf_first_page(pdf_url)
         if got is not None:
+            log(f"PDF page 1 render OK ({len(got[0])} bytes)")
             return got
+        log("PDF page 1 render failed")
+    else:
+        log(f"url is not arXiv (no PDF fallback)")
 
     return None

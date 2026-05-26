@@ -168,41 +168,52 @@ else:  # ディープリサーチモード
 if ss.cases:
     st.success(f"{len(ss.cases)} 件の事例を取得しました。")
 
-    # Auto-fill missing image URLs via og:image scraping.
-    if st.button("各事例の代表画像を自動取得（og:image）"):
-        prog = st.progress(0.0)
-        for i, c in enumerate(ss.cases):
-            if not c.image_url and c.url:
-                try:
-                    c.image_url = scraper.find_og_image(c.url)
-                except Exception:
-                    c.image_url = None
-            prog.progress((i + 1) / len(ss.cases))
-        st.info(
-            f"画像 URL を取得: {sum(1 for c in ss.cases if c.image_url)} / {len(ss.cases)}"
-        )
-
-    # Editable preview as a dataframe-like table.
+    # Per-case preview with image diagnosis and manual override.
     for i, c in enumerate(ss.cases):
         with st.expander(f"{i+1}. {c.title} — {c.organization} ({c.year or '?'})"):
+            st.markdown(f"**見出し**: {c.headline or '(未設定 → 自動生成されます)'}")
             st.markdown(f"**要約**: {c.subtitle}")
             st.markdown("**概要**")
-            for x in c.overview:
+            for x in c.overview[:4]:
                 st.markdown(f"- {x}")
             st.markdown("**なぜ難しいのか**")
-            for x in c.challenges:
+            for x in c.challenges[:4]:
                 st.markdown(f"- {x}")
             st.markdown("**解決した技術的課題**")
-            for x in c.solutions:
+            for x in c.solutions[:4]:
                 st.markdown(f"- {x}")
             st.markdown(f"**URL**: {c.url}")
             st.markdown(f"**Link text**: {c.link_text}")
-            if c.image_url:
-                st.markdown(f"**Image URL**: {c.image_url}")
-                try:
-                    st.image(c.image_url, width=300)
-                except Exception:
-                    pass
+
+            # Manual image_url override.
+            new_url = st.text_input(
+                "画像 URL（手動オーバーライド）",
+                value=c.image_url or "",
+                key=f"img_url_{i}",
+                help="空欄なら PPT 生成時に og:image / arXiv PDF から自動取得を試みる。",
+            )
+            if new_url != (c.image_url or ""):
+                c.image_url = new_url or None
+
+            col_a, col_b = st.columns([1, 1])
+            with col_a:
+                if st.button("画像をテストフェッチ", key=f"test_img_{i}"):
+                    trace: list[str] = []
+                    with st.spinner("取得中..."):
+                        got = scraper.get_case_image(c.url, c.image_url, trace=trace)
+                    for line in trace:
+                        st.text(f"• {line}")
+                    if got is not None:
+                        st.success(f"取得成功: {len(got[0])} bytes / {got[1]}")
+                        st.image(got[0], width=300)
+                    else:
+                        st.warning("画像を取得できませんでした。")
+            with col_b:
+                if c.image_url:
+                    try:
+                        st.image(c.image_url, width=300, caption="現在の image_url")
+                    except Exception:
+                        st.text(f"プレビュー失敗: {c.image_url}")
 
 # --- Step 4: export ---------------------------------------------------------
 st.header("④ 出力")

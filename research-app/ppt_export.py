@@ -21,6 +21,7 @@ BULLET_FONT_SIZE_PT = 12
 # Shape names in the template (Japanese, as authored). Keep these stable.
 SHAPE_TITLE = "タイトル 2"
 SHAPE_SUBTITLE = "テキスト ボックス 5"
+SHAPE_HEADLINE = "テキスト ボックス 73"  # inside グループ化 27
 SHAPE_OVERVIEW = "正方形/長方形 117"
 SHAPE_CHALLENGES = "正方形/長方形 118"
 SHAPE_SOLUTIONS = "正方形/長方形 119"
@@ -32,10 +33,20 @@ A_NS = "http://schemas.openxmlformats.org/drawingml/2006/main"
 
 
 def _find_shape(slide, name: str):
-    for shp in slide.shapes:
-        if shp.name == name:
-            return shp
-    return None
+    """Find a shape by name, recursing into groups."""
+    def _walk(shapes):
+        for shp in shapes:
+            if shp.name == name:
+                return shp
+            if shp.shape_type == 6:  # GROUP
+                try:
+                    found = _walk(shp.shapes)
+                    if found is not None:
+                        return found
+                except Exception:
+                    pass
+        return None
+    return _walk(slide.shapes)
 
 
 def _snapshot_template_runs(text_frame) -> tuple[object | None, object | None]:
@@ -175,6 +186,17 @@ def _fill_slide(slide, case: Case) -> None:
     subtitle_shape = _find_shape(slide, SHAPE_SUBTITLE)
     if subtitle_shape is not None:
         _set_single_text(subtitle_shape, case.subtitle)
+
+    headline_shape = _find_shape(slide, SHAPE_HEADLINE)
+    if headline_shape is not None:
+        headline = case.headline.strip() if case.headline else ""
+        if not headline:
+            # Fallback: "{organization} × {title}" matches the template's pattern.
+            if case.organization and case.title:
+                headline = f"{case.organization} × {case.title}"
+            else:
+                headline = case.title or case.organization or ""
+        _set_single_text(headline_shape, headline)
 
     overview_shape = _find_shape(slide, SHAPE_OVERVIEW)
     if overview_shape is not None:

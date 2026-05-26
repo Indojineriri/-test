@@ -8,6 +8,14 @@ class Case(BaseModel):
 
     title: str = Field(description="事例の短いタイトル。例: '巨大動画モデル/世界モデル： Cosmos Predict'")
     subtitle: str = Field(description="1〜2文の要約。スライド上部の帯に入る一文。")
+    headline: str = Field(
+        default="",
+        description=(
+            "スライド中央の見出しバナーに入る短い文字列。"
+            "『〇〇 × 技術名』形式が望ましい。例: '1X Technologies NEO × Cosmos Predict'。"
+            "空なら organization + title から自動生成される。"
+        ),
+    )
     organization: str = Field(description="発表元の組織名。例: '1X Technologies / NVIDIA'")
     year: int | None = Field(default=None, description="発表年（西暦）。不明なら None。")
     overview: list[str] = Field(description="『概要』欄の箇条書き。3〜5項目。")
