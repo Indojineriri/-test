@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import io
 import re
 import urllib.parse
 import urllib.request
@@ -31,9 +32,6 @@ def find_og_image(page_url: str) -> str | None:
         m = re.search(pat, html, flags=re.IGNORECASE)
         if m:
             return urllib.parse.urljoin(page_url, m.group(1))
-
-    # arXiv abstract pages do not expose og:image; fall back to the first PDF figure
-    # is too brittle, so leave it to the caller.
     return None
 
 
@@ -51,3 +49,133 @@ def download_image(url: str, max_bytes: int = 8_000_000) -> tuple[bytes, str] | 
             return data, ct
     except Exception:
         return None
+
+
+# ---------------------------------------------------------------------------
+# arXiv-specific PDF figure extraction
+# ---------------------------------------------------------------------------
+
+ARXIV_ABS_RE = re.compile(r"https?://arxiv\.org/abs/([\w./-]+?)/?$")
+ARXIV_PDF_RE = re.compile(r"https?://arxiv\.org/pdf/([\w./-]+?)(?:\.pdf)?/?$")
+
+
+def _to_arxiv_pdf_url(url: str) -> str | None:
+    m = ARXIV_ABS_RE.match(url)
+    if m:
+        return f"https://arxiv.org/pdf/{m.group(1)}.pdf"
+    m = ARXIV_PDF_RE.match(url)
+    if m:
+        return f"https://arxiv.org/pdf/{m.group(1)}.pdf"
+    return None
+
+
+def _extract_first_pdf_figure(
+    pdf_url: str,
+    max_pages: int = 3,
+    min_pixels: int = 300 * 200,
+) -> tuple[bytes, str] | None:
+    """Download a PDF and extract the largest embedded image from the first few
+    pages. Skips tiny logos/icons by enforcing min_pixels.
+
+    Returns (image_bytes, content_type) or None.
+    """
+    try:
+        import fitz  # PyMuPDF
+    except ImportError:
+        return None
+
+    try:
+        req = urllib.request.Request(pdf_url, headers=HEADERS)
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            pdf_bytes = resp.read(30_000_000)
+    except Exception:
+        return None
+
+    try:
+        doc = fitz.open(stream=pdf_bytes, filetype="pdf")
+    except Exception:
+        return None
+
+    candidates: list[tuple[int, bytes, str]] = []  # (pixels, bytes, ext)
+    try:
+        for page_idx in range(min(len(doc), max_pages)):
+            page = doc.load_page(page_idx)
+            for img in page.get_images(full=True):
+                xref = img[0]
+                try:
+                    base = doc.extract_image(xref)
+                except Exception:
+                    continue
+                width = base.get("width", 0)
+                height = base.get("height", 0)
+                if width * height < min_pixels:
+                    continue
+                ext = base.get("ext", "png").lower()
+                if ext == "jpx":
+                    # JPEG 2000 is poorly supported by PowerPoint; skip.
+                    continue
+                candidates.append((width * height, base["image"], ext))
+    finally:
+        doc.close()
+
+    if not candidates:
+        return None
+
+    # Pick the biggest figure (usually the teaser).
+    candidates.sort(key=lambda x: -x[0])
+    _, blob, ext = candidates[0]
+    mime = {"jpeg": "image/jpeg", "jpg": "image/jpeg", "png": "image/png"}.get(
+        ext, f"image/{ext}"
+    )
+    return blob, mime
+
+
+def _render_pdf_first_page(pdf_url: str) -> tuple[bytes, str] | None:
+    """Last-resort: render PDF page 1 as a PNG."""
+    try:
+        import fitz
+    except ImportError:
+        return None
+    try:
+        req = urllib.request.Request(pdf_url, headers=HEADERS)
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            pdf_bytes = resp.read(30_000_000)
+        doc = fitz.open(stream=pdf_bytes, filetype="pdf")
+        page = doc.load_page(0)
+        pix = page.get_pixmap(matrix=fitz.Matrix(2, 2))
+        png = pix.tobytes("png")
+        doc.close()
+        return png, "image/png"
+    except Exception:
+        return None
+
+
+def get_case_image(url: str, image_url: str | None = None) -> tuple[bytes, str] | None:
+    """Best-effort image for a case. Priority:
+
+    1. explicit `image_url` if provided
+    2. og:image / twitter:image on the page
+    3. for arXiv URLs: biggest figure embedded in the PDF
+    4. for arXiv URLs: page 1 rendered as PNG (fallback)
+    """
+    if image_url:
+        got = download_image(image_url)
+        if got is not None:
+            return got
+
+    og = find_og_image(url)
+    if og:
+        got = download_image(og)
+        if got is not None:
+            return got
+
+    pdf_url = _to_arxiv_pdf_url(url)
+    if pdf_url:
+        got = _extract_first_pdf_figure(pdf_url)
+        if got is not None:
+            return got
+        got = _render_pdf_first_page(pdf_url)
+        if got is not None:
+            return got
+
+    return None

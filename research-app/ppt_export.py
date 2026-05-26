@@ -5,12 +5,18 @@ from copy import deepcopy
 from pathlib import Path
 
 from pptx import Presentation
+from pptx.enum.text import MSO_AUTO_SIZE
 from pptx.util import Pt
 
 from models import Case
 import scraper
 
 TEMPLATE_PATH = Path(__file__).parent / "templates" / "case_template.pptx"
+
+# Fit constraints: the three content boxes in the template are ~1.5" tall;
+# at 12pt with bullet spacing, 4 lines fit cleanly without overflow.
+MAX_BULLETS_PER_SECTION = 4
+BULLET_FONT_SIZE_PT = 12
 
 # Shape names in the template (Japanese, as authored). Keep these stable.
 SHAPE_TITLE = "タイトル 2"
@@ -53,22 +59,36 @@ def _snapshot_template_runs(text_frame) -> tuple[object | None, object | None]:
     return pPr, rPr
 
 
-def _apply_rPr(run, template_rPr) -> None:
-    """Replace the run's <a:rPr> with a deepcopy of the template's."""
+def _apply_rPr(run, template_rPr, font_size_pt: int | None = None) -> None:
+    """Replace the run's <a:rPr> with a deepcopy of the template's.
+
+    If `font_size_pt` is given, override the sz attribute (OOXML sz is in
+    hundredths of a point, so 12pt → "1200").
+    """
     if template_rPr is None:
+        if font_size_pt is not None:
+            run.font.size = Pt(font_size_pt)
         return
     r = run._r
     existing = r.find(f"{{{A_NS}}}rPr")
     if existing is not None:
         r.remove(existing)
-    r.insert(0, deepcopy(template_rPr))
+    rPr = deepcopy(template_rPr)
+    if font_size_pt is not None:
+        rPr.set("sz", str(font_size_pt * 100))
+    r.insert(0, rPr)
 
 
-def _set_text_preserving_format(shape, lines: list[str]) -> None:
+def _set_text_preserving_format(
+    shape,
+    lines: list[str],
+    font_size_pt: int | None = None,
+) -> None:
     """Rewrite the text frame to `lines`, preserving paragraph + run formatting.
 
     One paragraph per line; bullet (pPr) and run properties (rPr) from the
-    template's first paragraph/run are deepcopied to every new entry.
+    template's first paragraph/run are deepcopied to every new entry. If
+    `font_size_pt` is provided, every run is forced to that size.
     """
     tf = shape.text_frame
     template_pPr, template_rPr = _snapshot_template_runs(tf)
@@ -83,7 +103,14 @@ def _set_text_preserving_format(shape, lines: list[str]) -> None:
             p._p.insert(0, deepcopy(template_pPr))
         run = p.add_run()
         run.text = line
-        _apply_rPr(run, template_rPr)
+        _apply_rPr(run, template_rPr, font_size_pt=font_size_pt)
+
+    # As a safety net, ask PowerPoint to shrink text if it still overflows.
+    try:
+        tf.word_wrap = True
+        tf.auto_size = MSO_AUTO_SIZE.TEXT_TO_FIT_SHAPE
+    except Exception:
+        pass
 
 
 def _set_single_text(shape, text: str) -> None:
@@ -134,6 +161,12 @@ def _replace_picture(slide, picture_shape, image_bytes: bytes) -> None:
         blip.set(f"{{{R_NS}}}embed", rId)
 
 
+def _trim_bullets(bullets: list[str]) -> list[str]:
+    """Cap to MAX_BULLETS_PER_SECTION, dropping empties."""
+    out = [b.strip() for b in (bullets or []) if b and b.strip()]
+    return out[:MAX_BULLETS_PER_SECTION] or ["(情報なし)"]
+
+
 def _fill_slide(slide, case: Case) -> None:
     title_shape = _find_shape(slide, SHAPE_TITLE)
     if title_shape is not None:
@@ -145,26 +178,36 @@ def _fill_slide(slide, case: Case) -> None:
 
     overview_shape = _find_shape(slide, SHAPE_OVERVIEW)
     if overview_shape is not None:
-        _set_text_preserving_format(overview_shape, case.overview or ["(情報なし)"])
+        _set_text_preserving_format(
+            overview_shape, _trim_bullets(case.overview), font_size_pt=BULLET_FONT_SIZE_PT
+        )
 
     challenges_shape = _find_shape(slide, SHAPE_CHALLENGES)
     if challenges_shape is not None:
-        _set_text_preserving_format(challenges_shape, case.challenges or ["(情報なし)"])
+        _set_text_preserving_format(
+            challenges_shape, _trim_bullets(case.challenges), font_size_pt=BULLET_FONT_SIZE_PT
+        )
 
     solutions_shape = _find_shape(slide, SHAPE_SOLUTIONS)
     if solutions_shape is not None:
-        _set_text_preserving_format(solutions_shape, case.solutions or ["(情報なし)"])
+        _set_text_preserving_format(
+            solutions_shape, _trim_bullets(case.solutions), font_size_pt=BULLET_FONT_SIZE_PT
+        )
 
     link_shape = _find_shape(slide, SHAPE_LINK)
     if link_shape is not None:
         _set_link_textbox(slide, link_shape, case.link_text or case.title, case.url)
 
-    if case.image_url:
-        img = scraper.download_image(case.image_url)
+    # Image: try explicit image_url, then og:image, then arXiv PDF figure.
+    # If nothing is found, REMOVE the picture shape so we don't reuse the
+    # template's placeholder picture across every slide.
+    picture_shape = _find_shape(slide, SHAPE_PICTURE)
+    if picture_shape is not None:
+        img = scraper.get_case_image(case.url, case.image_url)
         if img is not None:
-            picture_shape = _find_shape(slide, SHAPE_PICTURE)
-            if picture_shape is not None:
-                _replace_picture(slide, picture_shape, img[0])
+            _replace_picture(slide, picture_shape, img[0])
+        else:
+            picture_shape.element.getparent().remove(picture_shape.element)
 
 
 def build_pptx(cases: list[Case], template_path: Path = TEMPLATE_PATH) -> bytes:
