@@ -166,7 +166,7 @@ def _replace_picture(slide, picture_shape, image_bytes: bytes) -> None:
     Adds the new image as a new image part on the slide, then redirects the
     picture's <a:blip r:embed> to the new relationship.
     """
-    image_part, rId = slide.part.get_or_add_image(io.BytesIO(image_bytes))
+    image_part, rId = slide.part.get_or_add_image_part(io.BytesIO(image_bytes))
     blip = picture_shape.element.find(f".//{{{A_NS}}}blip")
     if blip is not None:
         blip.set(f"{{{R_NS}}}embed", rId)
