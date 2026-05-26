@@ -32,81 +32,89 @@ def _find_shape(slide, name: str):
     return None
 
 
-def _set_text_preserving_format(shape, lines: list[str]) -> None:
-    """Rewrite the text frame to `lines`, copying the first run's formatting.
+def _snapshot_template_runs(text_frame) -> tuple[object | None, object | None]:
+    """Snapshot the first paragraph's pPr and rPr XML from a text frame.
 
-    `lines` becomes one paragraph per line. The original text frame's first
-    paragraph/run carries font, size and color we want to preserve.
+    These are deepcopied verbatim and reused on freshly inserted paragraphs/runs
+    so that bullet styling, font color (tx1 vs lt1!), language tags etc. all
+    survive the rewrite. Without copying the run's rPr, the shape's fontRef
+    falls back to lt1 (white) and renders invisibly on a white background.
+    """
+    if not text_frame.paragraphs:
+        return None, None
+    p0 = text_frame.paragraphs[0]
+    pPr = deepcopy(p0._pPr) if p0._pPr is not None else None
+    rPr = None
+    if p0.runs:
+        r0_xml = p0.runs[0]._r
+        rPr_el = r0_xml.find(f"{{{A_NS}}}rPr")
+        if rPr_el is not None:
+            rPr = deepcopy(rPr_el)
+    return pPr, rPr
+
+
+def _apply_rPr(run, template_rPr) -> None:
+    """Replace the run's <a:rPr> with a deepcopy of the template's."""
+    if template_rPr is None:
+        return
+    r = run._r
+    existing = r.find(f"{{{A_NS}}}rPr")
+    if existing is not None:
+        r.remove(existing)
+    r.insert(0, deepcopy(template_rPr))
+
+
+def _set_text_preserving_format(shape, lines: list[str]) -> None:
+    """Rewrite the text frame to `lines`, preserving paragraph + run formatting.
+
+    One paragraph per line; bullet (pPr) and run properties (rPr) from the
+    template's first paragraph/run are deepcopied to every new entry.
     """
     tf = shape.text_frame
-    # Capture template formatting from the first run, if any.
-    template_para = tf.paragraphs[0] if tf.paragraphs else None
-    template_run = template_para.runs[0] if template_para and template_para.runs else None
-    template_bullet_xml = None
-    if template_para is not None:
-        pPr = template_para._pPr
-        if pPr is not None:
-            template_bullet_xml = deepcopy(pPr)
+    template_pPr, template_rPr = _snapshot_template_runs(tf)
 
     tf.clear()
     for i, line in enumerate(lines):
         p = tf.paragraphs[0] if i == 0 else tf.add_paragraph()
-        if template_bullet_xml is not None:
-            # Replace the new paragraph's pPr with the template's, preserving bullets.
+        if template_pPr is not None:
             existing_pPr = p._pPr
-            new_pPr = deepcopy(template_bullet_xml)
             if existing_pPr is not None:
                 p._p.remove(existing_pPr)
-            p._p.insert(0, new_pPr)
+            p._p.insert(0, deepcopy(template_pPr))
         run = p.add_run()
         run.text = line
-        if template_run is not None:
-            src_font = template_run.font
-            if src_font.size is not None:
-                run.font.size = src_font.size
-            if src_font.name is not None:
-                run.font.name = src_font.name
-            if src_font.bold is not None:
-                run.font.bold = src_font.bold
-            try:
-                if src_font.color and src_font.color.rgb is not None:
-                    run.font.color.rgb = src_font.color.rgb
-            except (AttributeError, TypeError):
-                pass
+        _apply_rPr(run, template_rPr)
 
 
 def _set_single_text(shape, text: str) -> None:
     tf = shape.text_frame
-    template_run = tf.paragraphs[0].runs[0] if tf.paragraphs and tf.paragraphs[0].runs else None
-    src_size = template_run.font.size if template_run else None
-    src_name = template_run.font.name if template_run else None
-    src_bold = template_run.font.bold if template_run else None
+    template_pPr, template_rPr = _snapshot_template_runs(tf)
     tf.clear()
     p = tf.paragraphs[0]
+    if template_pPr is not None:
+        existing_pPr = p._pPr
+        if existing_pPr is not None:
+            p._p.remove(existing_pPr)
+        p._p.insert(0, deepcopy(template_pPr))
     run = p.add_run()
     run.text = text
-    if src_size is not None:
-        run.font.size = src_size
-    if src_name is not None:
-        run.font.name = src_name
-    if src_bold is not None:
-        run.font.bold = src_bold
+    _apply_rPr(run, template_rPr)
 
 
 def _set_link_textbox(slide, shape, link_text: str, url: str) -> None:
-    """Set the link textbox content + add a hyperlink relationship on the run."""
+    """Set the link textbox content + add a hyperlink on the run."""
     tf = shape.text_frame
-    template_run = tf.paragraphs[0].runs[0] if tf.paragraphs and tf.paragraphs[0].runs else None
-    src_size = template_run.font.size if template_run else None
-    src_name = template_run.font.name if template_run else None
+    template_pPr, template_rPr = _snapshot_template_runs(tf)
     tf.clear()
     p = tf.paragraphs[0]
+    if template_pPr is not None:
+        existing_pPr = p._pPr
+        if existing_pPr is not None:
+            p._p.remove(existing_pPr)
+        p._p.insert(0, deepcopy(template_pPr))
     run = p.add_run()
     run.text = link_text
-    if src_size is not None:
-        run.font.size = src_size
-    if src_name is not None:
-        run.font.name = src_name
+    _apply_rPr(run, template_rPr)
     if url:
         try:
             run.hyperlink.address = url
