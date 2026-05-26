@@ -1,0 +1,10 @@
+.git
+.gitignore
+__pycache__/
+*.pyc
+.env
+.venv/
+venv/
+deploy.sh
+# NOTE: templates/case_template.pptx is required at runtime, so do NOT
+# exclude *.pptx here.

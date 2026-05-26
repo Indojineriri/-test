@@ -11,7 +11,7 @@
    - 事例リストを **CSV** でダウンロード（Excel 互換、UTF-8 BOM 付き）
    - 各事例を **PPT** 1 スライドずつ、添付テンプレート (`templates/case_template.pptx`) のレイアウトで出力
 
-## セットアップ
+## セットアップ（ローカル）
 
 ```bash
 cd research-app
@@ -21,6 +21,25 @@ streamlit run app.py
 ```
 
 API キーはサイドバーから入力するか、環境変数 `ANTHROPIC_API_KEY` を設定する。
+
+## デプロイ（Cloud Run）
+
+```bash
+cd research-app
+./deploy.sh
+```
+
+初回実行時のみ Anthropic API キーを入力すると Secret Manager に保存される。
+`gcloud auth login` 済みで、`PROJECT_ID` のデフォルト (`clean-pen-422206-d7`)
+を変えたい場合は環境変数で上書きする：
+
+```bash
+PROJECT_ID=your-project SERVICE=research-app-staging ./deploy.sh
+```
+
+デプロイ後に表示される Cloud Run URL でブラウザから利用可能。
+社内限定にしたい場合は `deploy.sh` の `--allow-unauthenticated` を
+`--no-allow-unauthenticated` に変更し、IAP または `run.invoker` の付与で制限する。
 
 ## ファイル構成
 
