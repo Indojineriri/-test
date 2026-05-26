@@ -3,6 +3,7 @@ import os
 import streamlit as st
 
 import csv_export
+import deep_research
 import ppt_export
 import research
 import scraper
@@ -27,9 +28,25 @@ with st.sidebar:
         help="未入力の場合は環境変数 ANTHROPIC_API_KEY を使用します。",
     )
     model = st.selectbox("モデル", AVAILABLE_MODELS, index=0)
+    mode = st.radio(
+        "リサーチモード",
+        ["標準", "ディープリサーチ"],
+        index=0,
+        help=(
+            "標準: 1 リクエストで Web 検索＋arXiv コンテキストを使い結果を返す。\n"
+            "ディープリサーチ: エージェントループで複数ターン検索・ページ閲覧・"
+            "裏取りを繰り返す。所要時間と費用は増える。"
+        ),
+    )
     n_cases = st.slider("ピックアップする事例数", min_value=1, max_value=10, value=5)
-    arxiv_n = st.slider("arXiv 候補数（コンテキストとして渡す）", 0, 20, 10)
-    max_web_uses = st.slider("Web 検索の最大回数", 0, 15, 8)
+
+    if mode == "標準":
+        arxiv_n = st.slider("arXiv 候補数（コンテキストとして渡す）", 0, 20, 10)
+        max_web_uses = st.slider("Web 検索の最大回数", 0, 15, 8)
+    else:
+        arxiv_n = 10  # not used in deep mode
+        max_iters = st.slider("最大ループ回数", 5, 30, 15)
+        max_web_uses = st.slider("Web 検索の最大回数", 5, 50, 25)
 
     st.divider()
     key_ready = bool(api_key) or bool(os.getenv("ANTHROPIC_API_KEY"))
@@ -54,48 +71,99 @@ theme = st.text_area(
 
 # --- Step 2: research --------------------------------------------------------
 st.header("② リサーチ実行")
-if st.button(
-    "リサーチを実行",
-    type="primary",
-    disabled=not (theme.strip() and key_ready),
-):
-    with st.spinner("リサーチ中（Web 検索 + arXiv）..."):
+
+if mode == "標準":
+    if st.button(
+        "リサーチを実行",
+        type="primary",
+        disabled=not (theme.strip() and key_ready),
+    ):
+        with st.spinner("リサーチ中（Web 検索 + arXiv）..."):
+            try:
+                findings, arxiv_used, usage = research.research(
+                    client(),
+                    theme=theme,
+                    n_cases=n_cases,
+                    model=model,
+                    arxiv_n=arxiv_n,
+                    max_web_uses=max_web_uses,
+                )
+                ss.findings = findings
+                ss.arxiv_used = arxiv_used
+                st.caption(
+                    f"tokens — in:{usage.input_tokens} out:{usage.output_tokens}"
+                )
+            except Exception as e:
+                st.error(f"リサーチに失敗しました: {research.format_api_error(e)}")
+                ss.findings = None
+
+    if ss.findings:
+        with st.expander("リサーチ結果（生テキスト）", expanded=False):
+            st.markdown(ss.findings)
+        with st.expander("使用した arXiv 候補リスト", expanded=False):
+            st.text(ss.arxiv_used or "(なし)")
+
+    # --- Step 3 (standard mode): structure ----------------------------------
+    st.header("③ 構造化 → 事例リスト")
+    if ss.findings and st.button("事例リストを生成（構造化）", disabled=not key_ready):
+        with st.spinner("構造化中..."):
+            try:
+                case_list, usage = research.structure(client(), ss.findings, model=model)
+                ss.cases = case_list.cases
+                st.caption(
+                    f"tokens — in:{usage.input_tokens} out:{usage.output_tokens}"
+                )
+            except Exception as e:
+                st.error(f"構造化に失敗しました: {research.format_api_error(e)}")
+
+else:  # ディープリサーチモード
+    st.caption(
+        "エージェントが web_search / fetch_url / arxiv_search を多段で呼び出し、"
+        "裏取りを繰り返してから構造化された事例リストを直接提出します。"
+    )
+    if st.button(
+        "ディープリサーチを実行",
+        type="primary",
+        disabled=not (theme.strip() and key_ready),
+    ):
+        progress_box = st.empty()
+        log_lines: list[str] = []
+
+        def _on_progress(p: deep_research.Progress) -> None:
+            icon = {
+                "think": "💭",
+                "web_search": "🔍",
+                "fetch": "📄",
+                "arxiv": "📚",
+                "submit": "✅",
+                "nudge": "↪️",
+            }.get(p.kind, "•")
+            detail = (p.detail or "").replace("\n", " ")
+            if len(detail) > 200:
+                detail = detail[:200] + "…"
+            log_lines.append(f"{icon} **[{p.iteration}] {p.kind}** — {detail}")
+            progress_box.markdown("\n\n".join(log_lines[-25:]))
+
         try:
-            findings, arxiv_used, usage = research.research(
+            case_list, usages = deep_research.deep_research(
                 client(),
                 theme=theme,
                 n_cases=n_cases,
                 model=model,
-                arxiv_n=arxiv_n,
+                max_iters=max_iters,
                 max_web_uses=max_web_uses,
+                on_progress=_on_progress,
             )
-            ss.findings = findings
-            ss.arxiv_used = arxiv_used
-            st.caption(
-                f"tokens — in:{usage.input_tokens} out:{usage.output_tokens}"
-            )
-        except Exception as e:
-            st.error(f"リサーチに失敗しました: {research.format_api_error(e)}")
-            ss.findings = None
-
-if ss.findings:
-    with st.expander("リサーチ結果（生テキスト）", expanded=False):
-        st.markdown(ss.findings)
-    with st.expander("使用した arXiv 候補リスト", expanded=False):
-        st.text(ss.arxiv_used or "(なし)")
-
-# --- Step 3: structure ------------------------------------------------------
-st.header("③ 構造化 → 事例リスト")
-if ss.findings and st.button("事例リストを生成（構造化）", disabled=not key_ready):
-    with st.spinner("構造化中..."):
-        try:
-            case_list, usage = research.structure(client(), ss.findings, model=model)
             ss.cases = case_list.cases
-            st.caption(
-                f"tokens — in:{usage.input_tokens} out:{usage.output_tokens}"
+            ss.findings = None  # not used in deep mode
+            total_in = sum(u.input_tokens for u in usages)
+            total_out = sum(u.output_tokens for u in usages)
+            st.success(
+                f"ディープリサーチ完了 — {len(usages)} ターン / "
+                f"tokens in:{total_in} out:{total_out}"
             )
         except Exception as e:
-            st.error(f"構造化に失敗しました: {research.format_api_error(e)}")
+            st.error(f"ディープリサーチに失敗しました: {research.format_api_error(e)}")
 
 if ss.cases:
     st.success(f"{len(ss.cases)} 件の事例を取得しました。")
