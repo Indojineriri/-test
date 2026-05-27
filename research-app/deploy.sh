@@ -17,6 +17,8 @@ PROJECT_ID="${PROJECT_ID:-clean-pen-422206-d7}"
 REGION="${REGION:-asia-northeast1}"
 SERVICE="${SERVICE:-research-app}"
 MODEL="${ANTHROPIC_MODEL:-claude-opus-4-7}"
+GCS_BUCKET="${GCS_BUCKET:-test_reseach}"
+GCS_PREFIX="${GCS_PREFIX:-research-history}"
 SECRET_NAME="anthropic-api-key"
 
 gcloud config set project "$PROJECT_ID"
@@ -26,7 +28,8 @@ gcloud services enable \
   run.googleapis.com \
   cloudbuild.googleapis.com \
   artifactregistry.googleapis.com \
-  secretmanager.googleapis.com
+  secretmanager.googleapis.com \
+  storage.googleapis.com
 
 # Reuse the same Anthropic key secret as the meeting-support app if it exists.
 if ! gcloud secrets describe "$SECRET_NAME" >/dev/null 2>&1; then
@@ -40,10 +43,13 @@ fi
 PROJECT_NUMBER="$(gcloud projects describe "$PROJECT_ID" --format='value(projectNumber)')"
 RUNTIME_SA="${RUNTIME_SA:-${PROJECT_NUMBER}-compute@developer.gserviceaccount.com}"
 
-echo "==> Granting the runtime SA access to the secret..."
+echo "==> Granting the runtime SA access to the secret and the bucket..."
 gcloud secrets add-iam-policy-binding "$SECRET_NAME" \
   --member="serviceAccount:${RUNTIME_SA}" \
   --role="roles/secretmanager.secretAccessor" >/dev/null
+gcloud storage buckets add-iam-policy-binding "gs://${GCS_BUCKET}" \
+  --member="serviceAccount:${RUNTIME_SA}" \
+  --role="roles/storage.objectAdmin" >/dev/null
 
 echo "==> Building and deploying to Cloud Run..."
 # WARNING: --allow-unauthenticated makes the URL public, so anyone who finds it
@@ -57,7 +63,7 @@ gcloud run deploy "$SERVICE" \
   --memory 2Gi \
   --cpu 2 \
   --timeout 600 \
-  --set-env-vars "ANTHROPIC_MODEL=${MODEL}" \
+  --set-env-vars "ANTHROPIC_MODEL=${MODEL},GCS_BUCKET=${GCS_BUCKET},RESEARCH_HISTORY_PREFIX=${GCS_PREFIX}" \
   --set-secrets "ANTHROPIC_API_KEY=${SECRET_NAME}:latest"
 
 echo "==> Done. Service URL:"

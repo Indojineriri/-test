@@ -4,14 +4,17 @@
 
 ## 利用フロー
 
-1. **テーマ入力**（例：「直近の VLA に触覚センサを用いた事例をピックアップしてください」）
-2. **リサーチ実行**（モード選択）
+1. **ユーザー情報の入力** — サイドバーで名前とメールアドレスを設定（履歴を残すのに必須）
+2. **テーマ入力**（例：「直近の VLA に触覚センサを用いた事例をピックアップしてください」）
+3. **リサーチ実行**（モード選択）
    - **標準**: 1 リクエストで `web_search` + arXiv コンテキストを使って事例を抽出
    - **ディープリサーチ**: エージェントループで `web_search` / `fetch_url` / `arxiv_search` を多段に呼び、ページ本文の読み込み・裏取りを繰り返す（深く調べる代わりに時間と費用が増える）
-3. **構造化** — 結果を `Case` スキーマに沿った JSON に変換（ディープモードは直接 JSON を提出）
-4. **出力**
+4. **構造化** — 結果を `Case` スキーマに沿った JSON に変換（ディープモードは直接 JSON を提出）
+5. **自動保存** — 完了時に GCS に履歴を保存（名前・メール必須）
+6. **出力**
    - 事例リストを **CSV** でダウンロード（Excel 互換、UTF-8 BOM 付き）
    - 各事例を **PPT** 1 スライドずつ、添付テンプレート (`templates/case_template.pptx`) のレイアウトで出力
+7. **履歴閲覧** — 「📚 履歴」タブで他のメンバーが行ったリサーチを検索・閲覧、メール窓口からコンタクト
 
 ## モード比較
 
@@ -29,10 +32,18 @@
 cd research-app
 pip install -r requirements.txt
 export ANTHROPIC_API_KEY=sk-ant-...
+# 履歴を GCS に保存したい場合（未設定なら /tmp/research-history にローカル保存）
+export GCS_BUCKET=your-bucket
 streamlit run app.py
 ```
 
 API キーはサイドバーから入力するか、環境変数 `ANTHROPIC_API_KEY` を設定する。
+
+## 履歴の保存先
+
+- `GCS_BUCKET` 環境変数を設定すると `gs://<bucket>/research-history/` 配下に JSON で蓄積される
+- 未設定の場合は `/tmp/research-history/` にローカル保存（Cloud Run では再起動で消える）
+- 認証は Application Default Credentials を使用（ローカルなら `gcloud auth application-default login`、Cloud Run なら自動）
 
 ## デプロイ（Cloud Run）
 
