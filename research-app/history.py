@@ -8,7 +8,7 @@ from pathlib import Path
 
 from models import Case
 
-GCS_BUCKET = os.getenv("GCS_BUCKET", "")
+GCS_BUCKET = os.getenv("GCS_BUCKET", "test_reseach")
 GCS_PREFIX = os.getenv("RESEARCH_HISTORY_PREFIX", "research-history")
 LOCAL_FALLBACK_DIR = Path("/tmp/research-history")
 

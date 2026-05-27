@@ -30,10 +30,10 @@ with st.sidebar:
         "お名前", value=ss.user_name, placeholder="例: 山田太郎"
     )
     ss.user_email = st.text_input(
-        "メールアドレス",
+        "メールアドレス（任意）",
         value=ss.user_email,
         placeholder="例: yamada@example.com",
-        help="履歴に記録され、他のメンバーからのコンタクト窓口になります。",
+        help="入れておくと、履歴を見た他のメンバーからメールでコンタクトできるようになります。空欄でも履歴は保存されます。",
     )
 
     st.divider()
@@ -78,11 +78,11 @@ def client():
 
 
 def _autosave_if_possible(theme_text: str) -> None:
-    """Save current ss.cases to history if user identity is set."""
+    """Save current ss.cases to history if a user name is set."""
     if not ss.cases:
         return
-    if not (ss.user_name.strip() and ss.user_email.strip()):
-        st.info("名前・メールが未入力のため履歴には保存されませんでした（サイドバーで設定してください）。")
+    if not ss.user_name.strip():
+        st.info("お名前が未入力のため履歴には保存されませんでした（サイドバーで設定してください）。")
         return
     try:
         entry = history.save_entry(
@@ -90,7 +90,7 @@ def _autosave_if_possible(theme_text: str) -> None:
             mode=mode,
             model=model,
             user_name=ss.user_name,
-            user_email=ss.user_email,
+            user_email=ss.user_email,  # may be empty — that's fine
             cases=ss.cases,
         )
         ss.last_saved_id = entry["id"]
