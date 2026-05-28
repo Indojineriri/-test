@@ -115,6 +115,52 @@ def generate_material(
     return response.parsed_output, response.usage
 
 
+def chat_reply(
+    client: anthropic.Anthropic,
+    slides: list[Slide],
+    minutes_text: str | None,
+    understanding: str,
+    material_md: str,
+    discussion_points: str,
+    history: list[dict],
+    model: str,
+) -> tuple[str, object]:
+    """Multi-turn refinement chat grounded in the deck and current agenda.
+
+    `history` is the full chat so far (alternating user/assistant), with the
+    latest user message already appended by the caller.
+    """
+    content = _deck_blocks(slides, minutes_text)
+    context = (
+        "以下はこれまでの文脈です。\n\n"
+        f"# ユーザーの論点\n{discussion_points}\n\n"
+        f"# 資料の理解\n{understanding}\n\n"
+        f"# 現在のアジェンダ・メッセージ案\n{material_md}\n\n"
+        "これ以降、ユーザーがこの案への修正依頼・追加・質問をします。"
+        "日本語で簡潔に応答し、修正依頼には改善後の内容を具体的に提示してください。"
+    )
+    content.append({"type": "text", "text": context})
+
+    api_messages: list[dict] = [
+        {"role": "user", "content": content},
+        {
+            "role": "assistant",
+            "content": "承知しました。資料とアジェンダ案を把握しました。ご要望をどうぞ。",
+        },
+    ]
+    for m in history:
+        api_messages.append({"role": m["role"], "content": m["content"]})
+
+    response = client.messages.create(
+        model=model,
+        max_tokens=4000,
+        system=SYSTEM_PROMPT,
+        messages=api_messages,
+    )
+    text = "".join(b.text for b in response.content if b.type == "text")
+    return text, response.usage
+
+
 def format_api_error(e: Exception) -> str:
     """Extract the API's actual error message from an exception.
 

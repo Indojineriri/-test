@@ -16,6 +16,7 @@ ss.setdefault("minutes_text", None)
 ss.setdefault("gcs_uri", None)
 ss.setdefault("understanding", None)
 ss.setdefault("material", None)
+ss.setdefault("chat", [])
 
 # --- Sidebar: settings -------------------------------------------------------
 with st.sidebar:
@@ -179,6 +180,7 @@ if st.button(
                 model,
             )
             ss.material = material
+            ss.chat = []  # start a fresh conversation for the new agenda
             st.caption(
                 f"tokens — in:{usage.input_tokens} out:{usage.output_tokens} "
                 f"cache_read:{usage.cache_read_input_tokens}"
@@ -200,3 +202,44 @@ if ss.material:
         file_name="meeting_agenda.pptx",
         mime="application/vnd.openxmlformats-officedocument.presentationml.presentation",
     )
+
+# --- Step 6: interactive chat ------------------------------------------------
+st.header("⑥ チャットで修正・相談")
+if not ss.material:
+    st.caption("④でアジェンダ・メッセージを作成すると、ここで修正依頼や相談ができます。")
+else:
+    if ss.chat and st.button("会話をリセット"):
+        ss.chat = []
+        st.rerun()
+
+    for m in ss.chat:
+        with st.chat_message(m["role"]):
+            st.markdown(m["content"])
+
+    prompt = st.chat_input(
+        "例）2つ目の論点をもっと具体的に / メッセージを強気のトーンに / 合計60分に収めて",
+        disabled=not key_ready,
+    )
+    if prompt:
+        ss.chat.append({"role": "user", "content": prompt})
+        with st.chat_message("user"):
+            st.markdown(prompt)
+        with st.chat_message("assistant"):
+            with st.spinner("考え中..."):
+                try:
+                    reply, _ = claude_client.chat_reply(
+                        client(),
+                        ss.slides,
+                        ss.minutes_text,
+                        ss.understanding,
+                        claude_client.material_to_markdown(ss.material),
+                        discussion_points,
+                        ss.chat,
+                        model,
+                    )
+                    st.markdown(reply)
+                    ss.chat.append({"role": "assistant", "content": reply})
+                except Exception as e:  # noqa: BLE001
+                    msg = claude_client.format_api_error(e)
+                    print("CHAT ERROR:", repr(e), "|", msg, flush=True)
+                    st.error(f"応答に失敗しました: {msg}")
