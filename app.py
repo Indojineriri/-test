@@ -163,9 +163,15 @@ discussion_points = st.text_area(
     height=140,
     placeholder="例）\n- 今期の売上未達要因と打ち手\n- 新機能のリリース可否判断\n- 来月の重点施策",
 )
+extra_instructions = st.text_area(
+    "追加の指示・修正方針（任意）",
+    height=100,
+    placeholder="例）3つ目の論点は削除 / 全体のトーンを簡潔に / 各アジェンダは5分以内に / 結論を先に述べる構成で",
+    help="⑥チャットで固めた方針をここに書いて再生成すると、PPTにも反映されます。",
+)
 
 if st.button(
-    "アジェンダ・メッセージを作成",
+    "アジェンダ・メッセージを作成 / 再生成",
     type="primary",
     disabled=not (ss.slides and ss.understanding and discussion_points.strip() and key_ready),
 ):
@@ -177,6 +183,7 @@ if st.button(
                 ss.minutes_text,
                 ss.understanding,
                 discussion_points,
+                extra_instructions,
                 model,
             )
             ss.material = material

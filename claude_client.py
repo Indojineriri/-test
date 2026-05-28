@@ -90,6 +90,7 @@ def generate_material(
     minutes_text: str | None,
     understanding: str,
     discussion_points: str,
+    extra_instructions: str,
     model: str,
 ) -> tuple[MeetingMaterial, object]:
     content = _deck_blocks(slides, minutes_text)
@@ -104,6 +105,11 @@ def generate_material(
         "talking_points は各アジェンダで話すべき要点や根拠、key_messages は会議全体で"
         "特に強調すべきメッセージを記載してください。"
     )
+    if extra_instructions and extra_instructions.strip():
+        instruction += (
+            "\n\n# 追加の指示・修正方針（最優先で反映）\n"
+            f"{extra_instructions.strip()}"
+        )
     content.append({"type": "text", "text": instruction})
     response = client.messages.parse(
         model=model,
