@@ -76,6 +76,10 @@
         <li>👥 {{ gm.player_range }}</li>
         <li>⏱ {{ gm.play_time_min }}分</li>
       </ul>
+      {% set fc = fav_counts.get(gm.id, 0) %}{% set pc = played_counts.get(gm.id, 0) %}
+      {% if fc or pc %}
+      <p class="card-pop">{% if fc %}⭐{{ fc }}{% endif %}{% if pc %} ✅{{ pc }}{% endif %}</p>
+      {% endif %}
       {% if rec and rec.rating %}<p class="card-rating">{{ '★' * rec.rating }}{{ '☆' * (5 - rec.rating) }}</p>{% endif %}
       <p class="desc">{{ gm.description }}</p>
     </div>

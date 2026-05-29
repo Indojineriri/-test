@@ -268,6 +268,24 @@ def register_routes(app: Flask) -> None:
             games = [gm for gm in games
                      if gm.id in records and records[gm.id].played]
 
+        # Aggregate popularity counts per game (anonymous, everyone's records).
+        fav_counts = dict(
+            db.session.query(
+                UserGameRecord.game_id, db.func.count(UserGameRecord.id)
+            )
+            .filter(UserGameRecord.favorite.is_(True))
+            .group_by(UserGameRecord.game_id)
+            .all()
+        )
+        played_counts = dict(
+            db.session.query(
+                UserGameRecord.game_id, db.func.count(UserGameRecord.id)
+            )
+            .filter(UserGameRecord.played.is_(True))
+            .group_by(UserGameRecord.game_id)
+            .all()
+        )
+
         types = [
             t[0]
             for t in db.session.query(Game.game_type)
@@ -279,6 +297,8 @@ def register_routes(app: Flask) -> None:
             "index.html",
             games=games,
             records=records,
+            fav_counts=fav_counts,
+            played_counts=played_counts,
             types=types,
             sorts=SORTS,
             q=q,
@@ -346,6 +366,10 @@ def register_routes(app: Flask) -> None:
         ratings = [r.rating for r in reviews if r.rating]
         avg_rating = round(sum(ratings) / len(ratings), 1) if ratings else None
 
+        # Aggregate (anonymous) popularity counts across all browsers.
+        favorite_count = sum(1 for r in review_rows if r.favorite)
+        played_count = sum(1 for r in review_rows if r.played)
+
         return render_template(
             "detail.html",
             game=game,
@@ -354,6 +378,8 @@ def register_routes(app: Flask) -> None:
             review_count=len(reviews),
             rating_count=len(ratings),
             avg_rating=avg_rating,
+            favorite_count=favorite_count,
+            played_count=played_count,
             my_nickname=request.cookies.get(NICK_COOKIE, ""),
             my_client_id=g.client_id,
         )

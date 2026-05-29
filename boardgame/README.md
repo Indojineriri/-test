@@ -77,6 +77,20 @@ Cloud Run のディスクは揮発性ですが、本アプリは **SQLite の DB
 > 公開範囲の注意: `deploy.sh` は `--allow-unauthenticated`（URL を知れば誰でもアクセス可）です。
 > 社内限定にするなら `--no-allow-unauthenticated` に変え、IAP もしくは `run.invoker` 権限で制限してください。
 
+## ルール解説リンク（rules_url）の一括設定
+
+ゲーム名→URL の対応表（JSON）を用意して `set_links.py` を実行すると、各ゲームの
+`rules_url`（詳細ページの「🔗 詳しいルール解説を見る」リンク）を一括設定できます。
+
+```bash
+# links.json 例: { "カタン": "https://...", "ドミニオン": "https://..." }
+python set_links.py links.json          # rules_url を設定
+python set_links.py links.json --field image_url   # 画像URLにも使える
+```
+
+設定後はローカルなら `python seed.py`、Cloud Run なら再デプロイで反映されます
+（rules_url が空のゲームにのみ起動時 backfill されます）。
+
 ## ゲーム画像の取り込み（BGGから自動取得）
 
 主要タイトルの画像は、各ゲームが持つ BGG ページURLから **BoardGameGeek 公式の画像URL**を

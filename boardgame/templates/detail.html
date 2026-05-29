@@ -29,6 +29,10 @@
         {% if record and record.played %}✅ プレイ済み{% else %}⬜ プレイ済みにする{% endif %}
       </button>
     </form>
+    <div class="pop-counts">
+      <span title="お気に入り登録した人数">⭐ {{ favorite_count }}人</span>
+      <span title="プレイ済みにした人数">✅ {{ played_count }}人</span>
+    </div>
   </div>
 
   <div class="specs">

@@ -74,6 +74,7 @@ main.wrap { padding-top: 28px; padding-bottom: 60px; min-height: 70vh; }
 .card-flags .flag { background: rgba(255,255,255,.92); border-radius: 50%; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; font-size: .9rem; box-shadow: 0 1px 3px rgba(0,0,0,.2); }
 .card-body { padding: 14px 16px 16px; }
 .card-rating { color: #e0a32e; font-size: .85rem; margin: 4px 0 0; }
+.card-pop { font-size: .8rem; color: var(--muted); margin: 4px 0 0; }
 .card-top { display: flex; justify-content: space-between; align-items: center; }
 .type-tag { background: #f1e7dd; color: var(--accent-dark); font-size: .75rem; padding: 3px 8px; border-radius: 20px; font-weight: 700; }
 .type-tag.big { font-size: .9rem; padding: 6px 14px; }
@@ -94,6 +95,7 @@ main.wrap { padding-top: 28px; padding-bottom: 60px; min-height: 70vh; }
 .rec-btn { padding: 9px 16px; border: 1px solid var(--line); border-radius: 8px; background: #fff; cursor: pointer; font: inherit; font-weight: 700; color: var(--muted); }
 .rec-btn:hover { border-color: var(--accent); }
 .rec-btn.on { background: #fff6e6; border-color: #e0a32e; color: #97700f; }
+.pop-counts { display: flex; align-items: center; gap: 14px; margin-left: auto; color: var(--muted); font-size: .9rem; font-weight: 700; }
 .my-record { background: #f1f6ff; border-color: #cfe0f5; }
 .my-record form { display: flex; flex-direction: column; gap: 10px; }
 .my-record label { display: flex; flex-direction: column; gap: 5px; font-weight: 700; font-size: .9rem; }
