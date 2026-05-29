@@ -21,6 +21,7 @@ from flask import (
 )
 
 import ai_rules
+import ai_search
 import storage
 from models import Game, Participant, PlaySession, db
 
@@ -147,6 +148,44 @@ def register_routes(app: Flask) -> None:
             players=players,
             sort=sort,
             total=Game.query.count(),
+            ai_available=ai_search.is_available(),
+        )
+
+    @app.route("/search")
+    def ai_search_view():
+        """Natural-language search: "カタンと似たゲーム" など。"""
+        nlq = (request.args.get("nlq") or "").strip()
+        results = None        # list of (Game, reason)
+        interpretation = None
+        error = None
+
+        if nlq:
+            if not ai_search.is_available():
+                error = (
+                    "AI検索は利用できません（ANTHROPIC_API_KEY を設定してください）。"
+                    "通常のキーワード検索をお使いください。"
+                )
+            else:
+                try:
+                    all_games = Game.query.all()
+                    by_id = {g.id: g for g in all_games}
+                    res = ai_search.search(nlq, all_games)
+                    interpretation = res.interpretation
+                    results = [
+                        (by_id[h.id], h.reason)
+                        for h in res.hits
+                        if h.id in by_id
+                    ]
+                except Exception as e:  # noqa: BLE001
+                    error = f"AI検索に失敗しました: {e}"
+
+        return render_template(
+            "search.html",
+            nlq=nlq,
+            results=results,
+            interpretation=interpretation,
+            error=error,
+            ai_available=ai_search.is_available(),
         )
 
     @app.route("/game/<int:game_id>")

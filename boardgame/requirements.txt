@@ -3,6 +3,6 @@ Flask-SQLAlchemy>=3.1
 python-dotenv>=1.0
 gunicorn>=21.2
 google-cloud-storage>=2.18
-# Optional: only needed for the "AIでルールを生成" feature.
+# Optional: needed for AI features (ルール下書き生成 / 自然言語AI検索).
 anthropic>=0.69
 pydantic>=2.0

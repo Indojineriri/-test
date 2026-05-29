@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% block title %}AI検索 - ボードゲーム図鑑{% endblock %}
+{% block content %}
+<a class="back" href="{{ url_for('index') }}">← 一覧へ戻る</a>
+
+<section class="hero">
+  <h1>🔮 AIにことばで相談</h1>
+  <p>「○○と似たゲーム」「大人数で盛り上がる短時間ゲーム」など、自由な文章で探せます。</p>
+</section>
+
+<form class="ai-search-bar big" method="get" action="{{ url_for('ai_search_view') }}">
+  <span class="ai-search-icon">🔮</span>
+  <input type="search" name="nlq" value="{{ nlq }}"
+         placeholder="例: ドミニオンが好きな人に薦めたい戦略ゲーム"
+         {% if not ai_available %}disabled{% endif %}>
+  <button type="submit" {% if not ai_available %}disabled{% endif %}>AIで探す</button>
+</form>
+
+{% if not ai_available %}
+  <div class="flash flash-error">
+    AI検索を使うには <code>ANTHROPIC_API_KEY</code> の設定が必要です。
+    設定なしでも <a href="{{ url_for('index') }}">通常のキーワード検索</a> は使えます。
+  </div>
+{% endif %}
+
+{% if error %}
+  <div class="flash flash-error">{{ error }}</div>
+{% endif %}
+
+{% if nlq and not error %}
+  {% if interpretation %}
+    <p class="ai-interpretation">🤖 解釈: {{ interpretation }}</p>
+  {% endif %}
+
+  {% if results %}
+    <p class="result-count">{{ results|length }} 件のおすすめ</p>
+    <div class="grid">
+      {% for g, reason in results %}
+      <a class="card" href="{{ url_for('game_detail', game_id=g.id) }}">
+        <div class="card-top">
+          <span class="type-tag">{{ g.game_type }}</span>
+          <span class="diff" title="難易度">{{ '★' * g.difficulty }}{{ '☆' * (5 - g.difficulty) }}</span>
+        </div>
+        <h3>{{ g.name }}</h3>
+        {% if g.name_en %}<p class="en">{{ g.name_en }}</p>{% endif %}
+        <ul class="meta">
+          <li>👥 {{ g.player_range }}</li>
+          <li>⏱ {{ g.play_time_min }}分</li>
+        </ul>
+        <p class="ai-reason">💡 {{ reason }}</p>
+      </a>
+      {% endfor %}
+    </div>
+  {% else %}
+    <p class="empty">条件に合うゲームが見つかりませんでした。言い回しを変えてみてください。</p>
+  {% endif %}
+{% endif %}
+{% endblock %}

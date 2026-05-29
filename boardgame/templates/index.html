@@ -5,6 +5,13 @@
   <p>タイプや人数で絞り込み。気になるゲームのルールを読んで、そのまま遊べるサイトへ。</p>
 </section>
 
+<form class="ai-search-bar" method="get" action="{{ url_for('ai_search_view') }}">
+  <span class="ai-search-icon">🔮</span>
+  <input type="search" name="nlq"
+         placeholder="AIにことばで相談（例: カタンと似た交渉ゲーム / 初心者と短時間で遊べる協力ゲーム）">
+  <button type="submit">AIで探す</button>
+</form>
+
 <form class="filters" method="get" action="{{ url_for('index') }}">
   <input type="search" name="q" value="{{ q }}" placeholder="名前・タグで検索">
 
