@@ -128,6 +128,7 @@ def _migrate_schema() -> None:
             "image_url": "VARCHAR(800) DEFAULT ''",        # 画像
             "detailed_rules": "TEXT DEFAULT ''",           # アプリ内の詳細説明
             "rules_url": "VARCHAR(500) DEFAULT ''",        # 詳しい解説ページ
+            "video_url": "VARCHAR(500) DEFAULT ''",        # 解説/プレイ動画
         }
         for col, ddl in game_additions.items():
             if col not in cols:
@@ -169,7 +170,7 @@ def _seed_from_json() -> bool:
 
     # Fields we may flesh out in games.json after a DB was first seeded; we
     # backfill them onto existing rows when the DB value is still empty.
-    backfill_fields = ("image_url", "detailed_rules", "rules_url")
+    backfill_fields = ("image_url", "detailed_rules", "rules_url", "video_url")
 
     existing = {g.name: g for g in Game.query.all()}
     changed = False
@@ -575,6 +576,7 @@ def register_routes(app: Flask) -> None:
                 online_url=request.form.get("online_url", "").strip(),
                 bgg_url=request.form.get("bgg_url", "").strip(),
                 rules_url=request.form.get("rules_url", "").strip(),
+                video_url=request.form.get("video_url", "").strip(),
                 image_url=request.form.get("image_url", "").strip(),
             )
             db.session.add(game)

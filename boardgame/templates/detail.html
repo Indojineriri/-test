@@ -103,6 +103,24 @@
     </div>
   </section>
 
+  {% if game.video_url %}
+  <section class="video">
+    <h2>🎬 解説・プレイ動画</h2>
+    {% if game.youtube_embed %}
+    <div class="video-embed">
+      <iframe src="{{ game.youtube_embed }}" title="{{ game.name }} の動画"
+              frameborder="0" loading="lazy"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              allowfullscreen></iframe>
+    </div>
+    {% else %}
+    <a class="rules-link" href="{{ game.video_url }}" target="_blank" rel="noopener">
+      ▶ 動画を見る（外部サイト）
+    </a>
+    {% endif %}
+  </section>
+  {% endif %}
+
   <section class="photos">
     <h2>📷 みんなの写真 <span class="review-meta">（{{ photos|length }}枚）</span></h2>
 

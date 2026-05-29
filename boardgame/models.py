@@ -44,6 +44,7 @@ class Game(db.Model):
     online_url = db.Column(db.String(500), default="")  # 実際に遊べるサイト
     bgg_url = db.Column(db.String(500), default="")
     rules_url = db.Column(db.String(500), default="")  # 詳しい解説ページ
+    video_url = db.Column(db.String(500), default="")  # 解説/プレイ動画
     image_url = db.Column(db.String(800), default="")  # ゲームの写真
 
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
@@ -53,6 +54,25 @@ class Game(db.Model):
         if self.min_players == self.max_players:
             return f"{self.min_players}人"
         return f"{self.min_players}〜{self.max_players}人"
+
+    @property
+    def youtube_embed(self) -> str | None:
+        """Return a YouTube embed URL if video_url is a YouTube link, else None.
+
+        Handles watch?v=, youtu.be/, and /embed/ forms. Non-YouTube URLs return
+        None so the template falls back to a plain link.
+        """
+        import re
+
+        url = (self.video_url or "").strip()
+        if not url:
+            return None
+        m = re.search(
+            r"(?:youtube\.com/(?:watch\?(?:.*&)?v=|embed/)|youtu\.be/)"
+            r"([A-Za-z0-9_-]{11})",
+            url,
+        )
+        return f"https://www.youtube.com/embed/{m.group(1)}" if m else None
 
     @property
     def tag_list(self) -> list[str]:
@@ -87,6 +107,7 @@ class Game(db.Model):
             "online_url": self.online_url,
             "bgg_url": self.bgg_url,
             "rules_url": self.rules_url,
+            "video_url": self.video_url,
             "image_url": self.image_url,
         }
 

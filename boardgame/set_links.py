@@ -26,7 +26,7 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("mapping", help="JSON file: {game name: url}")
     parser.add_argument("--field", default="rules_url",
-                        choices=["rules_url", "image_url"],
+                        choices=["rules_url", "image_url", "video_url"],
                         help="which field to set (default: rules_url)")
     args = parser.parse_args()
 

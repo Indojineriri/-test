@@ -68,7 +68,11 @@
   </div>
 
   <label>🔗 詳しいルール解説ページURL（任意）
-    <input type="url" name="rules_url" value="{{ form.rules_url or '' }}" placeholder="公式ルール・解説サイト・動画など">
+    <input type="url" name="rules_url" value="{{ form.rules_url or '' }}" placeholder="公式ルール・解説サイトなど">
+  </label>
+
+  <label>🎬 解説・プレイ動画URL（任意・YouTube推奨）
+    <input type="url" name="video_url" value="{{ form.video_url or '' }}" placeholder="https://www.youtube.com/watch?v=...">
   </label>
 
   <label>画像URL（ゲームの写真）

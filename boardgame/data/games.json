@@ -19,7 +19,8 @@
     "bgg_url": "https://boardgamegeek.com/boardgame/13",
     "image_url": "",
     "detailed_rules": "【セットアップ】\n・6角形の地形タイルをランダムに並べ、各タイルに2〜12の数字チップを置きます（赤い数字6と8は出やすいので隣接させないのが基本）。\n・各プレイヤーは開拓地2つと街道2本を交互に配置し、2つ目の開拓地に隣接する3つの地形から資源を1枚ずつ受け取ります。\n\n【資源と産出】\n・地形は山(鉱石)・丘(レンガ)・牧草地(羊)・畑(小麦)・森(木)の5種。サイコロの出目と一致した地形に接する開拓地は資源1枚、都市は2枚を得ます。\n\n【建設コスト】\n・街道=木+レンガ／開拓地=木+レンガ+羊+小麦／都市=鉱石3+小麦2／発展カード=鉱石+羊+小麦。\n\n【盗賊と7】\n・7が出ると手札8枚以上の人は半分を捨て、手番者は盗賊を好きな地形に移動。その地形の所有者から資源を1枚奪います。盗賊がいる地形は産出が止まります。\n\n【交渉】\n・自分の手番中は他プレイヤーと自由にレートを決めて資源を交換できます。港を持つと銀行と有利なレート(3:1や2:1)で交換可能。\n\n【特別な得点】\n・最長交易路(連続5本以上の街道)と最大騎士力(騎士カード3枚以上使用)はそれぞれ2点。上回られると奪われます。",
-    "rules_url": "https://catan.jp/guide/"
+    "rules_url": "https://catan.jp/guide/",
+    "video_url": "https://www.youtube.com/watch?v=BAWr8J9LBmA"
   },
   {
     "name": "ニムト",
@@ -41,7 +42,8 @@
     "bgg_url": "https://boardgamegeek.com/boardgame/432",
     "image_url": "",
     "detailed_rules": "【セットアップ】\n・1〜104のカードを使用。各自10枚を手札にし、場に4枚を1枚ずつ別の列の起点として公開します。\n\n【出し方】\n・全員が手札から1枚を選び一斉公開。数字の小さい順に処理します。\n・カードは「自分の数字より小さく、かつ最も近い右端」の列に置きます。\n\n【牛(失点)を引き取る条件】\n・置こうとした列が6枚目になる場合、先の5枚を引き取り(牛マークが失点)、自分のカードがその列の新しい起点に。\n・どの列の右端よりも小さい数字を出した場合は、好きな列1つを引き取って自分のカードを起点にします。\n\n【終了】\n・10枚を出し切ったら1ラウンド終了。誰かの失点が66点に達したらゲーム終了で、最少失点が勝者。",
-    "rules_url": "https://boku-boardgame.net/nimmt-sleeve"
+    "rules_url": "https://boku-boardgame.net/nimmt-sleeve",
+    "video_url": "https://www.youtube.com/watch?v=PBjbRrO9qog"
   },
   {
     "name": "カルカソンヌ",
@@ -63,7 +65,8 @@
     "bgg_url": "https://boardgamegeek.com/boardgame/822",
     "image_url": "",
     "detailed_rules": "【タイル配置のルール】\n・引いたタイルは、接する辺の地形(都市は都市、道は道)が必ず合うように置きます。\n\n【ミープルの配置】\n・置いたばかりのタイル上の地形1つに、手元のミープルを「騎士(都市)/盗賊(道)/修道士(修道院)/農夫(草原)」として配置できます。ただし既に他者のミープルがつながっている地形には置けません。\n\n【得点】\n・道が完成(両端が交差点や都市)＝1タイル1点。\n・都市が完成(囲み切る)＝1タイル2点＋紋章1つ2点。\n・修道院＝周囲8マスが埋まると9点。\n・完成すると乗っていたミープルは手元に戻り、再利用できます。\n\n【農夫(上級者向け)】\n・草原に寝かせたミープルはゲーム終了まで戻りません。接する完成都市1つにつき3点。広い草原の支配は大量得点源です。",
-    "rules_url": "https://article.board.fan/game/carcassonnej/rule"
+    "rules_url": "https://article.board.fan/game/carcassonnej/rule",
+    "video_url": "https://www.youtube.com/watch?v=Qak5JwzN8Mw"
   },
   {
     "name": "ナショナルエコノミー",
@@ -85,7 +88,8 @@
     "bgg_url": "https://boardgamegeek.com/geeksearch.php?action=search&objecttype=boardgame&q=National+Economy",
     "image_url": "",
     "detailed_rules": "【ラウンド構成】\n・各ラウンドは「労働フェイズ→家計フェイズ」。労働者を建物に置いて働かせ、ラウンド末に賃金を払います。\n\n【労働フェイズ】\n・手番ごとに労働者を1人ずつ建物へ配置し、その効果を即実行。自分の建物のほか、共有の初期建物や他人の私有建物(使用料が発生)も使えます。建設・生産(商品化)・売却・カード獲得・お金獲得などを行います。\n\n【家計フェイズ】\n・労働者1人あたり規定額の賃金を支払います。払えない分の労働者は「失業者」になり、失業対策カードの効果やペナルティの対象に。失業を恐れて雇用を絞ると拡大が鈍る、というジレンマが核心です。\n\n【終了と得点】\n・規定ラウンド(通常9)後、所持金＋建物の価値が資産。最も資産が多いプレイヤーが勝利します。",
-    "rules_url": "https://bodoge.hoobby.net/games/national-economy/instructions/3310"
+    "rules_url": "https://bodoge.hoobby.net/games/national-economy/instructions/3310",
+    "video_url": "https://www.youtube.com/watch?v=tDO2cM-u-V4"
   },
   {
     "name": "ドミニオン",
@@ -107,7 +111,8 @@
     "bgg_url": "https://boardgamegeek.com/boardgame/36218",
     "image_url": "",
     "detailed_rules": "【デッキ構築の基本】\n・全員が銅貨7枚＋屋敷3枚の計10枚で開始し、よくシャッフルして5枚を手札に。山札が尽きたら捨て札を切り直して新しい山札にします。\n\n【1手番の3フェイズ】\n1. アクション(A)：標準で1回。アクションカードを1枚プレイ。「+アクション」があれば続けて使えます。\n2. 購入(B)：標準で1回。手札の財宝を出してコインにし、その範囲でサプライからカードを1枚購入。「+購入」で複数買えます。\n3. 片付け：場と手札を全て捨て札にし、山札から新たに5枚引いて手番終了。\n\n【サプライ】\n・財宝(銅3/銀6/金)、勝利点(屋敷1点/公領3点/属州6点)、呪い(-1点)に加え、毎ゲーム10種類の王国カードを選んで並べます。組み合わせで戦略が一変します。\n\n【勝利点の罠】\n・勝利点カードはゲーム中は手札で「何もしない」ため、買うほどデッキが重くなります。いつ切り替えるかが鍵。",
-    "rules_url": "https://boku-boardgame.net/dominion-sleeve"
+    "rules_url": "https://boku-boardgame.net/dominion-sleeve",
+    "video_url": "https://www.youtube.com/watch?v=qvtbKlsJWAo"
   },
   {
     "name": "レジスタンス",
@@ -129,7 +134,8 @@
     "bgg_url": "https://boardgamegeek.com/boardgame/41114",
     "image_url": "",
     "detailed_rules": "【陣営】\n・人数に応じてスパイ(悪)が割り当てられ、残りはレジスタンス(善)。夜、全員が目を閉じ、スパイだけが目を開けて仲間を確認します。\n\n【1ラウンドの流れ】\n1. 現リーダーが、今回のミッション人数(回ごとに指定)に行くメンバーを指名。\n2. 全員が「賛成/反対」を一斉公開。過半数が賛成なら実行。否決ならリーダーが左隣に移り再提案。同一ミッションで5回連続否決ならスパイ勝利。\n3. 選ばれたメンバーは「成功/失敗」カードを伏せて提出(善は成功しか出せない)。失敗が1枚でも(高人数の4回目だけ2枚)出れば失敗。\n\n【勝敗】\n・5ミッション中、先に3勝(成功)で善、3敗(失敗)で悪の勝利。議論と投票履歴からスパイを推理します。",
-    "rules_url": "http://coronavi.jp/game/30/%E3%83%AC%E3%82%B8%E3%82%B9%E3%82%BF%E3%83%B3%E3%82%B9"
+    "rules_url": "http://coronavi.jp/game/30/%E3%83%AC%E3%82%B8%E3%82%B9%E3%82%BF%E3%83%B3%E3%82%B9",
+    "video_url": "https://www.youtube.com/watch?v=r-58pq-PFXw"
   },
   {
     "name": "マスカレイド",
@@ -151,7 +157,8 @@
     "bgg_url": "https://boardgamegeek.com/boardgame/139030",
     "image_url": "",
     "detailed_rules": "【セットアップ】\n・各自に役職カードを1枚配り、最初に中身を確認。全員が13金近くから開始(人数で変動)。\n\n【手番の3択】\nA. 入れ替え：自分のカードと他人のカードをテーブル下で「入れ替える/入れ替えるふりをする」。本人もどちらか分からなくなります。\nB. 確認：自分のカードをこっそり覗く(序盤の様子見)。\nC. 宣言：ある役職を名乗り、その能力を使う。\n\n【異議とペナルティ】\n・Cで異議を唱える人がいれば、名乗り出た全員が「自分こそその役職だ」と主張してカード公開。本物1人だけが能力を発動。嘘をついた人は罰金1金を教会(場)に払います。\n\n【役職例】\n・裁判官=教会の金を総取り／女王=2金／王=3金／泥棒=両隣から1金ずつ／司教=最も裕福な人から2金、など。記憶と嘘が勝負を分けます。",
-    "rules_url": "https://game-information.com/mascarade/"
+    "rules_url": "https://game-information.com/mascarade/",
+    "video_url": "https://www.youtube.com/watch?v=0IRMOD3cU6U"
   },
   {
     "name": "パンデミック",
@@ -173,7 +180,8 @@
     "bgg_url": "https://boardgamegeek.com/boardgame/30549",
     "image_url": "",
     "detailed_rules": "【目的と協力】\n・全員で1つのチーム。4色の病原体すべての治療薬を見つければ勝利。会話して最適な手を相談できます。\n\n【1手番の流れ】\n1. 4アクション：隣接都市へ移動／飛行機移動(都市カードを捨てる)／調査基地建設／同色キューブ除去／同じ都市にいる仲間とカード受け渡し／同色カード5枚(科学者は4枚)を捨てて治療薬発見。\n2. プレイヤーカードを2枚引く。エピデミックを引くと新都市に大量感染＋感染が加速。\n3. 感染：感染率に応じてカードをめくり、示された都市にキューブを追加。\n\n【アウトブレイク】\n・キューブが3個の都市にさらに置こうとすると発生し、隣接都市へ連鎖。8回でゲームオーバー。\n\n【役割】\n・衛生兵(除去が強力)、研究員(カード共有自由)など固有能力を組み合わせて切り抜けます。",
-    "rules_url": "https://boku-boardgame.net/pandemic-sleeve"
+    "rules_url": "https://boku-boardgame.net/pandemic-sleeve",
+    "video_url": "https://www.youtube.com/watch?v=okFdJElGjck"
   },
   {
     "name": "モダンアート",
@@ -195,7 +203,8 @@
     "bgg_url": "https://boardgamegeek.com/boardgame/118",
     "image_url": "",
     "detailed_rules": "【競りの基本】\n・各プレイヤーは画商。手番に手札の絵を1枚出品し、描かれた競り方式で売ります。\n\n【5つの競り方式】\n・公開競り：早い者勝ちで自由に値を吊り上げ。\n・一声入札：一人一回だけ入札、最高額が落札。\n・指値：出品者が額を提示、左隣から順に「買う/パス」。誰も買わねば出品者が自分でその額で取得。\n・密室競り：全員が同時に伏せ入札、最高額が落札。\n・ダブル：同じ画家の絵をもう1枚添えて出品(方式は次の絵が決める)。\n\n【ラウンド終了と価値】\n・1ラウンドで同じ画家の絵が累計5枚出たら即終了。そのラウンドで売れた枚数の多い画家トップ3に価値(30/20/10)が付き、ラウンドをまたいで累積します。\n・手持ちの絵は、その画家の累積価値額で銀行に換金。価値0の画家の絵は紙くずです。",
-    "rules_url": "https://boku-boardgame.net/modernart"
+    "rules_url": "https://boku-boardgame.net/modernart",
+    "video_url": "https://www.youtube.com/watch?v=AzpDwA3yLpc"
   },
   {
     "name": "世界の七不思議",
@@ -217,7 +226,8 @@
     "bgg_url": "https://boardgamegeek.com/boardgame/68448",
     "image_url": "",
     "detailed_rules": "【ドラフトの仕組み】\n・3〜7人で同時プレイ。各時代の初めに7枚の手札が配られ、1枚を選んで残りを隣へ回す「ドラフト」を繰り返します。大人数でも待ち時間が少ないのが特徴。\n\n【カードの使い道（3択）】\n1. 建設：必要な資源を自分や両隣の生産で支払い、建物を場に出す。\n2. 不思議の建造：手札を裏向きに置き、自分のボードの不思議を1段階建てる。\n3. 資金化：手札を捨てて3コインを得る。\n\n【資源と購入】\n・茶/灰の資源カードは自前で生産。足りない分は両隣のプレイヤーに2コイン払って「購入」できます（相手の資源は減りません）。\n\n【カードの色】\n・茶灰=資源、青=勝利点、黄=商業/割引、赤=軍事、緑=科学、紫=ギルド。緑は同じシンボルのセットで2乗の得点、紫は終了時に特殊条件で加点。\n\n【軍事と得点】\n・各時代末、両隣と赤シンボル数を比較し勝1〜5点/敗-1点。第III時代終了後、建物・不思議・軍事・科学・商業・ギルドを合計し最高得点が勝利。",
-    "rules_url": "https://bodoge.hoobby.net/games/7-wonders/instructions/24136"
+    "rules_url": "https://bodoge.hoobby.net/games/7-wonders/instructions/24136",
+    "video_url": "https://www.youtube.com/watch?v=nzxSFIql29A"
   },
   {
     "name": "チケット・トゥ・ライド",
@@ -239,7 +249,8 @@
     "bgg_url": "https://boardgamegeek.com/boardgame/9209",
     "image_url": "",
     "detailed_rules": "【セットアップ】\n・各自に列車コマ45個、目的地チケット3枚（2枚以上を保持）、列車カード4枚を配ります。\n\n【手番の3択】\n1. カードを引く：場の5枚または山札から2枚。場の虹色(機関車)を場から取る場合は1枚のみ。\n2. 路線を敷く：2都市間の色と長さに合う列車カードを支払い、自分のコマを置いて得点（1区間=1点、長い路線ほど高得点）。\n3. 目的地チケットを引く：3枚引いて1枚以上保持。\n\n【目的地チケット】\n・2都市を自分の路線でつなげば達成して加点、未達成なら同点を減点。リスクとリターンの判断が肝。\n\n【終了】\n・誰かの列車コマが2個以下になったら全員あと1手番で終了。路線点＋達成チケット－未達成チケット＋最長路線ボーナス10点で最多が勝利。",
-    "rules_url": "https://engiinc.jp/blog/ticket-to-ride/"
+    "rules_url": "https://engiinc.jp/blog/ticket-to-ride/",
+    "video_url": "https://www.youtube.com/watch?v=6807hblHvj0"
   },
   {
     "name": "スプレンダー",
@@ -261,7 +272,8 @@
     "bgg_url": "https://boardgamegeek.com/boardgame/148228",
     "image_url": "",
     "detailed_rules": "【場の構成】\n・3段(レベル1〜3)の発展カードが各4枚公開。宝石トークン(5色＋黄金)と貴族タイルが並びます。\n\n【手番の4択】\nA. 異なる色のトークンを3枚取る。\nB. 同じ色のトークンを2枚取る(その色が場に4枚以上ある時のみ)。\nC. 発展カードを購入(トークンや所有カードの割引で支払い)。\nD. カードを1枚確保(リザーブ)し、黄金(万能)を1枚得る。手札上限3枚。\n\n【拡大再生産】\n・購入した発展カードは色ごとの永続割引になり、後のカードが安く買えます。これが加速して連鎖購入が可能に。\n\n【貴族と勝利】\n・必要な割引色を揃えると貴族タイルが自動訪問し3点。誰かが15点に到達したらそのラウンド末で終了、最多点(同点は購入カード枚数が少ない方)が勝利。",
-    "rules_url": "https://boku-boardgame.net/splendor"
+    "rules_url": "https://boku-boardgame.net/splendor",
+    "video_url": "https://www.youtube.com/watch?v=9F4-O7ewy7Q"
   },
   {
     "name": "アズール",
@@ -283,7 +295,8 @@
     "bgg_url": "https://boardgamegeek.com/boardgame/230802",
     "image_url": "",
     "detailed_rules": "【セットアップ】\n・人数+1個の円形タイル工房を用意し、各工房に色タイルを4枚ずつ配置。中央エリアも使います。\n\n【タイルの取得】\n・手番に、1つの工房から「同じ色のタイルを全部」取り、残りは中央へ押し出す。または中央から同色を全部取る(最初に中央を取る人は先手マーカーと減点1)。\n\n【配置(準備列)】\n・取ったタイルは自分のボード左側の5本の準備列のどれかに置く。1行は1色のみ。あふれた分や置けない分は床ライン(減点)へ。\n\n【得点フェイズ】\n・準備列が埋まった行は、右端のタイルを壁へ移して得点。壁で上下左右に連続するタイル数だけ加点。残りは捨て札に。\n\n【終了と最終得点】\n・壁の横一列(5枚)を完成させた人が出たらそのラウンドで終了。横列2点・縦列7点・同色5枚10点のボーナスを加え、最多点が勝利。",
-    "rules_url": "https://boku-boardgame.net/azul"
+    "rules_url": "https://boku-boardgame.net/azul",
+    "video_url": "https://www.youtube.com/watch?v=kN9EfzowT5Y"
   },
   {
     "name": "ウイングスパン",
@@ -305,7 +318,8 @@
     "bgg_url": "https://boardgamegeek.com/boardgame/266192",
     "image_url": "",
     "detailed_rules": "【生息地と列】\n・自分のボードは森(餌)・草原(産卵)・湿地(カード)の3列。鳥を左から並べていきます。\n\n【手番の4アクション】\nA. 鳥をプレイ：餌コストを払い、生息地に左から配置(置く列によって卵コストも)。\nB. 餌を取る：鳥かごダイスを選び、森の列の鳥能力を左→右で発動。\nC. 卵を産む：草原の列の鳥能力を発動し、鳥に卵を乗せる。\nD. カードを引く：湿地の列の鳥能力を発動。\n\n【エンジン】\n・列に鳥が増えるほど、その列のアクションで連鎖する「発動型/茶色」能力が強力に。コンボ構築が楽しさの核。\n\n【ラウンドと終了】\n・全4ラウンド。各ラウンドで使えるアクションキューブが1つずつ減少。ラウンド目標の達成でも加点。鳥の点・卵・餌・ボーナスカード・目標を合計し最多点が勝利。",
-    "rules_url": "https://boku-boardgame.net/wingspan"
+    "rules_url": "https://boku-boardgame.net/wingspan",
+    "video_url": "https://www.youtube.com/watch?v=EjcmfayOX1Y"
   },
   {
     "name": "コードネーム",
@@ -327,7 +341,8 @@
     "bgg_url": "https://boardgamegeek.com/boardgame/178900",
     "image_url": "",
     "detailed_rules": "【盤面と役割】\n・25枚の単語カードを5×5に並べます。各チーム(赤/青)に1人のスパイマスター。マスターだけが、どの単語が自陣/相手/無関係/暗殺者かを示す配置図を見ます。\n\n【ヒント】\n・手番のマスターは、自陣の複数単語に共通する「1単語のヒント＋個数」だけを伝えます(例:「動物、2」)。具体的な位置や言い回しの誘導は禁止。\n\n【回答】\n・諜報員は相談して単語を指差し。自陣色なら成功で続行(ヒント個数+1回まで)、相手色/無関係なら手番終了。\n\n【暗殺者】\n・暗殺者の単語を指したチームは即敗北。これがスリルの源。\n\n【勝敗】\n・自陣の担当単語(先手9枚/後手8枚)を先に全て当てたチームの勝利。",
-    "rules_url": "https://boku-boardgame.net/codename"
+    "rules_url": "https://boku-boardgame.net/codename",
+    "video_url": "https://www.youtube.com/watch?v=mpLR74PkfS0"
   },
   {
     "name": "ディクシット",
@@ -349,7 +364,8 @@
     "bgg_url": "https://boardgamegeek.com/boardgame/39856",
     "image_url": "",
     "detailed_rules": "【役割】\n・手番ごとに1人が「語り部」。残りは回答者。各自は手札に幻想的な絵札を6枚持ちます。\n\n【出題】\n・語り部は手札から1枚を選び、その絵を表す言葉・フレーズ・歌・音などのヒントを出して伏せて出します。狙いは「全員には当てられず、かといって誰にも当てられないほどでもない」絶妙さ。\n\n【回答カードと投票】\n・他のプレイヤーはヒントに合いそうな自分の絵札を1枚伏せて提出。全員の札をシャッフルして公開し、各回答者が語り部の本物だと思う札に投票。\n\n【得点】\n・全員正解or全員不正解→語り部0点・他は2点。一部だけ正解→語り部と当てた人が3点。さらに自分の出した札に票が入ると1票1点(最大3点)のボーナス。\n\n【終了】\n・山札が尽きるか誰かが30点に到達で終了、最多点が勝利。",
-    "rules_url": "https://boku-boardgame.net/dixit-sleeve"
+    "rules_url": "https://boku-boardgame.net/dixit-sleeve",
+    "video_url": "https://www.youtube.com/watch?v=qS_A054Pyno"
   },
   {
     "name": "ラブレター",
@@ -371,7 +387,8 @@
     "bgg_url": "https://boardgamegeek.com/boardgame/129622",
     "image_url": "",
     "detailed_rules": "【カード構成(基本16枚)】\n・兵士(1)×5、道化(2)×2、騎士(3)×2、僧侶(4)×2、魔術師(5)×2、将軍(6)、大臣(7)、姫(8)各1。数字が大きいほど強いが危険も。\n\n【手番】\n・手札1枚の状態で始まり、山札から1枚引いて2枚に。どちらかを出して効果を発動します。\n・兵士=相手の手札(兵士以外)を宣言し当たれば脱落／道化=手札を見る／騎士=手札比べで小さい方が脱落／僧侶=次の自分の手番まで無敵／魔術師=対象の手札を捨てさせ引き直し／将軍=手札交換／大臣=手札合計12以上で脱落／姫=出すと脱落。\n\n【ラウンド勝者】\n・1人を残して全員脱落、または山札切れ時に手札の数字が最大の人が勝者。トークンを1つ得ます。\n\n【勝利】\n・規定数(人数により)のトークンを先に集めたプレイヤーが最終勝者。",
-    "rules_url": "https://boku-boardgame.net/love-letter-sleeve"
+    "rules_url": "https://boku-boardgame.net/love-letter-sleeve",
+    "video_url": "https://www.youtube.com/watch?v=u8Xtd57zTnM"
   },
   {
     "name": "人狼",
@@ -393,7 +410,8 @@
     "bgg_url": "https://boardgamegeek.com/boardgame/925",
     "image_url": "",
     "detailed_rules": "【準備】\n・進行役(GM)が村人・人狼・役職(占い師/霊媒師/狩人/狂人など)カードを配ります。人狼は少数派。\n\n【夜フェイズ】\n・全員目を閉じ、GMの誘導で人狼が襲撃対象を1人選択。占い師は1人の正体(人狼か否か)を知り、狩人は1人を護衛、などの能力を使います。\n\n【朝・昼フェイズ】\n・襲撃された人が犠牲者として発表され脱落。残り全員で議論し、人狼と疑う人を1人、投票で処刑します。\n\n【勝利条件】\n・村人陣営=人狼を全員処刑。人狼陣営=人狼の数が村人と同数以上になる。これを満たすまで夜と昼を繰り返します。GMの進行と、嘘・推理・説得が醍醐味。",
-    "rules_url": "https://www.bodoge-intl.com/list/insapo/hazimete/"
+    "rules_url": "https://www.bodoge-intl.com/list/insapo/hazimete/",
+    "video_url": "https://www.youtube.com/watch?v=2D-ebbjIh1Q"
   },
   {
     "name": "ごきぶりポーカー",
@@ -415,7 +433,8 @@
     "bgg_url": "https://boardgamegeek.com/boardgame/11971",
     "image_url": "",
     "detailed_rules": "【カード】\n・ゴキブリ・ネズミ・コウモリ・カエル・サソリ・クモ・カメムシ・ハエの8種、各8枚。\n\n【手番】\n・手札から1枚を裏向きで持ち、相手を1人選んで「これは○○だ」と種類を宣言して差し出します。宣言は本当でも嘘でもOK。\n\n【受け手の選択】\nA. 「本当」または「嘘だ」を当てる：当たれば差し出した側が、外せば受け取った側がそのカードを表で自分の前に置く。\nB. こっそり中身を見て、別の人へ宣言し直して回す(さらにブラフ継続)。\n\n【敗北条件】\n・同じ種類のカードを4枚自分の前に並べてしまうか、手番で出す手札が無くなった人が即負け。表情と言葉の心理戦がすべて。",
-    "rules_url": "https://boku-boardgame.net/kakerlakenpoker"
+    "rules_url": "https://boku-boardgame.net/kakerlakenpoker",
+    "video_url": "https://www.youtube.com/watch?v=uy3ann7tSgk"
   },
   {
     "name": "それは私のサカナだ",
@@ -437,7 +456,8 @@
     "bgg_url": "https://boardgamegeek.com/boardgame/8203",
     "image_url": "",
     "detailed_rules": "【セットアップ】\n・1〜3匹の魚が描かれた六角形の氷タイルを敷き詰めます。手番順にペンギンを1匹の魚タイル上へ配置(人数でペンギン数が変動)。\n\n【移動】\n・手番にペンギン1匹を、直線方向(6方向)へ好きなマス数だけ滑らせます。穴や他のペンギンは飛び越えられません。\n\n【タイル回収】\n・移動元のタイルを取り上げて自分の獲得とし、その場所は穴になります。盤面が分断され、相手の道を塞ぐ駆け引きが生まれます。\n\n【終了】\n・動けなくなったペンギンは、乗っているタイルを回収して退場。全ペンギンが動けなくなったら終了し、集めた魚の合計数が最多のプレイヤーが勝利。",
-    "rules_url": "https://bodoge.hoobby.net/games/packeis-am-pol/instructions/1874"
+    "rules_url": "https://bodoge.hoobby.net/games/packeis-am-pol/instructions/1874",
+    "video_url": "https://www.youtube.com/watch?v=D-5xOFuCHMY"
   },
   {
     "name": "お邪魔者",
@@ -459,7 +479,8 @@
     "bgg_url": "https://boardgamegeek.com/boardgame/9220",
     "image_url": "",
     "detailed_rules": "【役割】\n・人数に応じて金鉱掘り(多数)とお邪魔者(少数)の役割カードを秘密裏に配布。自分の陣営は分かるが他人の正体は不明。\n\n【手番(3択)】\nA. 坑道カードを場に置き、スタートから金塊カードへ道をつなげる(辺の通路が合うように)。\nB. アクションカードを使う：他人の道具(ランプ/ツルハシ/トロッコ)を壊す/直す、落盤で坑道を除去、地図で金塊位置を覗くなど。\nC. カードを伏せてパス。\n・行動後に山札から1枚補充。\n\n【勝敗(1ラウンド)】\n・坑道が金塊に到達→金鉱掘りの勝利。つながる前に全員の手札が尽きる→お邪魔者の勝利。勝った陣営が金(報酬)を分配。\n\n【ゲーム終了】\n・規定ラウンド後、最も多く金を集めたプレイヤーが総合勝者。",
-    "rules_url": "https://www.well-boardgame.com/saboteur-rule/"
+    "rules_url": "https://www.well-boardgame.com/saboteur-rule/",
+    "video_url": "https://www.youtube.com/watch?v=7NDbYuacbZo"
   },
   {
     "name": "クー",
@@ -481,7 +502,8 @@
     "bgg_url": "https://boardgamegeek.com/boardgame/131357",
     "image_url": "",
     "detailed_rules": "【セットアップ】\n・公爵・暗殺者・大使・船長・女伯爵の5種×3枚。各自2枚を伏せて持ち(=影響力2)、コイン2枚で開始。\n\n【手番のアクション】\n・収入(1金)／外国援助(2金)／クーデター(7金で相手の影響力1を破壊)。\n・役職を主張する能力：公爵=税収3金/外国援助を妨害、暗殺者=3金で暗殺、大使=カード交換、船長=2金強奪、女伯爵=暗殺と強奪を防御。\n\n【ブラフとチャレンジ】\n・役職能力は実際に持っていなくても「ふり」で宣言可。疑われ(チャレンジ)、嘘がバレたら影響力1を失う。本当なら疑った側が失う。妨害(ブロック)も同様にチャレンジ可能。\n\n【勝敗】\n・影響力(手札)を2枚とも失うと脱落。最後の1人が勝者。コイン10枚以上は強制クーデター。",
-    "rules_url": "https://bdg.kirinnox.com/entry/coup"
+    "rules_url": "https://bdg.kirinnox.com/entry/coup",
+    "video_url": "https://www.youtube.com/watch?v=QLesvtitDDU"
   },
   {
     "name": "ストーンエイジ",
@@ -503,7 +525,8 @@
     "bgg_url": "https://boardgamegeek.com/boardgame/34635",
     "image_url": "",
     "detailed_rules": "【ラウンド=配置→実行】\n・手番ごとに自分の人コマを各アクションスペースに配置。全員置き終えてから順に実行します。\n\n【配置先】\n・狩り場(食料)／森(木)／粘土採掘場／採石場／川(金)／道具製作所／小屋(人口増)／カード市場／建物。\n\n【実行(ダイス)】\n・狩りや資源場では、置いた人数分のダイスを振り、出目合計÷各資源の価値で獲得量が決まる。道具や農耕レベルで補正できます。\n\n【食料供給】\n・ラウンド末に全部族員を食料で養う。足りないと大きな減点。農耕を上げると安定します。\n\n【得点と終了】\n・建物の即時得点に加え、文化カードは終了時に「カードの種類×農耕」などで大量得点。建物の山が尽きるか文化列が補充不能で終了、最多点が勝利。",
-    "rules_url": "https://www7a.biglobe.ne.jp/~bluebear/MyBSW/MU_LIST/StoneAge/StoneAge.html"
+    "rules_url": "https://www7a.biglobe.ne.jp/~bluebear/MyBSW/MU_LIST/StoneAge/StoneAge.html",
+    "video_url": "https://www.youtube.com/watch?v=fmE6PnfdFuU"
   },
   {
     "name": "プエルトリコ",
@@ -525,7 +548,8 @@
     "bgg_url": "https://boardgamegeek.com/boardgame/3076",
     "image_url": "",
     "detailed_rules": "【役割選択が核】\n・手番者が役割カードを1枚選ぶと、その役割の行動を全員が順に行います(選んだ本人だけ特典付き)。残った役割カードには毎ラウンド金貨が乗り、選ぶと貰えます。\n\n【7つの役割】\n・開拓者=農園タイル取得／市長=入植者(労働力)を配置／建築家=建物購入(本人は割引)／監督=作物生産/金鉱掘り=金貨／商人=作物を売って現金化／船長=作物を船に積んで出荷し勝利点。\n\n【生産チェーン】\n・農園で作物を育て、対応する加工施設と労働者を揃えると商品化。砂糖・タバコ・コーヒー・染料・コーンを扱います。\n\n【終了と得点】\n・勝利点チップが尽きる/建物スペースが埋まる/入植者補充不能のいずれかでそのラウンド末に終了。建物点＋出荷点＋大建造物ボーナスで最多が勝利。",
-    "rules_url": "https://bodoge.hoobby.net/games/puerto-rico/instructions/28866"
+    "rules_url": "https://bodoge.hoobby.net/games/puerto-rico/instructions/28866",
+    "video_url": "https://www.youtube.com/watch?v=8faeQaHDI5E"
   },
   {
     "name": "アグリコラ",
@@ -547,7 +571,8 @@
     "bgg_url": "https://boardgamegeek.com/boardgame/31260",
     "image_url": "",
     "detailed_rules": "【家族(ワーカー)】\n・最初は夫婦2人の家族コマで開始。出産アクションで家族=手番に置けるコマを増やせますが、住居の拡張が必要です。\n\n【ラウンドと収穫】\n・全14ラウンド、6つの収穫期があります。手番に家族コマをアクションスペース(畑を耕す/木・葦・石・食料を集める/家畜/職業・小さな進歩カードのプレイ/増築など)へ1つずつ配置。\n\n【食料供給】\n・収穫期には作物を収穫し、家族1人につき食料2を支払い、家畜が繁殖。食料が足りないと物乞いカード(各-3点)を引き、大きな減点に。\n\n【得点】\n・畑・牧場・各家畜(羊/猪/牛)・穀物/野菜・住居の材質・家族数・進歩カードを得点化。更地や家畜0などはマイナス。バランスよく発展させた人が勝利。",
-    "rules_url": "https://gatsby64.com/aglicora-rule/"
+    "rules_url": "https://gatsby64.com/aglicora-rule/",
+    "video_url": "https://www.youtube.com/watch?v=RHjekwn_CUA"
   },
   {
     "name": "テラフォーミング・マーズ",
@@ -569,7 +594,8 @@
     "bgg_url": "https://boardgamegeek.com/boardgame/167791",
     "image_url": "",
     "detailed_rules": "【目的】\n・企業として火星の3指標(気温・酸素・海洋)を上げる。各上昇で自分のTR(評価=毎世代の収入かつ得点)が上がります。\n\n【世代の流れ】\n1. 研究：プロジェクトカードをドラフト購入(1枚3M€)して手札に。\n2. アクション：手番に1〜2アクション。カードのプレイ(コスト支払い)、標準プロジェクト(気温/酸素を上げる等)、青カードの能力起動、緑地・都市の建設など。全員パスで生産へ。\n3. 生産：各資源(M€/鉄/チタン/植物/電力/発熱)を生産トラックに従い獲得。\n\n【コンボ】\n・カードのタグ(宇宙/建材/微生物など)が他カードの割引や効果条件に。エンジンを組むほど加速します。\n\n【終了】\n・3指標が全て上限に達した世代で終了。TR＋盤上の都市/緑地＋実績/褒賞＋カード得点で最多が勝利。",
-    "rules_url": "https://boardgame-overreview.com/games/terraforming-mars/"
+    "rules_url": "https://boardgame-overreview.com/games/terraforming-mars/",
+    "video_url": "https://www.youtube.com/watch?v=ukSHAEKnFhA"
   },
   {
     "name": "キング・オブ・トーキョー",
@@ -591,7 +617,8 @@
     "bgg_url": "https://boardgamegeek.com/boardgame/70323",
     "image_url": "",
     "detailed_rules": "【怪獣とダイス】\n・各自が怪獣1体(体力10/勝利点0)。手番に6個のダイスを振り、最大2回まで好きな目を残して振り直します(ヨット系)。\n\n【ダイスの目】\n・1/2/3=同じ数字を3つ揃えるとその数の勝利点。爪=攻撃。ハート=回復。稲妻=エナジー獲得。\n\n【東京の出入り】\n・東京の中の怪獣は外の全員を攻撃でき、入る/居座ると勝利点も得るが、回復不可で集中攻撃を浴びます。外の怪獣は東京内を攻撃。ダメージを与えると、入れ替わりで東京に入れます。\n\n【カード】\n・エナジーで購入するパワーアップカードで永続能力や即時効果を得られます。\n\n【勝利】\n・勝利点20点に到達、または自分以外の怪獣が全滅したら勝利。",
-    "rules_url": "https://boku-boardgame.net/king-of-tokyo"
+    "rules_url": "https://boku-boardgame.net/king-of-tokyo",
+    "video_url": "https://www.youtube.com/watch?v=4LYl2HgLjec"
   },
   {
     "name": "ブロックス",
@@ -613,7 +640,8 @@
     "bgg_url": "https://boardgamegeek.com/boardgame/2453",
     "image_url": "",
     "detailed_rules": "【ピース】\n・各自1色を担当し、1〜5マスのポリオミノ21個を持ちます(計89マス分)。\n\n【配置ルール】\n・最初のピースは自分のスタート角を含むマスに置きます。\n・2手目以降は、自分の既存ピースと必ず「角」だけで接するように置く。辺で接してはいけません(自分の色同士)。他人の色とは辺で接してもOK。\n\n【パスと終了】\n・置けるピースが無くなったらパス。全員が置けなくなったら終了。\n\n【得点】\n・盤に置けたマス数が多いほど良い(=手元の残りマスが少ない)。全21個を置き切ると+15点、最後が1マスピースならさらに+5点。最高得点が勝利。",
-    "rules_url": "https://boku-boardgame.net/blokus"
+    "rules_url": "https://boku-boardgame.net/blokus",
+    "video_url": "https://www.youtube.com/watch?v=Y8qHm1FU1ww"
   },
   {
     "name": "キャント・ストップ",
@@ -635,7 +663,8 @@
     "bgg_url": "https://boardgamegeek.com/boardgame/41",
     "image_url": "",
     "detailed_rules": "【道具】\n・2〜12のコラム(列)があり、中央の2・12は短く7が最長。共用の白い前進コマ3個と、各自の色マーカーを使います。\n\n【手番】\n・サイコロ4個を振り、2個ずつ2組に分けて2つの合計を作ります(分け方は自由)。\n・その数字のコラムに白コマを進める。1手番で動かせるのは最大3本のコラムまで。\n\n【バースト】\n・振った目から、進められる3本のコラムをどう組んでも作れない場合「バースト」。その手番に進めた分は全て無効になります。\n\n【ストップの判断】\n・バースト前に止めれば、白コマの到達位置を自分の色マーカーで確定して手番終了。欲張るほどリスクが上がるジレンマ。\n\n【勝利】\n・自分のマーカーで3本のコラムの頂上に到達したプレイヤーが勝利。",
-    "rules_url": "https://lecu1012.com/bga_cantstop/"
+    "rules_url": "https://lecu1012.com/bga_cantstop/",
+    "video_url": "https://www.youtube.com/watch?v=QrX3BchC1uI"
   },
   {
     "name": "ハゲタカのえじき",
@@ -657,7 +686,8 @@
     "bgg_url": "https://boardgamegeek.com/boardgame/6249",
     "image_url": "",
     "detailed_rules": "【カード】\n・各自1〜15の数字カードを1組ずつ。場には得点カード+1〜+10と-1〜-5(計15枚)。\n\n【競り】\n・得点カードを1枚めくり、全員が手札から1枚を選んで一斉公開します。\n\n【獲得ルール】\n・プラスの得点カード:最も大きい数字を出した人が獲得。ただし同じ数字を出した人同士は無効になり、次に大きい単独の数字の人が取ります。全員かぶれば次のカードへ持ち越し。\n・マイナスの得点カード:最も小さい単独の数字を出した人が引き取らされます。\n\n【使い切り】\n・出した数字カードは戻りません。15枚の得点カードを巡って15回勝負。\n\n【勝利】\n・獲得した得点カードの合計(プラスとマイナスの差し引き)が最も高いプレイヤーが勝利。",
-    "rules_url": "https://boku-boardgame.net/hagetakanoejiki"
+    "rules_url": "https://boku-boardgame.net/hagetakanoejiki",
+    "video_url": "https://www.youtube.com/watch?v=4BVvF7HSncI"
   },
   {
     "name": "ハナビ",
@@ -679,7 +709,8 @@
     "bgg_url": "https://boardgamegeek.com/boardgame/98778",
     "image_url": "",
     "detailed_rules": "【特殊な配り方】\n・自分の手札は相手に向け、自分だけ見えない状態で持ちます(2〜3人は5枚、4〜5人は4枚)。\n\n【手番(3択)】\nA. ヒントを出す:ヒントトークンを1つ消費し、他プレイヤーに「この2枚が赤」「この1枚が3」など色か数字のどちらかを正確に伝える。\nB. カードを捨てる:ヒントトークンを1つ回復し、山から補充。\nC. カードをプレイ:場に出す。各色1→2→3→4→5の昇順なら成功、間違えるとミストークンを1つ消費。\n\n【トークン】\n・ヒントは限られ(8個)、ミスは3回でゲームオーバー。何を伝え何を察するかが核心。\n\n【終了と得点】\n・ミス3回で即終了、または山札が尽きたら最後の一巡で終了。並んだ花火の合計枚数が得点(最大25点)。全員で高得点を目指す協力ゲーム。",
-    "rules_url": "https://lecu1012.com/bga_hanabi/"
+    "rules_url": "https://lecu1012.com/bga_hanabi/",
+    "video_url": "https://www.youtube.com/watch?v=3m2KL4Yjz_o"
   },
   {
     "name": "ボーナンザ",
@@ -701,7 +732,8 @@
     "bgg_url": "https://boardgamegeek.com/boardgame/11",
     "image_url": "",
     "detailed_rules": "【重要ルール:手札の順番固定】\n・手札のカードは順番を並べ替えられません。引いたカードは列の最後尾に加わります。これが交渉の必然性を生みます。\n\n【手番の流れ】\n1. 手札の先頭の豆を必ず畑に植える(任意で2枚目も)。畑は1種類の豆しか置けません。\n2. 山から2枚めくって場に出し、それらや自分の手札を使って他プレイヤーと交渉・交換。受け取った豆や場の豆を自分の畑に植える。\n3. 山から手札を補充(最後尾に追加)。\n\n【畑と収穫】\n・畑は2〜3枚。植えられない/植え替えたい時は畑を収穫し、豆の枚数に応じた金額表でタラー(金貨/得点)に換金します。\n\n【終了】\n・山札を規定回数(3回)使い切ったら終了。各自が畑を清算し、貯めたタラーが最多のプレイヤーが勝利。",
-    "rules_url": "https://macbeth-taisa.com/bohnanza/"
+    "rules_url": "https://macbeth-taisa.com/bohnanza/",
+    "video_url": "https://www.youtube.com/watch?v=VW61aJ0YCZo"
   },
   {
     "name": "ガイスター",
@@ -723,7 +755,8 @@
     "bgg_url": "https://boardgamegeek.com/boardgame/2290",
     "image_url": "",
     "detailed_rules": "【セットアップ(2人)】\n・各自、青(良い)4体・赤(悪い)4体のオバケを、色を相手に見せないよう自陣の所定マスに配置します。\n\n【移動と捕獲】\n・手番にオバケ1体を縦か横へ1マス移動。相手オバケのマスに入るとそれを捕獲し、初めて色が判明します。\n\n【3つの勝利条件】\n1. 自分の青オバケを、相手陣地の角にある出口マスから盤外へ脱出させる。\n2. 相手の青オバケを4体すべて捕獲する。\n3. 自分の赤オバケを4体すべて相手に捕獲させる。\n\n【駆け引き】\n・相手は捕まえたオバケの色が分からないため、わざと赤を差し出して捕らせる、青を出口へ走らせる素振りで揺さぶる、など心理戦が展開します。",
-    "rules_url": "https://www.well-boardgame.com/geister-rule/"
+    "rules_url": "https://www.well-boardgame.com/geister-rule/",
+    "video_url": "https://www.youtube.com/watch?v=fj_A8dUOjXs"
   },
   {
     "name": "スコットランドヤード",
@@ -745,7 +778,8 @@
     "bgg_url": "https://boardgamegeek.com/boardgame/438",
     "image_url": "",
     "detailed_rules": "【役割の非対称】\n・1人が逃走者Mr.X、残りが刑事(最大5人)。ロンドンの駅マップ上を移動します。\n\n【移動手段】\n・タクシー(近距離)・バス(中距離)・地下鉄(長距離)のチケットを使って隣接駅へ移動。Mr.Xは加えて、稀少な「ブラックチケット(手段隠蔽)」「2倍移動」も使えます。\n\n【Mr.Xの秘匿】\n・Mr.Xは現在位置を伏せ、使った移動手段だけを記録ボードで公開。決められた数ターン(浮上ターン)だけ現在位置を一瞬公開します。\n\n【刑事の制約】\n・刑事の使ったチケットはMr.Xの手元に渡る。刑事はチケットが有限なので、協力して退路を断つ必要があります。\n\n【勝敗】\n・刑事がMr.Xと同じ駅に止まれば捕獲成功で刑事の勝利。Mr.Xが規定ターン(通常24)逃げ切れば逃走者の勝利。",
-    "rules_url": "https://appmedia.jp/news/4809553"
+    "rules_url": "https://appmedia.jp/news/4809553",
+    "video_url": "https://www.youtube.com/watch?v=nWX3TkIZOno"
   },
   {
     "name": "世界の七不思議：デュエル",
@@ -767,7 +801,8 @@
     "bgg_url": "https://boardgamegeek.com/boardgame/173346",
     "image_url": "",
     "detailed_rules": "【場の構成】\n・カードをピラミッド状に重ねて配置。他のカードに覆われていない、取れる状態のカードだけを選べます。\n\n【手番(3択)】\n1. 建設:資源を払って建物を場に出す。\n2. 不思議の建造:カードを使って不思議を建てる(全部で7つだが、建てられるのは両者合計7つまで)。\n3. 廃棄:カードを捨てて、黄色カードの数に応じたコインを得る。\n\n【2つの即時勝利】\n・軍事:赤カードで軍事トークンを相手側へ進め、相手の首都に到達させると軍事的勝利。\n・科学:6種類の異なる科学シンボルを集めると科学的勝利。\n\n【通常勝利】\n・どちらの即時勝利も起きなければ、第III時代終了時に勝利点(青/紫/科学/不思議/コイン)の合計が多い方が勝利。相手の動きを常に妨害する、緊張感ある2人専用設計。",
-    "rules_url": "https://bodoge.hoobby.net/games/7-wonders-duel/instructions/10737"
+    "rules_url": "https://bodoge.hoobby.net/games/7-wonders-duel/instructions/10737",
+    "video_url": "https://www.youtube.com/watch?v=3-q0Lf3uhAo"
   },
   {
     "name": "パッチワーク",
@@ -789,7 +824,8 @@
     "bgg_url": "https://boardgamegeek.com/boardgame/163412",
     "image_url": "",
     "detailed_rules": "【ボードとコマ】\n・各自9×9のキルトボード。共通の時間ボードに2人のコマを置き、ボタン(お金兼得点)で開始します。\n\n【手番(時間ボードで後ろの人)】\nA. タイルを買う:円形に並ぶ布タイルのうち、コマの手前3つから1つを選択。ボタンコストを支払い、時間コスト分だけ時間ボードを進め、自分のキルトに配置(回転可)。\nB. 進んで稼ぐ:タイルを買わず、相手の1マス手前まで進み、進んだマス数だけボタンを得る。\n\n【収入】\n・時間ボード上のボタン入りマスを通過するたび、配置済みタイルのボタン記号の数だけ収入。\n\n【終了と得点】\n・両者のコマが終点に達したら終了。残ボタン数から、キルトの空きマス1つにつき-2点。先に7×7の領域を埋めた人は+7点。得点が高い方が勝利。",
-    "rules_url": "https://boku-boardgame.net/patch-work-winter"
+    "rules_url": "https://boku-boardgame.net/patch-work-winter",
+    "video_url": "https://www.youtube.com/watch?v=j5XGKUQv2VY"
   },
   {
     "name": "ジャイプル",
@@ -811,7 +847,8 @@
     "bgg_url": "https://boardgamegeek.com/boardgame/54043",
     "image_url": "",
     "detailed_rules": "【場】\n・市場に商品カード5枚を公開。山札と、宝石/布/革/香辛料/銀/金/ラクダのトークンを使います。\n\n【手番(取る or 売る)】\n・取る:市場から商品1枚を取る／ラクダを全部取って自分のラクダ置場へ／手札と市場の複数枚を交換する(ラクダも使える)。手札上限は7枚(ラクダは別管理)。\n・売る:同じ種類の商品を好きな枚数まとめて場に出し、対応する商品トークンを得る。高額な宝石・金・銀は最低2〜3枚から売れます。\n\n【ボーナストークン】\n・3枚/4枚/5枚を一度に売ると、追加のボーナストークン(早い者勝ちで高額)を獲得。\n\n【ラウンド終了】\n・3種類の商品トークンが売り切れたら終了。ラクダ最多の人がラクダボーナス5点。トークン合計が多い方がそのラウンドの勝者となり、2ラウンド先取で総合優勝。",
-    "rules_url": "https://boku-boardgame.net/jaipur"
+    "rules_url": "https://boku-boardgame.net/jaipur",
+    "video_url": "https://www.youtube.com/watch?v=OSJVee0FX8M"
   },
   {
     "name": "ロストシティ",
@@ -833,7 +870,8 @@
     "bgg_url": "https://boardgamegeek.com/boardgame/50",
     "image_url": "",
     "detailed_rules": "【場と手札】\n・5色(探検路)の数字カード(2〜10)と各色の賭けカードを使用。手札8枚で開始します。\n\n【手番】\n1. カードを1枚「出す」か「捨てる」:出す場合、その色の探検路に、既に出した数字より大きい数字を重ねます(昇順厳守・小さい数字は出せない)。捨て札は色別。\n2. 山札か、いずれかの色の捨て札の一番上から1枚補充。\n\n【賭けカード】\n・数字を出す前にその色の賭けカードを出すと、その探検路の最終得点が倍(2枚で3倍)に。ただしマイナスも倍増。\n\n【得点計算】\n・各色は「出したカードの数字合計-20(固定の探検費)」×賭け倍率。8枚以上出すとさらに+20ボーナス。\n\n【終了】\n・山札が尽きたら終了。5色の合計が高い方が勝利。手を広げすぎると固定費20でマイナスになる、悩ましい2人用ゲーム。",
-    "rules_url": "https://lecu1012.com/bga_lostcities/"
+    "rules_url": "https://lecu1012.com/bga_lostcities/",
+    "video_url": "https://www.youtube.com/watch?v=OvqOQLw9UcA"
   },
   {
     "name": "バトルライン",
@@ -855,7 +893,8 @@
     "bgg_url": "https://boardgamegeek.com/boardgame/760",
     "image_url": "",
     "detailed_rules": "【場】\n・9つの旗を一列に並べ、その両側にカードを配置します。色6種×1〜10の部隊カードと、特殊な戦術カードを使用。\n\n【手番】\n・部隊カードを1枚、いずれかの旗の自分側に置く(各旗3枚まで)。その後、山札から1枚補充。\n\n【役(フォーメーション)の強さ】\n・3枚で作る役の強弱は、同色の連番(ウェッジ)＞同数字3枚＞同色3枚＞連番＞合計値の順。\n\n【旗の獲得】\n・両側に3枚揃ったら役を比較し強い側が旗を獲得。相手が必要なカードを作れないと論理的に証明できれば、自分が3枚揃う前でも旗を取れます(クレーム)。\n\n【戦術カード】\n・気象や指揮官など、数値や配置を覆す特殊効果。使用に制限あり。\n\n【勝利】\n・旗を合計5本、または隣り合う3本を先に獲得したプレイヤーの勝利。",
-    "rules_url": "https://www.well-boardgame.com/battleline-rule/"
+    "rules_url": "https://www.well-boardgame.com/battleline-rule/",
+    "video_url": "https://www.youtube.com/watch?v=0rRJCflZE7A"
   },
   {
     "name": "キングドミノ",
@@ -877,7 +916,8 @@
     "bgg_url": "https://boardgamegeek.com/boardgame/204583",
     "image_url": "",
     "detailed_rules": "【ドミノ】\n・1枚に2マスの地形が描かれたドミノタイル。一部のマスには王冠(得点倍率)が描かれています。\n\n【選択と手番順】\n・場に公開された数枚のドミノに、前ラウンドで選んだ順に自分の駒を置いて「予約」。良い(得点の高い)タイルを選ぶと次ラウンドの手番が後回しになります。\n\n【配置】\n・予約したドミノを、自分の城(中央)から広がる領土に、同じ地形が隣接するようつなげて置きます。領土は5×5マス以内(はみ出すと置けず破棄)。\n\n【得点計算】\n・領土を地形ごとの「区画」に分け、各区画は「マスの数 × その区画内の王冠の合計数」。王冠が無い区画は0点。\n\n【終了】\n・全タイルを配置したら終了。合計得点(＋5×5完成や中央配置のボーナス)が最多のプレイヤーが勝利。",
-    "rules_url": "https://boku-boardgame.net/king-domino"
+    "rules_url": "https://boku-boardgame.net/king-domino",
+    "video_url": "https://www.youtube.com/watch?v=z3INbt2hg0k"
   },
   {
     "name": "街コロ",
@@ -899,7 +939,8 @@
     "bgg_url": "https://boardgamegeek.com/boardgame/143884",
     "image_url": "",
     "detailed_rules": "【施設の色】\n・青=誰の手番でも収入／緑=自分の手番のみ収入／赤=他人の手番に課金して奪う／紫=自分の手番の特殊効果。各施設には起動するサイコロの目(番号)が書かれています。\n\n【手番】\n1. サイコロを振る:標準1個。駅(ランドマーク)を建てると2個も選べます。\n2. 出目に対応する施設が起動し、色のルールに従って収入や課金が発生。\n3. コインを支払って施設カード1枚かランドマーク1つを購入(無理なら何も買わずパス)。\n\n【拡大再生産】\n・同じ施設を複数持つと効果が重複。サイコロ2個運用や特定の目に寄せる戦略が組めます。\n\n【勝利】\n・4つのランドマーク(駅・ショッピングモール・遊園地・電波塔)をすべて完成させた最初のプレイヤーが勝利。",
-    "rules_url": "https://boku-boardgame.net/machikoro"
+    "rules_url": "https://boku-boardgame.net/machikoro",
+    "video_url": "https://www.youtube.com/watch?v=RFWo9CAisos"
   },
   {
     "name": "キャメルアップ",
@@ -921,7 +962,8 @@
     "bgg_url": "https://boardgamegeek.com/boardgame/153938",
     "image_url": "",
     "detailed_rules": "【コースとラクダ】\n・5頭の色付きラクダがコースを進みます(別に逆走する黒/白の2頭も)。ラクダは他のラクダの上に積み重なり、下が動くと上ごと運ばれます。\n\n【手番(4択)】\nA. ピラミッド(ダイスタワー)を振る:中から1個ダイスが出て、その色のラクダが出目分進む。振った人はコイン1枚獲得。\nB. 区間(レグ)賭け:今の区間での1着/2着を予想する賭けタイルを取る(早く取るほど高配当)。\nC. 総合賭け:レース全体の優勝/最下位ラクダに自分の賭けカードを伏せる。\nD. 観客タイルを置く:踏んだラクダに+1/-1の効果。\n\n【精算】\n・区間賭けは各レグ末に精算(当たれば配当、外せば-1)。ラクダがゴールを越えるとレース終了で総合賭けを精算。\n\n【勝利】\n・最終的に最も多くの賞金(コイン)を持つプレイヤーが勝利。",
-    "rules_url": "https://bodoge.hoobby.net/games/camel-up/instructions/11543"
+    "rules_url": "https://bodoge.hoobby.net/games/camel-up/instructions/11543",
+    "video_url": "https://www.youtube.com/watch?v=EFsffgIGjXI"
   },
   {
     "name": "センチュリー：スパイスロード",
@@ -943,7 +985,8 @@
     "bgg_url": "https://boardgamegeek.com/boardgame/209685",
     "image_url": "",
     "detailed_rules": "【スパイス】\n・ターメリック(黄)＜サフラン(赤)＜カルダモン(緑)＜シナモン(茶)の4種キューブ。右ほど高価値です。\n\n【手番(4択)】\nA. 獲得:場の交易カードを手札に取る。手前のカードを取る場合、それより前のカードにスパイスを1つずつ乗せてから取る(後で取るほどボーナス付き)。\nB. プレイ:手札の交易カードを使い、スパイスを獲得、または変換(下位2個→上位1個など、カードに従いグレードアップ)。\nC. 休息:使用済みの交易カードを全て手札に戻す。\nD. 購入:必要なスパイスを支払い、場の得点カードを獲得。\n\n【効率化】\n・変換カードを連鎖させて少ない元手で高価なスパイスを揃えるエンジン構築が肝。\n\n【終了】\n・誰かが規定枚数(5〜6枚)の得点カードを取ったらそのラウンド末で終了。得点カード＋残スパイス(黄以外1点)で最多が勝利。",
-    "rules_url": "https://boardgame-comunity.com/century-spice-road/"
+    "rules_url": "https://boardgame-comunity.com/century-spice-road/",
+    "video_url": "https://www.youtube.com/watch?v=l1ghY0297Es"
   },
   {
     "name": "スカル",
@@ -965,7 +1008,8 @@
     "bgg_url": "https://boardgamegeek.com/boardgame/92415",
     "image_url": "",
     "detailed_rules": "【コースター】\n・各自、花(バラ)3枚とドクロ1枚の計4枚を持ちます。\n\n【第1段階:配置】\n・全員、自分のカードを1枚伏せて場(自分の前)に置きます。手番では、追加でもう1枚伏せるか、チャレンジ(宣言)を開始するか選びます。\n\n【第2段階:チャレンジ】\n・誰かが「○枚めくる」と宣言すると競りに。各自はより大きな枚数を宣言するか降ります。最高額を宣言した人がチャレンジャー。\n\n【めくり】\n・チャレンジャーは、まず自分のカードを全部めくり、足りなければ他人のカードを1枚ずつめくります。宣言枚数ぶん花だけをめくれれば成功。途中でドクロをめくったら失敗し、自分のカードを1枚失います。\n\n【勝利】\n・チャレンジ成功を2回達成したプレイヤーが勝利。または脱落者が出て最後の1人になった場合もその人の勝利。",
-    "rules_url": "https://tamy-boardgame.com/skull/"
+    "rules_url": "https://tamy-boardgame.com/skull/",
+    "video_url": "https://www.youtube.com/watch?v=aaU98cW63uY"
   },
   {
     "name": "ザ・マインド",
@@ -987,7 +1031,8 @@
     "bgg_url": "https://boardgamegeek.com/boardgame/244992",
     "image_url": "",
     "detailed_rules": "【ルール:会話禁止】\n・1〜100の数字カードの山から、各レベルで人数×レベル数の枚数を全員に配ります(レベル1は1人1枚)。\n\n【目的】\n・全員の手札を、言葉・合図・数字に関する相談を一切せず、小さい順に1枚ずつ場に出し切ります。\n\n【出し方】\n・「自分が場に出ていない中で一番小さい数字を持っている」と感じたタイミングで、その手札を場に出します。タイミングの「間」だけが頼り。\n\n【成否】\n・出したカードより小さい数字を誰かがまだ持っていたら失敗で、ライフを1つ失います。\n\n【道具とレベル】\n・特定レベルでは手裏剣(全員が最小手札を一斉公開)を使えます。ライフが尽きるとゲームオーバー、最終レベルまで到達できれば全員勝利。",
-    "rules_url": "https://boku-boardgame.net/the-mind"
+    "rules_url": "https://boku-boardgame.net/the-mind",
+    "video_url": "https://www.youtube.com/watch?v=NXPAd2PYR8Y"
   },
   {
     "name": "ナンジャモンジャ",
@@ -1009,7 +1054,8 @@
     "bgg_url": "https://boardgamegeek.com/boardgame/154172",
     "image_url": "",
     "detailed_rules": "【カード】\n・12種類のへんてこな生き物「ナンジャモンジャ族」のイラストカード(同じ絵が複数枚)。\n\n【手番】\n・山札を中央に伏せ、手番ごとに1枚めくって場に重ねます。\n\n【名前付けと呼称】\n・初めて出た生き物には、めくった人がその場で自由に名前を付けます(例:「モジャ夫」)。\n・以前に名前を付けた生き物が再び出たら、全員でその名前を早い者勝ちで叫びます。\n\n【獲得とお手つき】\n・最初に正しい名前を叫んだ人が、場に重なったカードを全部もらえます。間違った名前を叫ぶとお手つき。名前をたくさん覚えるほど混乱して盛り上がります。\n\n【勝利】\n・山札をすべてめくり終えたら終了。獲得カード枚数が最多のプレイヤーが勝利。",
-    "rules_url": "https://www.bodoge-intl.com/list/insapo/nanjya/"
+    "rules_url": "https://www.bodoge-intl.com/list/insapo/nanjya/",
+    "video_url": "https://www.youtube.com/watch?v=e9l8WUMP06c"
   },
   {
     "name": "ito",
@@ -1031,7 +1077,8 @@
     "bgg_url": "https://boardgamegeek.com/boardgame/308930",
     "image_url": "",
     "detailed_rules": "【数字カード】\n・1〜100のカードから、各自に1枚(または複数)配ります。自分の数字は他人に見せません。\n\n【テーマ設定】\n・全員でテーマを1つ決めます(例:「人気の食べ物」「怖いもの」など)。\n\n【表現フェイズ】\n・数字を直接口に出さず、その大きさをテーマに沿った言葉で表現します(例:100なら「世界一好きな食べ物」、1なら「正直苦手なもの」)。全員が表現を出し合い、相対的な大小を探ります。\n\n【協力モード(クモノイト)】\n・話し合いの感触をもとに、小さいと思う人から順にカードを場に出します。昇順を保てているか1枚ずつ確認。\n\n【成否】\n・順番を間違えるたびにライフを失い、尽きたら失敗。全員のカードを小さい順に出し切れれば成功。価値観のズレを楽しむ会話ゲーム。",
-    "rules_url": "https://boku-boardgame.net/ito"
+    "rules_url": "https://boku-boardgame.net/ito",
+    "video_url": "https://www.youtube.com/watch?v=LVFR5eCDvP4"
   },
   {
     "name": "インカの黄金",
@@ -1053,7 +1100,8 @@
     "bgg_url": "https://boardgamegeek.com/boardgame/15512",
     "image_url": "",
     "detailed_rules": "【探検の進行】\n・各ラウンド(探検)で、遺跡カードを1枚ずつめくって奥へ進みます。全5回の探検を行います。\n\n【カードの種類】\n・宝石カード:描かれた宝石を、今まだ遺跡内にいる探検者で山分け(端数は道に残る)。\n・遺物カード:豪華な財宝。持ち帰れれば高得点。\n・罠カード:5種類(蛇・蜘蛛・炎・落石・ミイラ)。\n\n【進む/戻るの同時決定】\n・各自「進む」か「引き返す」を伏せて一斉公開。引き返した人は、道に残っている宝石を回収し、自分のテント(安全地帯)へ。複数人で戻ると端数も山分け。\n\n【落盤(バースト)】\n・同じ種類の罠カードが2枚出ると落盤。その時まだ遺跡内にいる人は、その探検で拾った宝を全て失います。\n\n【勝利】\n・5回の探検後、テントに無事持ち帰った宝石・遺物の合計が最多のプレイヤーが勝利。",
-    "rules_url": "https://bodoge.hoobby.net/games/incan-gold/instructions/51342"
+    "rules_url": "https://bodoge.hoobby.net/games/incan-gold/instructions/51342",
+    "video_url": "https://www.youtube.com/watch?v=mvBhWFnxa0M"
   },
   {
     "name": "ワンナイト人狼",
@@ -1075,7 +1123,8 @@
     "bgg_url": "https://boardgamegeek.com/boardgame/147949",
     "image_url": "",
     "detailed_rules": "【特徴:夜も処刑も1回だけ】\n・GM不要(アプリや音声ガイドで進行)。配った役職のほかに、2枚を場の中央に伏せます。\n\n【夜フェイズ(1回)】\n・ガイドの誘導で各役職が順に行動。占い師は1人か中央2枚を覗き、怪盗は他人と役職カードを入れ替えて新役職を確認、トラブルメーカーは2人の役職を入れ替え、など。この結果、自分の最終的な役職が変わっていることがあります。\n\n【議論フェイズ】\n・全員目を開け、数分間だけ自由に議論。誰が人狼かを探りますが、夜の入れ替えで「自分はもう人狼じゃないかも」という不確実性が議論を面白くします。\n\n【投票】\n・せーので一斉に処刑したい人を指差し。最多票が処刑(同数は全員、または誰も処刑されない場合も)。\n\n【勝敗】\n・処刑された中に人狼がいれば村人陣営の勝利、人狼が1人も処刑されなければ人狼陣営の勝利。",
-    "rules_url": "https://boku-boardgame.net/one-night-wereewolf"
+    "rules_url": "https://boku-boardgame.net/one-night-wereewolf",
+    "video_url": "https://www.youtube.com/watch?v=q50WgUv8W9Q"
   },
   {
     "name": "アヴァロン",
@@ -1097,7 +1146,8 @@
     "bgg_url": "https://boardgamegeek.com/boardgame/128882",
     "image_url": "",
     "detailed_rules": "【役職(善悪+特殊)】\n・善:マーリン(悪の正体を知る)、パーシヴァル(マーリンとモルガナの区別がつかない形で知る)、忠臣。悪:暗殺者、モルガナ、モードレッド、オベロンなど。悪同士は基本互いを認識します。\n\n【クエストの流れ】\n1. リーダーが規定人数のメンバーを指名。\n2. 全員が承認/否決を一斉投票。否決が5連続でその回は悪の勝利。\n3. メンバーは成功/失敗を伏せて提出(善は成功のみ)。失敗が規定数出れば失敗。\n\n【マーリンのジレンマ】\n・マーリンは悪の正体を知っていて善を導けますが、目立ちすぎると最後に暗殺者に正体を見抜かれます。\n\n【勝敗】\n・善がクエスト3勝→ただし最後に暗殺者がマーリンを正しく指名すれば悪の逆転勝利、外せば善の勝利。悪がクエスト3敗させれば悪の勝利。",
-    "rules_url": "https://boku-boardgame.net/resistance-avalon"
+    "rules_url": "https://boku-boardgame.net/resistance-avalon",
+    "video_url": "https://www.youtube.com/watch?v=lb50vEAYapY"
   },
   {
     "name": "スカルキング",
@@ -1119,7 +1169,8 @@
     "bgg_url": "https://boardgamegeek.com/boardgame/150145",
     "image_url": "",
     "detailed_rules": "【カード】\n・4色の数字カード(1〜14)に加え、特殊カード:海賊、人魚、スカルキング、逃走(白旗)、ティガ(後の版)など。\n\n【ラウンドと手札】\n・第1ラウンドは手札1枚、以降ラウンド数だけ増えます(10ラウンドまで)。\n\n【ビッド(予想)】\n・配られた後、自分がそのラウンドで取るトリック数を全員一斉に宣言します。\n\n【トリック】\n・親から時計回りに1枚ずつ出し、リードカラーに従う(無ければ自由)。最強カードを出した人がそのトリックを取り、次の親に。\n・強弱:スカルキング＞海賊＞切札(黒)＞通常スート。人魚はスカルキングに勝つ、逃走は必ず負け、という特殊関係あり。\n\n【得点】\n・宣言と実際の獲得数が一致したら高得点(0宣言の的中はラウンド数×10など)。外すと差の数だけ減点。\n\n【勝利】\n・規定ラウンド後、合計点が最高のプレイヤーが勝利。",
-    "rules_url": "https://www.rigoler.jp/2022/02/08/sk/"
+    "rules_url": "https://www.rigoler.jp/2022/02/08/sk/",
+    "video_url": "https://www.youtube.com/watch?v=jaxtLCoscDE"
   },
   {
     "name": "テレストレーション",
@@ -1141,7 +1192,8 @@
     "bgg_url": "https://boardgamegeek.com/boardgame/46213",
     "image_url": "",
     "detailed_rules": "【道具】\n・各自、消せるスケッチブック(複数ページ)とマーカー、お題カードを持ちます。\n\n【流れ(伝言+お絵描き)】\n1. 全員がお題を1つ決め、ブックの最初のページに言葉で書く。\n2. 一斉に次のページへ。ブックを隣に回し、受け取った人は前ページの「言葉」を見て、それを絵で描く(制限時間あり)。\n3. さらに回す。次の人は前ページの「絵」だけを見て、それが何かを言葉で書く。\n4. 「言葉→絵→言葉→絵…」を交互に繰り返します。\n\n【発表】\n・自分のブックが一周して戻ったら、最初のお題からどう変化したかをみんなで見て発表。伝言ゲームのようにズレていく過程が爆笑を生みます。\n\n【得点(任意)】\n・厳密な勝敗より過程を楽しむゲーム。任意で「最も近かった/面白かった」絵や回答に投票して得点を付けられます。",
-    "rules_url": "https://bodoge-inst.com/telestration/"
+    "rules_url": "https://bodoge-inst.com/telestration/",
+    "video_url": "https://www.youtube.com/watch?v=IybIIkyBXeE"
   },
   {
     "name": "犯人は踊る",
@@ -1163,7 +1215,8 @@
     "bgg_url": "https://boardgamegeek.com/boardgame/98842",
     "image_url": "",
     "detailed_rules": "【カード】\n・犯人・第一発見者・探偵・アリバイ・たくらみ・うわさ・いぬ・取り引き・少年・目撃者・情報操作など、効果を持つ役割カード。「犯人」カードが誰かの手札に紛れています。\n\n【手番】\n・手札から1枚出してその効果を実行し、次の人へ。\n・うわさ=全員が手札を1枚隣へ渡す／取り引き=誰かと手札を1枚交換／いぬ=隣の手札を1枚見る／少年=出すと次のターンまで指名されにくくなる、など。これらで「犯人」カードが人から人へ移動します。\n\n【探偵と決着】\n・「探偵」カードを出した人は、犯人だと思う人を1人指名できます。当たれば探偵側の勝利。\n・「犯人」を持つ人が「たくらみ」を出して場に出し切れれば犯人の逃げ切り勝ち。\n\n【勝敗】\n・探偵が犯人所持者を正しく当てる→探偵側勝利。犯人がたくらみで逃げ切る→犯人勝利。",
-    "rules_url": "https://boku-boardgame.net/hanninhaodoru"
+    "rules_url": "https://boku-boardgame.net/hanninhaodoru",
+    "video_url": "https://www.youtube.com/watch?v=6kxpldGdST4"
   },
   {
     "name": "ドブル",
@@ -1185,7 +1238,8 @@
     "bgg_url": "https://boardgamegeek.com/boardgame/63268",
     "image_url": "",
     "detailed_rules": "【カードの仕組み】\n・どのカードにも複数のシンボルが描かれ、任意の2枚を比べると「必ず1つだけ」共通する絵があります。\n\n【遊び方(5つのミニゲーム)】\n・代表例「ホットポテト(井戸)」:各自に手札を伏せて配り、中央に1枚公開。自分の手札の一番上と中央のカードで共通する絵を見つけ、その名前を叫んで自分の札を中央に重ねる。これを繰り返し、手札を早く出し切った人が勝ち。\n・他に「集める(中央の山を取り合う)」「配る(自分の札を押し付ける)」など、共通絵を素早く見つける点は共通。\n\n【ポイント】\n・観察力と反射神経の勝負。間違った絵を言ったら一旦止めて取り直し。選んだミニゲームの条件を満たした人が勝者。",
-    "rules_url": "https://boku-boardgame.net/dobble"
+    "rules_url": "https://boku-boardgame.net/dobble",
+    "video_url": "https://www.youtube.com/watch?v=KiWnMHVBg_c"
   },
   {
     "name": "ハゲタカ…ハリガリ",
@@ -1207,7 +1261,8 @@
     "bgg_url": "https://boardgamegeek.com/boardgame/3290",
     "image_url": "",
     "detailed_rules": "【カード】\n・バナナ・ライム・イチゴ・プラムの4種の果物が、1〜5個描かれたカード。中央にベルを置きます。\n\n【手番】\n・全員に山札を伏せて均等配分。手番ごとに、自分の山札の一番上を1枚、勢いよく自分の前へ表向きにめくります(自分から見えない向きに)。\n\n【ベルを鳴らす条件】\n・場に見えている各プレイヤーの一番上のカードで、同じ種類の果物が合計ちょうど5個になった瞬間、中央のベルを叩きます。\n\n【獲得とペナルティ】\n・最初にベルを叩いた人が、場の全員のめくり札を獲得して自分の山札の下へ。間違って叩いたら、ペナルティとして全員に1枚ずつカードを配ります。\n\n【勝利】\n・カードが尽きた人から脱落し、最後にカードを持っている1人が勝利(時間制で最多所持を勝者とする遊び方も)。",
-    "rules_url": "https://bodoge-inst.com/harigari/"
+    "rules_url": "https://bodoge-inst.com/harigari/",
+    "video_url": "https://www.youtube.com/watch?v=gJEpZfTZtoA"
   },
   {
     "name": "エバーデール",
@@ -1229,7 +1284,8 @@
     "bgg_url": "https://boardgamegeek.com/boardgame/199792",
     "image_url": "",
     "detailed_rules": "【季節とワーカー】\n・春→夏→秋→冬の4季節を進みます。季節が変わるたびにワーカーが手元に戻り、人数も増えていきます。\n\n【手番(3択)】\nA. ワーカーを配置:森や各地に置いて資源(木/樹脂/小石/ベリー)やカードを獲得。\nB. カードを建設:手札のカードを資源で支払い自分の村に出す。建物(茶)と生き物(緑)があり、対応する建物があると生き物を無料で出せるコンボがあります。\nC. 次の季節へ:ワーカーを回収し増員。\n\n【カードのコンボ】\n・15種以上の特殊効果が組み合わさり、配置や建設のたびに連鎖。立体的なツリーと相まって自分だけの村を育てます。\n\n【終了と得点】\n・全員が冬を終えたら終了。カードの基本点＋達成イベント＋特殊得点＋資源(一部)を合計し、最多点が勝利。",
-    "rules_url": "https://boku-boardgame.net/everdell"
+    "rules_url": "https://boku-boardgame.net/everdell",
+    "video_url": "https://www.youtube.com/watch?v=UhuyqMA_ROo"
   },
   {
     "name": "アーク・ノヴァ",
@@ -1251,7 +1307,8 @@
     "bgg_url": "https://boardgamegeek.com/boardgame/342942",
     "image_url": "",
     "detailed_rules": "【2つの指標】\n・アピール(動物園の魅力度)と保護点(自然保護の評価)を別々のトラックで上げ、両者のマーカーが盤上ですれ違うことを目指します。\n\n【5枚のアクションカード】\n・建設・動物・カード・支援者・寄付の5枚に「強さ1〜5」のスロットがあります。手番に1枚を使い、その時のスロットの強さに応じた規模で実行。\n\n【手番後の補充】\n・使ったカードは一番左(強さ1)に戻り弱くなり、その上にあった他のカードが右へずれて強くなります。どのカードをいつ使うかが核心。\n\n【動物とプロジェクト】\n・動物カードを展示してアピールを上げ、保護プロジェクトを達成して保護点を上げます。コンボの組み合わせは膨大。\n\n【終了】\n・2つのマーカーがすれ違いを越えた瞬間に最終ラウンドへ。最終的な点差が最も有利なプレイヤーが勝利。重量級の傑作。",
-    "rules_url": "https://chenboard.com/arknova-inst/"
+    "rules_url": "https://chenboard.com/arknova-inst/",
+    "video_url": "https://www.youtube.com/watch?v=tOwj1w8fKIg"
   },
   {
     "name": "カスカディア",
@@ -1273,7 +1330,8 @@
     "bgg_url": "https://boardgamegeek.com/boardgame/295947",
     "image_url": "",
     "detailed_rules": "【選択(タイル+トークン)】\n・場には「地形タイル＋野生動物トークン」のペアが4組。手番にどれか1組を選んで取ります(中央の自然トークンを使うと組み合わせを崩して取れる)。\n\n【配置】\n・地形タイルを自分のエリアに六角形でつなげて置く。取った動物トークンは、その動物が描かれたタイルの上に配置します。\n\n【動物の得点条件】\n・クマ=ペア、サケ=連なり、タカ=互いに隣接しない単独、キツネ=周囲の動物の種類数、ヘラジカ=群れの形、など動物ごとに固有の得点カードがあります。ゲーム開始時に各動物1枚ずつ選びます。\n\n【地形ボーナス】\n・同じ地形を大きくつなげると、終了時に最大エリアボーナス。\n\n【終了】\n・規定タイルを置き終えたら終了。動物得点＋地形ボーナス＋自然トークンを合計し、最多点が勝利。やさしいルールで奥深いパズル。",
-    "rules_url": "https://boku-boardgame.net/cascadia"
+    "rules_url": "https://boku-boardgame.net/cascadia",
+    "video_url": "https://www.youtube.com/watch?v=Rqds40r7JOw"
   },
   {
     "name": "カヴェルナ",
@@ -1295,7 +1353,8 @@
     "bgg_url": "https://boardgamegeek.com/boardgame/102794",
     "image_url": "",
     "detailed_rules": "【二重の開拓】\n・自分のボードは「森(地上)」と「洞窟(地下)」。森を切り拓いて農地や牧場に、洞窟を掘って居室や採掘場などの部屋にします。\n\n【手番】\n・ドワーフ(ワーカー)を1人ずつアクションスペースに配置。資源獲得、森/洞窟の開拓、部屋の建設、家畜の取得、繁殖、そして武装したドワーフによる「探検」などを行います。\n\n【武装と探検】\n・ドワーフは武器を持てて、武装レベルに応じた報酬を探検で得られます(鉱石・戦利品・経験値)。アグリコラと違い職業/進歩カードが無く、部屋(タイル)で能力を拡張します。\n\n【収穫】\n・ラウンド末の収穫で作物を得て、全ドワーフを食料で養います。\n\n【終了と得点】\n・規定ラウンド後、動物・作物・鉱石・ルビー・部屋・ドワーフ数などを得点化し、空き地などの減点を引いて最多点が勝利。7人まで遊べる大型作。",
-    "rules_url": "https://bdg.kirinnox.com/entry/caverna"
+    "rules_url": "https://bdg.kirinnox.com/entry/caverna",
+    "video_url": "https://www.youtube.com/watch?v=dVaHXNGXG5o"
   },
   {
     "name": "ル・アーブル",
@@ -1317,7 +1376,8 @@
     "bgg_url": "https://boardgamegeek.com/boardgame/35677",
     "image_url": "",
     "detailed_rules": "【ラウンドの開始】\n・各ラウンド開始時、供給スペースに各種商品(魚・木・粘土・鉄など)が一定量補充されます。\n\n【手番(2択)】\nA. 供給スペースから1種類の商品をすべて取る。\nB. 建物に入り、その機能を使う:商品の加工(魚→燻製魚、鉄→鋼、など)、お金稼ぎ、建物や船の建造。\n\n【建物の所有】\n・建てた建物は自分の財産。他人がその機能を使うと使用料(入場料)が入ります。\n\n【食料供給】\n・ラウンドごとに決まった量の食料で労働者を養う必要があり、足りないとローン(借金)を負います。\n\n【物流と決算】\n・船を建造すると毎ラウンドの食料供給が楽に。終了時に建物・船・現金などを資産として合計し、借金を引いた総資産が最も多いプレイヤーが勝利する硬派な経済ゲーム。",
-    "rules_url": "https://bdg.kirinnox.com/entry/le-havre"
+    "rules_url": "https://bdg.kirinnox.com/entry/le-havre",
+    "video_url": "https://www.youtube.com/watch?v=62N8ml81FTA"
   },
   {
     "name": "コンコルディア",
@@ -1339,7 +1399,8 @@
     "bgg_url": "https://boardgamegeek.com/boardgame/124361",
     "image_url": "",
     "detailed_rules": "【手札=アクション】\n・各自、神々の名を冠したカードのデッキを持ち、手番に1枚プレイしてそのアクションを行います。\n・例:建築家=入植者を移動させ都市を建設／開拓者=陸/海の入植者を動かす/外交官=他人の使ったカードを真似る／元老院議員=場のカードを購入／護民官=これまで出した全カードを手札に戻す(リセット)。\n\n【生産と交易】\n・自分の家(入植地)がある属州では、対応する商品(煉瓦/食料/道具/ワイン/布)が生産されます。商品とお金を売買して入植や購入の資金にします。\n\n【カード購入=得点設計】\n・購入したカードには終了時の得点係数(神様ごと:都市の数、属州の数など)が付きます。何を買うかが最終得点を決めます。\n\n【終了と得点】\n・誰かが入植コマを全て置く/都市カードの山が尽きると最終ラウンドへ。所持カードの神様ごとの係数で得点計算し、最多が勝利。運要素が少なく戦略性が高い名作。",
-    "rules_url": "https://note.com/boardwalk/n/n90e477a9c138"
+    "rules_url": "https://note.com/boardwalk/n/n90e477a9c138",
+    "video_url": "https://www.youtube.com/watch?v=acP5nadu0-U"
   },
   {
     "name": "ブラス：バーミンガム",
@@ -1361,7 +1422,8 @@
     "bgg_url": "https://boardgamegeek.com/boardgame/224517",
     "image_url": "",
     "detailed_rules": "【2つの時代】\n・運河時代→鉄道時代の2部構成。各時代末に流通網と稼働済み産業から得点します。\n\n【手番(カードで2アクション)】\n・手札のカード(都市/産業を指定)を使い、2アクションを実行:\n・建設=産業タイル(醸造所/炭鉱/製鉄所/綿/陶器/マンガン)を都市に置く。\n・ネットワーク=運河/鉄道を敷く(鉄道は石炭、一部はビールも消費)。\n・開発=産業タイルを除去して上位を解放／借入＝資金調達／販売＝商品をビールを使って市場で売る。\n\n【稼働(フリップ)】\n・建てた工場は、石炭や鉄を消費して稼働させると得点と収入を生み、裏返って次のレベルを解放します。ビールは醸造所の産物で販売に必須。\n\n【市場と物流】\n・石炭/鉄は共通市場で需給により価格変動。流通網のつながりが資源調達と販売の生命線。\n\n【終了】\n・鉄道時代終了でゲーム終了。2時代の合計得点が最高のプレイヤーが勝利する最高峰の経済ゲーム。",
-    "rules_url": "https://bodoge.hoobby.net/games/brass-birmingham/instructions/9460"
+    "rules_url": "https://bodoge.hoobby.net/games/brass-birmingham/instructions/9460",
+    "video_url": "https://www.youtube.com/watch?v=J4DB4-sHpuU"
   },
   {
     "name": "ルート",
@@ -1383,7 +1445,8 @@
     "bgg_url": "https://boardgamegeek.com/boardgame/237182",
     "image_url": "",
     "detailed_rules": "【非対称の勢力】\n・各勢力はルール・勝利点の稼ぎ方が全く異なります。\n・マルキ国(猫):各地に建物を建てて木材で生産し、占領を広げる。\n・ワシ朝(鳥):毎ターン命令カードを積み上げ、決めた行動を必ず実行(できないと混乱)。\n・森林連合(同盟):支配地で支持を集め、蜂起して拠点を作りゲリラ的に得点。\n・放浪者(1匹):中立的に動き、アイテムを集めクエストや勢力への助力で得点。\n\n【共通の流れ】\n・盤上の各マスの支配を巡って兵を配置し、戦闘(ダイス)で奪い合います。手札のカードで行動を強化したり特殊効果を使います。\n\n【勝敗】\n・いずれかの勢力が先に勝利点30点に到達すれば勝利(特定アイテムを集めた即時勝利条件もあり)。可愛い見た目に反し、勢力ごとの理解が要る上級者向け。",
-    "rules_url": "https://bodoge.hoobby.net/games/root/instructions/20977"
+    "rules_url": "https://bodoge.hoobby.net/games/root/instructions/20977",
+    "video_url": "https://www.youtube.com/watch?v=xr8h_p0SLo8"
   },
   {
     "name": "スピリット・アイランド",
@@ -1405,7 +1468,8 @@
     "bgg_url": "https://boardgamegeek.com/boardgame/162886",
     "image_url": "",
     "detailed_rules": "【逆・侵略テーマ】\n・プレイヤーは島の精霊。入植者(侵略者)から島を守る協力ゲームです。\n\n【ラウンドの流れ】\n1. 成長:精霊を成長させ、パワーカード獲得・エネルギー増・存在(プレゼンス)の配置を選ぶ。\n2. パワー:エネルギーを払って高速/低速パワーを使い、入植者を破壊・移動させたり恐怖(フィア)を生む。\n3. 侵略者フェイズ:探検→建設→略奪の順で入植者が島を侵食。ダメージや汚染(ブライト)が広がる。\n4. 低速パワーの解決。\n\n【恐怖(フィア)】\n・恐怖を一定量与えると恐怖レベルが上がり、勝利条件が段階的に緩くなります(全滅させなくても勝てるようになる)。\n\n【精霊の個性】\n・雷=高速広範囲、大地=堅実、影=隠密、水=回復など、能力と成長が大きく異なります。\n\n【勝敗】\n・侵略者を全滅or恐怖の勝利条件達成で全員勝利。島が汚染で覆われる/侵略デッキが尽きる前に達成できなければ敗北。",
-    "rules_url": "https://bodolog.com/spirit-island-rule-and-review/"
+    "rules_url": "https://bodolog.com/spirit-island-rule-and-review/",
+    "video_url": "https://www.youtube.com/watch?v=oVK-M5m5ulU"
   },
   {
     "name": "グレート・ウェスタン・トレイル",
@@ -1427,7 +1491,8 @@
     "bgg_url": "https://boardgamegeek.com/boardgame/193738",
     "image_url": "",
     "detailed_rules": "【道(トレイル)を進む】\n・自分のコマをマップの道沿いに前進させ、止まった場所(自分や他人の建物、中立建物)のアクションを使います。\n\n【主なアクション】\n・牛カードの購入(デッキに加える)／建物の建設(道に自分の建物を置く)／鉄道の前進／カウボーイ・大工・技師の雇用／危険(障害)の除去など。\n\n【出荷(デッキ構築の収束点)】\n・道の終点カンザスシティに到達したら、手札の牛カードの価値(品質)の合計に応じて各都市へ「出荷」し、収入と得点を得ます。出荷後は手札を補充して再び道の始点へ。\n\n【3種の労働者】\n・カウボーイ=良い牛を買いやすく／大工=建物を安く建て／技師=鉄道を伸ばす。雇用で能力が強化されます。\n\n【終了と得点】\n・終了条件を満たすと、出荷・建物・駅・労働者・残金などを得点化し最多が勝利。デッキ構築とワカプレと経路選択が融合した重量級。",
-    "rules_url": "https://bodogenist.com/greatwesterntrail-review/"
+    "rules_url": "https://bodogenist.com/greatwesterntrail-review/",
+    "video_url": "https://www.youtube.com/watch?v=tvKnWWkHjDo"
   },
   {
     "name": "ヴィティカルチャー",
@@ -1449,7 +1514,8 @@
     "bgg_url": "https://boardgamegeek.com/boardgame/183394",
     "image_url": "",
     "detailed_rules": "【1年=四季】\n・春に手番順(ウェイクアップ)を選び、夏と冬にワーカーを配置してアクションを行い、年末に決算します。\n\n【夏のアクション(畑関連)】\n・ブドウ畑を植える、構造物(風車/かまど等)を建てる、訪問者(夏)カードを使う、ブドウを売る、など。\n\n【冬のアクション(醸造・出荷)】\n・ブドウを収穫してワインに醸造する、ワイン注文に応えて出荷する、訪問者(冬)カードを使う、ワーカーを訓練する、など。\n\n【ブドウ→ワイン→出荷】\n・畑でブドウを育て、ワイナリーで赤/白/スパークリングのワインに醸造。注文カードの要求を満たして出荷すると勝利点と収入。\n\n【グランデ・ワーカー】\n・各自の大型ワーカーは、埋まったアクションにも割り込めます。\n\n【勝利】\n・勝利点20点に到達したら、その年を最後までやって終了。最多点が勝利。",
-    "rules_url": "https://boardgame-comunity.com/viticulture/"
+    "rules_url": "https://boardgame-comunity.com/viticulture/",
+    "video_url": "https://www.youtube.com/watch?v=s0L9Kc_WivI"
   },
   {
     "name": "ツォルキン",
@@ -1471,7 +1537,8 @@
     "bgg_url": "https://boardgamegeek.com/boardgame/126163",
     "image_url": "",
     "detailed_rules": "【回転する歯車】\n・中央の大歯車に連動して6つのアクション歯車が回ります。ワーカーを歯車の手前に乗せ、後で取り上げてアクションを得る仕組み。\n\n【手番(2択)】\nA. ワーカーを1人以上、歯車に乗せる(乗せるほどトウモロコシのコスト)。\nB. ワーカーを歯車から取り上げ、その位置に対応するアクションを実行する。\n\n【時間と強さ】\n・毎ラウンド大歯車が1つ回り、乗っているワーカーが先のマスへ進みます。長く乗せるほど(待つほど)強いアクションが得られる「時間の投資」が独特。\n\n【発展要素】\n・得た資源で建物やモニュメントを建設、神々のトラックを上げて加護や得点を獲得。食料供給日には全ワーカーをトウモロコシで養います。\n\n【終了と得点】\n・マヤ暦(大歯車)が一周したら終了。建物・モニュメント・神トラック・資源を得点化し、最多が勝利。",
-    "rules_url": "https://bdg.kirinnox.com/entry/tsuorukin"
+    "rules_url": "https://bdg.kirinnox.com/entry/tsuorukin",
+    "video_url": "https://www.youtube.com/watch?v=CSw2MMMWQC4"
   },
   {
     "name": "ロビンソン・クルーソー",
@@ -1493,7 +1560,8 @@
     "bgg_url": "https://boardgamegeek.com/boardgame/121921",
     "image_url": "",
     "detailed_rules": "【協力サバイバル】\n・無人島に漂着したキャラ(大工/料理人/探検家/船長など固有能力持ち)を担当し、シナリオごとの目標達成を目指します。\n\n【ラウンドのフェイズ】\n1. イベント:カードをめくり、島の脅威や出来事が発生。\n2. 士気:プレイヤーの士気に応じて手番順などを調整。\n3. 生産:雇用した資源を得る。\n4. アクション:各自のアクションコマ(2個)を「探検」「資源集め」「建設」「狩り」「キャンプ整備」などに割り当てる。1人で行うと成否判定が必要だが、2人で同じ行動に充てると成功が確実に。\n5. 天候:嵐や寒さに屋根や焚き火で耐える。\n6. 夜:食料を消費し、士気を保つ。\n\n【目標と勝敗】\n・シナリオ固有の目標(脱出、巨大な火を焚く、など)を期限内に達成すれば全員勝利。キャラの体力(生命)が尽きる、または期限を超えると全員敗北。",
-    "rules_url": "https://bodolog.com/robinson-crusoe-rule-and-review/"
+    "rules_url": "https://bodolog.com/robinson-crusoe-rule-and-review/",
+    "video_url": "https://www.youtube.com/watch?v=Ih-OzFdlYfY"
   },
   {
     "name": "宝石の煌き：デュエル",
@@ -1515,6 +1583,7 @@
     "bgg_url": "https://boardgamegeek.com/boardgame/364073",
     "image_url": "",
     "detailed_rules": "【共有ボード】\n・5×5のマス目に宝石トークンを敷き詰めた共有ボードを使う、2人専用設計。\n\n【手番(主な選択)】\nA. 宝石を取る:ボードの一直線(縦/横/斜め)に並ぶ宝石を最大3個取る。\nB. カードを購入:宝石を払って発展カードを取り、永続ボーナスや王冠・特権を得る。\nC. カードを確保:1枚リザーブして黄金(万能)を1枚得る。\n\n【特権と王冠】\n・特定の宝石を取ると相手に特権を与えることがあり、特権を使うとボードから宝石を1個追加で取れます。カードに描かれた王冠を集めると相手のカードを奪う効果なども。\n\n【3つの勝利条件】\n・勝利点20点／同色のカードで点数5点／王冠10個。このいずれかに到達した瞬間に勝利。複数の勝ち筋をにらむ直接的な駆け引きが魅力。",
-    "rules_url": "https://boku-boardgame.net/splendor-duel"
+    "rules_url": "https://boku-boardgame.net/splendor-duel",
+    "video_url": "https://www.youtube.com/watch?v=Jv7I-HnT7Sc"
   }
 ]
