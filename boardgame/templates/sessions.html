@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}遊ぶ会・参加管理 - ボードゲーム図鑑{% endblock %}
+{% block content %}
+<h1>遊ぶ会・参加管理</h1>
+<p class="lead">ゲーム会を作って、遊ぶゲームと参加者を管理できます。人数がゲームの対応人数に合っているかも確認できます。</p>
+
+<form class="game-form compact" method="post" action="{{ url_for('create_session') }}">
+  <h2>新しい会を作る</h2>
+  <label>会の名前 <span class="req">*</span>
+    <input type="text" name="title" required placeholder="例: 金曜ボドゲ会">
+  </label>
+  <div class="cols">
+    <label>日付<input type="date" name="scheduled_on"></label>
+    <label>遊ぶゲーム
+      <select name="game_id">
+        <option value="">あとで決める</option>
+        {% for g in games %}<option value="{{ g.id }}">{{ g.name }}（{{ g.player_range }}）</option>{% endfor %}
+      </select>
+    </label>
+  </div>
+  <label>メモ<textarea name="notes" rows="2"></textarea></label>
+  <button class="btn-primary" type="submit">作成</button>
+</form>
+
+<h2>登録済みの会</h2>
+<div class="session-list">
+  {% for s in sessions %}
+  <a class="session-card" href="{{ url_for('session_detail', session_id=s.id) }}">
+    <div class="session-top">
+      <strong>{{ s.title }}</strong>
+      <span>{{ s.scheduled_on }}</span>
+    </div>
+    <p>🎲 {{ s.game.name if s.game else '未定' }}</p>
+    <p>👥 {{ s.participant_count }}人
+      {% if s.fits_game is not none %}
+        {% if s.fits_game %}<span class="ok-badge">人数OK</span>
+        {% else %}<span class="ng-badge">人数が合いません</span>{% endif %}
+      {% endif %}
+    </p>
+  </a>
+  {% else %}
+  <p class="empty">まだ会がありません。上のフォームから作成してください。</p>
+  {% endfor %}
+</div>
+{% endblock %}

@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="hero">
+  <h1>ボードゲーム図鑑</h1>
+  <p>タイプや人数で絞り込み。気になるゲームのルールを読んで、そのまま遊べるサイトへ。</p>
+</section>
+
+<form class="filters" method="get" action="{{ url_for('index') }}">
+  <input type="search" name="q" value="{{ q }}" placeholder="名前・タグで検索">
+
+  <select name="type">
+    <option value="">すべてのタイプ</option>
+    {% for t in types %}
+      <option value="{{ t }}" {% if t == gtype %}selected{% endif %}>{{ t }}</option>
+    {% endfor %}
+  </select>
+
+  <select name="players">
+    <option value="">人数で絞り込み</option>
+    {% for n in range(1, 11) %}
+      <option value="{{ n }}" {% if players == n %}selected{% endif %}>{{ n }}人で遊べる</option>
+    {% endfor %}
+  </select>
+
+  <select name="sort">
+    {% for key, val in sorts.items() %}
+      <option value="{{ key }}" {% if key == sort %}selected{% endif %}>{{ val[0] }}</option>
+    {% endfor %}
+  </select>
+
+  <button type="submit">絞り込む</button>
+  <a class="clear" href="{{ url_for('index') }}">クリア</a>
+</form>
+
+<p class="result-count">{{ games|length }} 件 / 全 {{ total }} 件</p>
+
+<div class="grid">
+  {% for g in games %}
+  <a class="card" href="{{ url_for('game_detail', game_id=g.id) }}">
+    <div class="card-top">
+      <span class="type-tag">{{ g.game_type }}</span>
+      <span class="diff" title="難易度">{{ '★' * g.difficulty }}{{ '☆' * (5 - g.difficulty) }}</span>
+    </div>
+    <h3>{{ g.name }}</h3>
+    {% if g.name_en %}<p class="en">{{ g.name_en }}</p>{% endif %}
+    <ul class="meta">
+      <li>👥 {{ g.player_range }}</li>
+      <li>⏱ {{ g.play_time_min }}分</li>
+    </ul>
+    <p class="desc">{{ g.description }}</p>
+  </a>
+  {% else %}
+  <p class="empty">該当するゲームが見つかりませんでした。条件を変えてみてください。</p>
+  {% endfor %}
+</div>
+{% endblock %}

@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+{% block title %}ゲームを追加 - ボードゲーム図鑑{% endblock %}
+{% block content %}
+<a class="back" href="{{ url_for('index') }}">← 一覧へ戻る</a>
+<h1>ゲームを追加</h1>
+
+<form class="ai-row" method="post" action="{{ url_for('add_game') }}">
+  <input type="hidden" name="action" value="ai">
+  <input type="text" name="name" value="{{ form.name or '' }}" placeholder="ゲーム名（例: カタン）">
+  <button type="submit" {% if not ai_available %}disabled{% endif %}>🤖 AIでルール下書きを生成</button>
+  {% if not ai_available %}<span class="hint">※ ANTHROPIC_API_KEY を設定すると使えます</span>{% endif %}
+</form>
+
+<form class="game-form" method="post" action="{{ url_for('add_game') }}">
+  <input type="hidden" name="action" value="save">
+
+  <label>ゲーム名 <span class="req">*</span>
+    <input type="text" name="name" required value="{{ form.name or '' }}">
+  </label>
+  <label>英語名
+    <input type="text" name="name_en" value="{{ form.name_en or '' }}">
+  </label>
+
+  <div class="cols">
+    <label>タイプ
+      <input type="text" name="game_type" value="{{ form.game_type or '' }}" placeholder="例: デッキ構築">
+    </label>
+    <label>タグ（カンマ区切り）
+      <input type="text" name="tags" value="{{ form.tags or '' }}" placeholder="例: 戦略,カード">
+    </label>
+  </div>
+
+  <div class="cols4">
+    <label>最小人数<input type="number" name="min_players" min="1" value="{{ form.min_players or 1 }}"></label>
+    <label>最大人数<input type="number" name="max_players" min="1" value="{{ form.max_players or 4 }}"></label>
+    <label>時間(分)<input type="number" name="play_time_min" min="1" value="{{ form.play_time_min or 30 }}"></label>
+    <label>難易度(1-5)<input type="number" name="difficulty" min="1" max="5" value="{{ form.difficulty or 2 }}"></label>
+  </div>
+
+  <div class="cols">
+    <label>デザイナー<input type="text" name="designer" value="{{ form.designer or '' }}"></label>
+    <label>発表年<input type="number" name="year" value="{{ form.year or '' }}"></label>
+  </div>
+
+  <label>概要
+    <textarea name="description" rows="2">{{ form.description or '' }}</textarea>
+  </label>
+
+  <label>🎯 目的
+    <textarea name="objective" rows="2">{{ form.objective or '' }}</textarea>
+  </label>
+  <label>👤 登場人物・役職
+    <textarea name="characters" rows="2">{{ form.characters or '' }}</textarea>
+  </label>
+  <label>🔄 手順（1行1ステップ）
+    <textarea name="procedure" rows="6">{{ form.procedure or '' }}</textarea>
+  </label>
+  <label>🏁 終了条件
+    <textarea name="end_condition" rows="2">{{ form.end_condition or '' }}</textarea>
+  </label>
+
+  <div class="cols">
+    <label>オンラインで遊べるURL<input type="url" name="online_url" value="{{ form.online_url or '' }}"></label>
+    <label>BoardGameGeek URL<input type="url" name="bgg_url" value="{{ form.bgg_url or '' }}"></label>
+  </div>
+
+  <button class="btn-primary" type="submit">保存する</button>
+</form>
+{% endblock %}

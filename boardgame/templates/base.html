@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}ボードゲーム図鑑{% endblock %}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="{{ url_for('index') }}">🎲 ボードゲーム図鑑</a>
+      <nav>
+        <a href="{{ url_for('index') }}">一覧</a>
+        <a href="{{ url_for('sessions') }}">遊ぶ会・参加管理</a>
+        <a class="btn-add" href="{{ url_for('add_game') }}">＋ゲーム追加</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="wrap">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        {% for category, msg in messages %}
+          <div class="flash flash-{{ category }}">{{ msg }}</div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
+    {% block content %}{% endblock %}
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">ボードゲームを探して、ルールを読んで、みんなで遊ぼう。</div>
+  </footer>
+</body>
+</html>

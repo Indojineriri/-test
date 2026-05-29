@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% block title %}{{ game.name }} - ボードゲーム図鑑{% endblock %}
+{% block content %}
+<a class="back" href="{{ url_for('index') }}">← 一覧へ戻る</a>
+
+<article class="detail">
+  <header class="detail-head">
+    <div>
+      <h1>{{ game.name }}</h1>
+      {% if game.name_en %}<p class="en">{{ game.name_en }}</p>{% endif %}
+    </div>
+    <span class="type-tag big">{{ game.game_type }}</span>
+  </header>
+
+  <div class="specs">
+    <div><span>人数</span><strong>{{ game.player_range }}</strong></div>
+    <div><span>時間</span><strong>{{ game.play_time_min }}分</strong></div>
+    <div><span>難易度</span><strong>{{ '★' * game.difficulty }}{{ '☆' * (5 - game.difficulty) }}</strong></div>
+    {% if game.designer %}<div><span>デザイナー</span><strong>{{ game.designer }}</strong></div>{% endif %}
+    {% if game.year %}<div><span>発表年</span><strong>{{ game.year }}</strong></div>{% endif %}
+  </div>
+
+  {% if game.description %}<p class="lead">{{ game.description }}</p>{% endif %}
+
+  {% if game.tag_list %}
+  <div class="tags">
+    {% for t in game.tag_list %}<span class="tag">#{{ t }}</span>{% endfor %}
+  </div>
+  {% endif %}
+
+  <div class="play-links">
+    {% if game.online_url %}
+      <a class="btn-play" href="{{ game.online_url }}" target="_blank" rel="noopener">▶ オンラインで試す</a>
+    {% endif %}
+    {% if game.bgg_url %}
+      <a class="btn-secondary" href="{{ game.bgg_url }}" target="_blank" rel="noopener">BoardGameGeek</a>
+    {% endif %}
+  </div>
+
+  <section class="rules">
+    <h2>📘 ルール</h2>
+
+    <div class="rule-block">
+      <h3>🎯 目的</h3>
+      <p>{{ game.objective or '（未登録）' }}</p>
+    </div>
+
+    <div class="rule-block">
+      <h3>👤 登場人物・役職</h3>
+      <p>{{ game.characters or '（特になし）' }}</p>
+    </div>
+
+    <div class="rule-block">
+      <h3>🔄 進め方（手順）</h3>
+      {% if game.procedure_steps %}
+        <ol>
+          {% for step in game.procedure_steps %}<li>{{ step }}</li>{% endfor %}
+        </ol>
+      {% else %}
+        <p>（未登録）</p>
+      {% endif %}
+    </div>
+
+    <div class="rule-block">
+      <h3>🏁 終了条件</h3>
+      <p>{{ game.end_condition or '（未登録）' }}</p>
+    </div>
+  </section>
+
+  <form class="danger" method="post" action="{{ url_for('delete_game', game_id=game.id) }}"
+        onsubmit="return confirm('「{{ game.name }}」を削除しますか？');">
+    <button type="submit">このゲームを削除</button>
+  </form>
+</article>
+{% endblock %}

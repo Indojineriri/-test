@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% block title %}{{ s.title }} - 参加管理{% endblock %}
+{% block content %}
+<a class="back" href="{{ url_for('sessions') }}">← 会の一覧へ</a>
+
+<article class="detail">
+  <header class="detail-head">
+    <div>
+      <h1>{{ s.title }}</h1>
+      <p class="en">{{ s.scheduled_on }}</p>
+    </div>
+  </header>
+
+  {% if s.notes %}<p class="lead">{{ s.notes }}</p>{% endif %}
+
+  <section class="rule-block">
+    <h3>🎲 遊ぶゲーム</h3>
+    <form class="inline-form" method="post" action="{{ url_for('set_session_game', session_id=s.id) }}">
+      <select name="game_id">
+        <option value="">未定</option>
+        {% for g in games %}
+          <option value="{{ g.id }}" {% if s.game_id == g.id %}selected{% endif %}>{{ g.name }}（{{ g.player_range }}）</option>
+        {% endfor %}
+      </select>
+      <button type="submit">更新</button>
+    </form>
+    {% if s.game %}
+      <p>
+        <a href="{{ url_for('game_detail', game_id=s.game.id) }}">{{ s.game.name }} のルールを見る →</a>
+        対応人数: {{ s.game.player_range }}
+        {% if s.fits_game %}<span class="ok-badge">現在{{ s.participant_count }}人 = OK</span>
+        {% else %}<span class="ng-badge">現在{{ s.participant_count }}人 = 対応外</span>{% endif %}
+      </p>
+    {% endif %}
+  </section>
+
+  <section class="rule-block">
+    <h3>👥 参加者（{{ s.participant_count }}人）</h3>
+    <ul class="participant-list">
+      {% for p in s.participants %}
+      <li>
+        <span>{{ p.name }}</span>
+        <form method="post" action="{{ url_for('remove_participant', pid=p.id) }}">
+          <button class="link-del" type="submit">削除</button>
+        </form>
+      </li>
+      {% else %}
+      <li class="empty">まだ参加者がいません。</li>
+      {% endfor %}
+    </ul>
+    <form class="inline-form" method="post" action="{{ url_for('add_participant', session_id=s.id) }}">
+      <input type="text" name="name" placeholder="参加者の名前" required>
+      <button type="submit">＋追加</button>
+    </form>
+  </section>
+
+  <form class="danger" method="post" action="{{ url_for('delete_session', session_id=s.id) }}"
+        onsubmit="return confirm('この会を削除しますか？');">
+    <button type="submit">この会を削除</button>
+  </form>
+</article>
+{% endblock %}
