@@ -42,6 +42,7 @@ class Game(db.Model):
 
     online_url = db.Column(db.String(500), default="")  # 実際に遊べるサイト
     bgg_url = db.Column(db.String(500), default="")
+    image_url = db.Column(db.String(800), default="")  # ゲームの写真
 
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
@@ -82,6 +83,7 @@ class Game(db.Model):
             "end_condition": self.end_condition,
             "online_url": self.online_url,
             "bgg_url": self.bgg_url,
+            "image_url": self.image_url,
         }
 
 
@@ -125,3 +127,42 @@ class Participant(db.Model):
         db.Integer, db.ForeignKey("play_sessions.id"), nullable=False
     )
     name = db.Column(db.String(120), nullable=False)
+
+
+class UserGameRecord(db.Model):
+    """Per-browser favorite / played record for a game.
+
+    There is no login: each browser gets an anonymous client_id stored in a
+    cookie, and we key records by (client_id, game_id). The played record can
+    carry a 1-5 star rating and a free-text memo.
+    """
+
+    __tablename__ = "user_game_records"
+    __table_args__ = (
+        db.UniqueConstraint("client_id", "game_id", name="uq_client_game"),
+    )
+
+    id = db.Column(db.Integer, primary_key=True)
+    client_id = db.Column(db.String(40), nullable=False, index=True)
+    game_id = db.Column(
+        db.Integer, db.ForeignKey("games.id"), nullable=False, index=True
+    )
+
+    favorite = db.Column(db.Boolean, default=False)
+    played = db.Column(db.Boolean, default=False)
+    rating = db.Column(db.Integer)        # 1..5, optional
+    memo = db.Column(db.Text, default="")  # 感想メモ
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow,
+                           onupdate=datetime.utcnow)
+
+    game = db.relationship("Game")
+
+    @property
+    def is_empty(self) -> bool:
+        """True when nothing worth keeping is recorded (allows cleanup)."""
+        return (
+            not self.favorite
+            and not self.played
+            and not self.rating
+            and not (self.memo or "").strip()
+        )

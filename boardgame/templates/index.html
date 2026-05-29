@@ -39,25 +39,53 @@
   <a class="clear" href="{{ url_for('index') }}">クリア</a>
 </form>
 
+<div class="quick-tabs">
+  <a class="qt {% if not show %}active{% endif %}"
+     href="{{ url_for('index', q=q, type=gtype, players=players, sort=sort) }}">すべて</a>
+  <a class="qt {% if show == 'fav' %}active{% endif %}"
+     href="{{ url_for('index', q=q, type=gtype, players=players, sort=sort, show='fav') }}">⭐ お気に入り（{{ fav_count }}）</a>
+  <a class="qt {% if show == 'played' %}active{% endif %}"
+     href="{{ url_for('index', q=q, type=gtype, players=players, sort=sort, show='played') }}">✅ プレイ済み（{{ played_count }}）</a>
+</div>
+
 <p class="result-count">{{ games|length }} 件 / 全 {{ total }} 件</p>
 
 <div class="grid">
-  {% for g in games %}
-  <a class="card" href="{{ url_for('game_detail', game_id=g.id) }}">
-    <div class="card-top">
-      <span class="type-tag">{{ g.game_type }}</span>
-      <span class="diff" title="難易度">{{ '★' * g.difficulty }}{{ '☆' * (5 - g.difficulty) }}</span>
+  {% for gm in games %}
+  {% set rec = records.get(gm.id) %}
+  <a class="card" href="{{ url_for('game_detail', game_id=gm.id) }}">
+    <div class="card-thumb">
+      {% if gm.image_url %}
+        <img src="{{ gm.image_url }}" alt="{{ gm.name }}" loading="lazy">
+      {% else %}
+        <div class="thumb-placeholder">🎲</div>
+      {% endif %}
+      <div class="card-flags">
+        {% if rec and rec.favorite %}<span class="flag fav" title="お気に入り">⭐</span>{% endif %}
+        {% if rec and rec.played %}<span class="flag played" title="プレイ済み">✅</span>{% endif %}
+      </div>
     </div>
-    <h3>{{ g.name }}</h3>
-    {% if g.name_en %}<p class="en">{{ g.name_en }}</p>{% endif %}
-    <ul class="meta">
-      <li>👥 {{ g.player_range }}</li>
-      <li>⏱ {{ g.play_time_min }}分</li>
-    </ul>
-    <p class="desc">{{ g.description }}</p>
+    <div class="card-body">
+      <div class="card-top">
+        <span class="type-tag">{{ gm.game_type }}</span>
+        <span class="diff" title="難易度">{{ '★' * gm.difficulty }}{{ '☆' * (5 - gm.difficulty) }}</span>
+      </div>
+      <h3>{{ gm.name }}</h3>
+      {% if gm.name_en %}<p class="en">{{ gm.name_en }}</p>{% endif %}
+      <ul class="meta">
+        <li>👥 {{ gm.player_range }}</li>
+        <li>⏱ {{ gm.play_time_min }}分</li>
+      </ul>
+      {% if rec and rec.rating %}<p class="card-rating">{{ '★' * rec.rating }}{{ '☆' * (5 - rec.rating) }}</p>{% endif %}
+      <p class="desc">{{ gm.description }}</p>
+    </div>
   </a>
   {% else %}
-  <p class="empty">該当するゲームが見つかりませんでした。条件を変えてみてください。</p>
+  <p class="empty">
+    {% if show == 'fav' %}お気に入りに登録したゲームはまだありません。
+    {% elif show == 'played' %}プレイ済みのゲームはまだありません。
+    {% else %}該当するゲームが見つかりませんでした。条件を変えてみてください。{% endif %}
+  </p>
   {% endfor %}
 </div>
 {% endblock %}

@@ -16,7 +16,8 @@
     "procedure": "手番開始時にサイコロ2個を振り、出目に対応する地形に隣接する開拓地・都市の所有者が資源を得る\n7が出たら手札7枚超のプレイヤーは半分を捨て、手番者は盗賊を移動させ隣接プレイヤーから資源を1枚奪う\n他プレイヤーと資源を自由に交渉・交易する（銀行とは4:1で交換）\n資源を支払って街道・開拓地・都市を建設、または発展カードを購入する\n建設・交易を終えたら次のプレイヤーに手番を渡す",
     "end_condition": "自分の手番中に勝利点が合計10点に達した瞬間にゲーム終了。そのプレイヤーが勝者となる。",
     "online_url": "https://colonist.io",
-    "bgg_url": "https://boardgamegeek.com/boardgame/13"
+    "bgg_url": "https://boardgamegeek.com/boardgame/13",
+    "image_url": ""
   },
   {
     "name": "ニムト",
@@ -35,7 +36,8 @@
     "procedure": "各プレイヤーは手札10枚から1枚を選び、全員同時に伏せて出す\n全員のカードを公開し、数字の小さい順に処理する\nカードは自分の数字より小さく最も近い列の右端に置く\nその列が6枚目になる場合、先の5枚を引き取り（牛マークが失点）、自分のカードが新たな起点になる\nどの列よりも小さい数字を出した場合は、好きな列1つを引き取って自分のカードを起点にする\n手札がなくなるまで（10回）繰り返す",
     "end_condition": "誰かの失点（牛マーク）が66点に達したらゲーム終了。最も失点が少ないプレイヤーが勝利する。",
     "online_url": "https://boardgamearena.com/gamepanel?game=sechsnimmt",
-    "bgg_url": "https://boardgamegeek.com/boardgame/432"
+    "bgg_url": "https://boardgamegeek.com/boardgame/432",
+    "image_url": ""
   },
   {
     "name": "カルカソンヌ",
@@ -54,7 +56,8 @@
     "procedure": "山から地形タイルを1枚引き、既存のタイルと辺が合うように配置する\n望むなら、置いたタイル上の地形に手元のミープルを1つ配置する（既に他者がいる地形には置けない）\n都市・道・修道院が完成したら即座に得点し、乗っていたミープルを手元に戻す\n次のプレイヤーへ手番を渡す",
     "end_condition": "全てのタイルを置き終えたらゲーム終了。未完成の地形と草原を最終得点として加算し、合計点が最も高いプレイヤーが勝利する。",
     "online_url": "https://boardgamearena.com/gamepanel?game=carcassonne",
-    "bgg_url": "https://boardgamegeek.com/boardgame/822"
+    "bgg_url": "https://boardgamegeek.com/boardgame/822",
+    "image_url": ""
   },
   {
     "name": "ナショナルエコノミー",
@@ -73,7 +76,8 @@
     "procedure": "労働フェイズ：手番ごとに労働者を建物に1人ずつ配置し、その建物の効果（生産・建設・お金獲得など）を使う\n全員が労働者を置き終えたら家計フェイズへ移る\n家計フェイズ：労働者1人あたり規定額の賃金を支払う。支払えない分の労働者は失業者になる\n失業者がいると失業対策などのペナルティ・効果が発生する\n決算を経て次のラウンドへ、これを規定ラウンド繰り返す",
     "end_condition": "規定ラウンド（通常9ラウンド）を終えたらゲーム終了。手元資産が最も多いプレイヤーが勝者となる。",
     "online_url": "",
-    "bgg_url": "https://boardgamegeek.com/geeksearch.php?action=search&objecttype=boardgame&q=National+Economy"
+    "bgg_url": "https://boardgamegeek.com/geeksearch.php?action=search&objecttype=boardgame&q=National+Economy",
+    "image_url": ""
   },
   {
     "name": "ドミニオン",
@@ -92,7 +96,8 @@
     "procedure": "毎手番5枚の手札からスタートする\nアクションフェイズ：アクションカードを1枚プレイして効果を使う（追加アクションが得られれば連鎖可能）\n購入フェイズ：財宝カードを出してコインを生み出し、サプライからカードを1枚購入して捨て札に加える\nクリンナップ：手札と場のカードを全て捨て札にし、山札から新たに5枚引く\n山札が尽きたら捨て札をシャッフルして新しい山札にする",
     "end_condition": "属州（最高位の勝利点カード）の山が尽きるか、任意のサプライの山が3つ尽きたらそのラウンドでゲーム終了。デッキ内の勝利点合計が最大のプレイヤーが勝利する。",
     "online_url": "https://dominion.games",
-    "bgg_url": "https://boardgamegeek.com/boardgame/36218"
+    "bgg_url": "https://boardgamegeek.com/boardgame/36218",
+    "image_url": ""
   },
   {
     "name": "レジスタンス",
@@ -111,7 +116,8 @@
     "procedure": "リーダーがその回のミッションに参加するメンバーを規定人数だけ指名する\n全員でそのメンバー編成に賛成/反対を一斉に投票する\n過半数が賛成ならミッション実行、否決ならリーダーが次の人に移り再提案（5回連続否決でスパイ勝利）\n選ばれたメンバーは『成功』か『失敗』のカードを秘密裏に1枚提出する\n失敗カードが1枚でも（高人数の一部回は2枚）出ればミッション失敗、すべて成功なら成功\nリーダーを左隣に移し、議論しながら次のミッションへ",
     "end_condition": "5回のミッションのうち、先に3回成功でレジスタンス陣営の勝利、先に3回失敗でスパイ陣営の勝利。",
     "online_url": "https://www.proavalon.com",
-    "bgg_url": "https://boardgamegeek.com/boardgame/41114"
+    "bgg_url": "https://boardgamegeek.com/boardgame/41114",
+    "image_url": ""
   },
   {
     "name": "マスカレイド",
@@ -130,7 +136,8 @@
     "procedure": "手番に次の3つから1つを行う\n(A) 自分のカードと他人のカードを伏せたまま、入れ替える/入れ替えるふりをする\n(B) 自分のカードをこっそり覗いて確認する（最初の数手番はこれで様子見）\n(C) ある役職を宣言し、その能力を使う\n(C)で宣言に異議を唱える人がいれば、名乗り出た全員が自分こそその役職だと主張しカードを公開\n本当にその役職だった1人だけが能力を発動でき、嘘をついていた人は罰金として1金を場（教会）に払う",
     "end_condition": "誰かの所持金が13金に到達した時点で勝利。または誰かが破産（支払い不能）した場合もゲーム終了し、最も金を持つプレイヤーが勝利する。",
     "online_url": "",
-    "bgg_url": "https://boardgamegeek.com/boardgame/139030"
+    "bgg_url": "https://boardgamegeek.com/boardgame/139030",
+    "image_url": ""
   },
   {
     "name": "パンデミック",
@@ -149,7 +156,8 @@
     "procedure": "手番のプレイヤーは4回のアクションを行う（隣接都市へ移動、調査基地の建設、病原体キューブの除去、手札の受け渡し、治療薬の発見など）\nアクション後、プレイヤーカードを2枚引く（エピデミックカードを引くと感染が加速する）\n感染フェイズ：感染カードをめくり、示された都市に病原体キューブを置く\nすでに3個ある都市にさらに置こうとするとアウトブレイクが発生し、隣接都市へ連鎖的に広がる\n手番を次のプレイヤーへ渡し、協力して対応を続ける",
     "end_condition": "4種の治療薬をすべて発見すれば全員勝利。逆に、アウトブレイクが8回発生する／いずれかの病原体キューブが尽きる／プレイヤーの山札が引けなくなる、のいずれかで全員敗北。",
     "online_url": "",
-    "bgg_url": "https://boardgamegeek.com/boardgame/30549"
+    "bgg_url": "https://boardgamegeek.com/boardgame/30549",
+    "image_url": ""
   },
   {
     "name": "モダンアート",
@@ -168,7 +176,8 @@
     "procedure": "手番のプレイヤーは手札から絵画を1枚出品し、その絵に描かれた競り方式で競売にかける\n競り方式は『公開競り』『一声入札』『指値』『密室競り』『ダブル（同じ画家をもう1枚足して出品）』の5種類\n落札者は出品者（自分なら銀行）に代金を払い、その絵を獲得する\nある画家の絵が場に合計5枚出されたラウンドは即終了する\nラウンド終了時、そのラウンドで売れた枚数の多い画家トップ3に価値が付き、累積していく\n各プレイヤーは手持ちの絵を、画家ごとの価値額で銀行に換金する",
     "end_condition": "全4ラウンドを終えたらゲーム終了。手持ちの絵をすべて換金し、最終的な所持金が最も多いプレイヤーが勝者となる。",
     "online_url": "https://boardgamearena.com/gamepanel?game=modernart",
-    "bgg_url": "https://boardgamegeek.com/boardgame/118"
+    "bgg_url": "https://boardgamegeek.com/boardgame/118",
+    "image_url": ""
   },
   {
     "name": "世界の七不思議",
@@ -187,7 +196,8 @@
     "procedure": "手札を受け取り、その中からカードを1枚選んで建設・不思議の建造・資金化のいずれかに使う\n残りの手札を一斉に隣のプレイヤーへ回す（ドラフト）\nこれを手札がなくなるまで繰り返して1時代が終わる\n各時代の終わりに、両隣との軍事力を比較し勝敗トークンを得る\n第I〜III時代の3つの時代を順に行う",
     "end_condition": "第III時代終了でゲーム終了。建造物・不思議・軍事・科学・商業などの勝利点を合計し、最多のプレイヤーが勝利する。",
     "online_url": "",
-    "bgg_url": "https://boardgamegeek.com/boardgame/68448"
+    "bgg_url": "https://boardgamegeek.com/boardgame/68448",
+    "image_url": ""
   },
   {
     "name": "チケット・トゥ・ライド",
@@ -206,7 +216,8 @@
     "procedure": "手番に次の3つから1つを行う\n(A) 場または山札から列車カードを2枚引く\n(B) 同じ色の列車カードを区間の長さ分支払い、2都市間の路線を敷設して得点する\n(C) 新たな目的地チケットを引く（達成すれば加点、未達成なら減点）\nこれを各プレイヤーが順に繰り返す",
     "end_condition": "いずれかのプレイヤーの列車コマが2個以下になったら、全員あと1手番ずつ行って終了。路線得点＋達成した目的地＋最長路線ボーナスから未達成目的地を引き、最多点が勝利。",
     "online_url": "",
-    "bgg_url": "https://boardgamegeek.com/boardgame/9209"
+    "bgg_url": "https://boardgamegeek.com/boardgame/9209",
+    "image_url": ""
   },
   {
     "name": "スプレンダー",
@@ -225,7 +236,8 @@
     "procedure": "手番に次のいずれか1つを行う\n(A) 異なる色の宝石チップを3枚取る\n(B) 同じ色の宝石チップを2枚取る（その色が4枚以上ある場合）\n(C) 場または手元に確保した発展カードを購入する\n(D) 発展カード1枚を確保し、黄金（万能）チップを1枚得る\n所有する発展カードは以後の購入で永続的な割引（ボーナス宝石）になる\n貴族タイルの条件を満たすと自動的に訪問し勝利点をくれる",
     "end_condition": "誰かが勝利点15点に到達したら、そのラウンドを最後まで行って終了。最多点（同点なら購入カードが少ない方）が勝利する。",
     "online_url": "",
-    "bgg_url": "https://boardgamegeek.com/boardgame/148228"
+    "bgg_url": "https://boardgamegeek.com/boardgame/148228",
+    "image_url": ""
   },
   {
     "name": "アズール",
@@ -244,7 +256,8 @@
     "procedure": "場の円形タレットまたは中央から、同じ色のタイルをすべて取る\n取ったタイルを自分のパターンライン（準備列）に置く（置けない・あふれた分は床ラインで減点）\n全員がタイルを取り切ったら配置フェイズへ\nパターンラインが埋まった行から、右の壁に1枚タイルを移して得点する（隣接するタイルで連鎖加点）\nこれをラウンドとして繰り返す",
     "end_condition": "誰かが壁の横一列（5枚）を完成させたらそのラウンドで終了。列・縦・色のセット完成ボーナスを加算し、最多点が勝利する。",
     "online_url": "",
-    "bgg_url": "https://boardgamegeek.com/boardgame/230802"
+    "bgg_url": "https://boardgamegeek.com/boardgame/230802",
+    "image_url": ""
   },
   {
     "name": "ウイングスパン",
@@ -263,7 +276,8 @@
     "procedure": "手番に4つのアクションから1つを選ぶ\n(A) 鳥をプレイする（餌を支払って生息地に配置）\n(B) 餌を獲得する（森の列の鳥能力が発動）\n(C) 卵を産む（草原の列の鳥能力が発動）\n(D) カードを引く（湿地の列の鳥能力が発動）\n列に鳥が並ぶほど『発動型』能力が連鎖して強力になる\nラウンドごとに使えるアクション数（キューブ）が1つずつ減っていく",
     "end_condition": "全4ラウンドを終えたらゲーム終了。鳥の点・ボーナスカード・ラウンド目標・卵・蓄えた餌などを合計し、最多点が勝利する。",
     "online_url": "",
-    "bgg_url": "https://boardgamegeek.com/boardgame/266192"
+    "bgg_url": "https://boardgamegeek.com/boardgame/266192",
+    "image_url": ""
   },
   {
     "name": "コードネーム",
@@ -282,7 +296,8 @@
     "procedure": "スパイマスターだけが正解の配置図を見て、味方の単語に共通する『ヒント1語＋個数』を伝える\n諜報員は相談して、ヒントに合うと思う単語カードを指さして回答する\n自陣の色なら成功して続けて回答可、相手色や無関係なら手番終了\n暗殺者の単語を指してしまったら即座に敗北\nチームを交代して繰り返す",
     "end_condition": "自陣の担当単語をすべて先に当てたチームが勝利。暗殺者を指したチームはその時点で敗北となる。",
     "online_url": "https://codenames.game",
-    "bgg_url": "https://boardgamegeek.com/boardgame/178900"
+    "bgg_url": "https://boardgamegeek.com/boardgame/178900",
+    "image_url": ""
   },
   {
     "name": "ディクシット",
@@ -301,7 +316,8 @@
     "procedure": "語り部は手札の絵札1枚を選び、それを表す言葉やフレーズ（ヒント）を言って伏せて出す\n他のプレイヤーはヒントに合いそうな自分の手札を1枚伏せて提出する\n集めた絵札をシャッフルして公開し、各回答者は語り部の本物だと思う絵札に投票する\n全員正解・全員不正解なら語り部は0点（他が加点）、一部だけ正解なら語り部と当てた人が加点\n他人の絵札に票を集めた回答者もボーナス点を得る",
     "end_condition": "山札が尽きるか、誰かが得点トラックのゴール（通常30点）に到達したらゲーム終了。最多点のプレイヤーが勝利する。",
     "online_url": "",
-    "bgg_url": "https://boardgamegeek.com/boardgame/39856"
+    "bgg_url": "https://boardgamegeek.com/boardgame/39856",
+    "image_url": ""
   },
   {
     "name": "ラブレター",
@@ -320,7 +336,8 @@
     "procedure": "各プレイヤーは手札1枚を持った状態で手番を迎える\n山札から1枚引いて手札2枚にし、どちらか1枚を出して効果を発動する\n効果で相手の手札を当てて脱落させたり、手札を比べたり、交換したりする\n脱落したプレイヤーはそのラウンドから抜ける\n山札が尽きるか1人だけ残るまで時計回りに続ける",
     "end_condition": "山札が尽きたら手札の数字が最大の人、または最後まで残った1人がラウンド勝者。規定数の勝利トークンを先に集めたプレイヤーが最終勝者。",
     "online_url": "",
-    "bgg_url": "https://boardgamegeek.com/boardgame/129622"
+    "bgg_url": "https://boardgamegeek.com/boardgame/129622",
+    "image_url": ""
   },
   {
     "name": "人狼",
@@ -339,7 +356,8 @@
     "procedure": "夜：全員が目を閉じ、人狼が襲撃する相手を1人選ぶ。占い師などの役職も能力を使う\n朝：襲撃された人が犠牲者として発表され脱落する\n昼：全員で議論し、人狼だと思う人物を1人投票で処刑する\n処刑された人が脱落し、再び夜を迎える\n勝利条件を満たすまで昼と夜を繰り返す",
     "end_condition": "人狼が全員処刑されれば村人陣営の勝利。人狼の数が村人と同数以上になれば人狼陣営の勝利。",
     "online_url": "",
-    "bgg_url": "https://boardgamegeek.com/boardgame/925"
+    "bgg_url": "https://boardgamegeek.com/boardgame/925",
+    "image_url": ""
   },
   {
     "name": "ごきぶりポーカー",
@@ -358,7 +376,8 @@
     "procedure": "手番のプレイヤーは手札から1枚を伏せ、相手を選び『これは○○だ』と種類を宣言して差し出す\n言われた相手は『本当（信じる）』か『嘘だ（疑う）』を答える\n当たれば差し出した側が、外れれば受け取った側がそのカードを表向きで自分の前に置く\nあるいは受け取った相手は中身を見て、別の人へ宣言し直して回すこともできる\nこれを繰り返してカードを押し付け合う",
     "end_condition": "誰かが同じ種類のカードを4枚自分の前に並べてしまうか、手札がなくなって出せなくなったら、その人の負けでゲーム終了。",
     "online_url": "",
-    "bgg_url": "https://boardgamegeek.com/boardgame/11971"
+    "bgg_url": "https://boardgamegeek.com/boardgame/11971",
+    "image_url": ""
   },
   {
     "name": "それは私のサカナだ",
@@ -377,7 +396,8 @@
     "procedure": "最初に手番順でペンギンを氷タイル上に配置する\n手番にペンギン1匹を、直線方向へ好きなマス数だけ滑らせて移動する\n移動元のタイルを取り上げ、自分の獲得した魚として手元に置く（穴が空き通れなくなる）\nどのペンギンも動かせなくなったプレイヤーは、自分のペンギンが乗るタイルを回収して脱落する\n全員が動けなくなるまで続ける",
     "end_condition": "全プレイヤーのペンギンが移動できなくなったらゲーム終了。集めた魚の数が最も多いプレイヤーが勝利する。",
     "online_url": "https://boardgamearena.com/gamepanel?game=fish",
-    "bgg_url": "https://boardgamegeek.com/boardgame/8203"
+    "bgg_url": "https://boardgamegeek.com/boardgame/8203",
+    "image_url": ""
   },
   {
     "name": "お邪魔者",
@@ -396,7 +416,8 @@
     "procedure": "手番に次のいずれかを行う\n(A) 手札の坑道カードを場に置き、スタートから金塊へ向けて道をつなげる（向きや接続のルールあり）\n(B) アクションカードで他人の道具を壊す/直す、落盤を起こす、行き先を覗くなどする\n(C) カードを伏せてパスする\n行動後に山札から1枚補充して次の人へ回す\n会話で疑い合いながら、自分の陣営の目的に向けて動く",
     "end_condition": "坑道が金塊カードに到達したら金鉱掘りの勝利、つながる前に山札と手札が尽きたらお邪魔者の勝利。勝った陣営が金塊（報酬）を分配し、規定ラウンド後に最も金を集めた人が総合勝者。",
     "online_url": "https://boardgamearena.com/gamepanel?game=saboteur",
-    "bgg_url": "https://boardgamegeek.com/boardgame/9220"
+    "bgg_url": "https://boardgamegeek.com/boardgame/9220",
+    "image_url": ""
   },
   {
     "name": "クー",
@@ -415,7 +436,8 @@
     "procedure": "手番に役職能力（収入・援助・税収・暗殺・強奪・交換）か、クーデターを宣言する\n役職能力は本当に持っていなくても“ふり”で宣言できる\n他プレイヤーは嘘を疑ってチャレンジでき、嘘がバレた側は手札を1枚公開して失う（本当なら疑った側が失う）\n暗殺や強奪は対象が女伯爵などでブロックを主張して防げる\nコイン7枚以上でクーデターを起こし、相手の手札を強制的に1枚失わせる",
     "end_condition": "影響力（手札）を2枚とも失ったプレイヤーは脱落。最後まで手札を残した1人が勝者となる。",
     "online_url": "https://boardgamearena.com/gamepanel?game=coup",
-    "bgg_url": "https://boardgamegeek.com/boardgame/131357"
+    "bgg_url": "https://boardgamegeek.com/boardgame/131357",
+    "image_url": ""
   },
   {
     "name": "ストーンエイジ",
@@ -434,7 +456,8 @@
     "procedure": "配置フェイズ：手番ごとに自分の人コマを、狩場・森・粘土採掘場・採石場・川・道具製作・小屋・カード市場などに配置する\n全員が配置を終えたら実行フェイズへ\n実行フェイズ：配置した場所でダイスを振り、出目÷資源価値で資源を獲得（道具やレベルで補正）\n食料で全員の家族を養う（足りないと減点）\n得た資源で建物や文化カードを購入して勝利点を得る",
     "end_condition": "建物の山が尽きるか文化カードの列が補充できなくなったらそのラウンドで終了。資源・カード・農耕・道具などの最終ボーナスを加算し、最多点が勝利。",
     "online_url": "https://boardgamearena.com/gamepanel?game=stoneage",
-    "bgg_url": "https://boardgamegeek.com/boardgame/34635"
+    "bgg_url": "https://boardgamegeek.com/boardgame/34635",
+    "image_url": ""
   },
   {
     "name": "プエルトリコ",
@@ -453,7 +476,8 @@
     "procedure": "手番のプレイヤーが役割カードを1枚選び、その役割の効果を全員が順に実行する（選んだ本人は特典付き）\n開拓者＝農園タイル取得、市長＝入植者（労働力）配置、建築家＝建物購入、監督＝作物の生産\n商人＝作物を売って現金化、船長＝作物を船に積んで出荷し勝利点を獲得\n全員が1枚ずつ役割を選び終えたら1ラウンド終了し、残った役割カードに金貨が乗る\nこれを繰り返して島を発展させる",
     "end_condition": "勝利点チップが尽きる／誰かが建物スペースを埋める／入植者が補充できなくなる、のいずれかでそのラウンド終了。建物点＋出荷点の合計が最多のプレイヤーが勝利。",
     "online_url": "https://boardgamearena.com/gamepanel?game=puertorico",
-    "bgg_url": "https://boardgamegeek.com/boardgame/3076"
+    "bgg_url": "https://boardgamegeek.com/boardgame/3076",
+    "image_url": ""
   },
   {
     "name": "アグリコラ",
@@ -472,7 +496,8 @@
     "procedure": "手番に家族コマを1つ、共有のアクションスペース（畑を耕す・木や食料を集める・家畜を取る・家を増築する・進歩カードを使うなど）に配置する\n全員が家族コマを置き終えたら収穫フェイズへ\n収穫フェイズ：畑から作物を収穫し、家族を食料で養い、家畜が繁殖する\n食料が足りないと物乞いカード（大きな減点）を受け取る\nこれを規定ラウンド繰り返し、徐々にできるアクションが増えていく",
     "end_condition": "全14ラウンドを終えたらゲーム終了。畑・牧場・各種家畜・住居・家族数・進歩カードなどを得点化し、減点（更地・物乞い）を引いて最多点が勝利。",
     "online_url": "",
-    "bgg_url": "https://boardgamegeek.com/boardgame/31260"
+    "bgg_url": "https://boardgamegeek.com/boardgame/31260",
+    "image_url": ""
   },
   {
     "name": "テラフォーミング・マーズ",
@@ -491,7 +516,8 @@
     "procedure": "世代の初めに各自がプロジェクトカードをドラフト/購入して手札に加える\nアクションフェイズ：手番に1〜2アクションを行う（カードのプレイ、標準プロジェクト、カード能力の起動、緑地や都市の建設など）\n気温・酸素を上げたり海タイルを置くたびにテラフォーミング評価（TR＝収入と得点）が上がる\n全員がパスしたら生産フェイズで資源を生産し、次の世代へ\nこれを地球化の3指標が最大になるまで繰り返す",
     "end_condition": "気温・酸素・海洋の3つがすべて上限に達したらその世代で終了。TR＋盤上の都市/緑地＋実績・褒賞・カード得点を合計し、最多点が勝利。",
     "online_url": "",
-    "bgg_url": "https://boardgamegeek.com/boardgame/167791"
+    "bgg_url": "https://boardgamegeek.com/boardgame/167791",
+    "image_url": ""
   },
   {
     "name": "キング・オブ・トーキョー",
@@ -510,7 +536,8 @@
     "procedure": "手番に6個のダイスを振り、最大2回まで好きな目を残して振り直す\n出目に応じて、攻撃（爪）・回復（ハート）・エネルギー獲得・勝利点（数字3つ揃い）の効果を得る\n東京の中にいる怪獣は外の全員を攻撃でき、得点も得るが回復できず集中攻撃を受ける\nエネルギーでパワーアップカードを購入し、特殊能力を得る\n攻撃で東京の怪獣のライフを削ると、入れ替わって東京に入ることができる",
     "end_condition": "誰かが勝利点20点に到達するか、自分以外の怪獣が全員ライフ0で倒れたら、その怪獣が勝者となる。",
     "online_url": "",
-    "bgg_url": "https://boardgamegeek.com/boardgame/70323"
+    "bgg_url": "https://boardgamegeek.com/boardgame/70323",
+    "image_url": ""
   },
   {
     "name": "ブロックス",
@@ -529,7 +556,8 @@
     "procedure": "最初のピースは自分のスタート角のマスを含むように置く\n2手目以降は、自分の既存ピースと『角』が必ず接するように置く（辺で接してはいけない）\n他人のピースとは辺でも角でも自由に隣接してよい\n置けるピースがなくなったプレイヤーはパスする\n全員が置けなくなるまで順に置いていく",
     "end_condition": "全員が置けなくなったらゲーム終了。盤に置けたピースのマス数が多い（手元の残りマスが少ない）プレイヤーが勝利する。",
     "online_url": "https://boardgamearena.com/gamepanel?game=blokus",
-    "bgg_url": "https://boardgamegeek.com/boardgame/2453"
+    "bgg_url": "https://boardgamegeek.com/boardgame/2453",
+    "image_url": ""
   },
   {
     "name": "キャント・ストップ",
@@ -548,7 +576,8 @@
     "procedure": "手番にサイコロ4個を振り、2個ずつ2組に分けてその合計（2つの数字）を作る\nその数字のコラムに白い前進コマを進める（1手番に最大3本まで進められる）\n振った目で進められるコラムが3本のどれにもならなければ『バースト』して、その手番の前進が無効になる\nバーストする前に止めれば、白コマの位置を自分の色マーカーで確定して手番終了\n確定した進捗を足がかりに、次の手番でさらに上を目指す",
     "end_condition": "いずれかのプレイヤーが3本のコラムの頂上に自分のマーカーで到達したら、そのプレイヤーが勝利しゲーム終了。",
     "online_url": "https://boardgamearena.com/gamepanel?game=cantstop",
-    "bgg_url": "https://boardgamegeek.com/boardgame/41"
+    "bgg_url": "https://boardgamegeek.com/boardgame/41",
+    "image_url": ""
   },
   {
     "name": "ハゲタカのえじき",
@@ -567,7 +596,8 @@
     "procedure": "得点カードを1枚めくって場に出す\n全員が手札の数字カードから1枚を選び、一斉に公開する\nプラスの得点カードは最も大きい数字を出した人が獲得する\nただし他の人と同じ数字を出した場合は無効になり、次に大きい単独の数字の人が取る\nマイナスの得点カードは最も小さい単独の数字を出した人が引き取る\n使った数字カードは戻らない。これを得点カードがなくなるまで繰り返す",
     "end_condition": "すべての得点カード（＋10〜−5）を出し終えたらゲーム終了。獲得した得点カードの合計が最も高いプレイヤーが勝利する。",
     "online_url": "",
-    "bgg_url": "https://boardgamegeek.com/boardgame/6249"
+    "bgg_url": "https://boardgamegeek.com/boardgame/6249",
+    "image_url": ""
   },
   {
     "name": "ハナビ",
@@ -586,7 +616,8 @@
     "procedure": "手番に次の3つから1つを行う\n(A) ヒントトークンを使い、他プレイヤーに『この2枚が赤』『この1枚が3』など色か数字の情報を1種類教える\n(B) 手札を1枚捨ててヒントトークンを回復する\n(C) 手札を1枚、場の花火として出す（正しい昇順なら成功、間違えるとミストークン）\nカードを出す/捨てたら山札から1枚補充する\nヒントは限られているので、何を伝えるかが鍵になる",
     "end_condition": "ミストークンを3つ使い切ると即失敗で終了。山札が尽きたら最後の一巡で終了。並べた花火の合計枚数が得点となる（25点で満点）。",
     "online_url": "",
-    "bgg_url": "https://boardgamegeek.com/boardgame/98778"
+    "bgg_url": "https://boardgamegeek.com/boardgame/98778",
+    "image_url": ""
   },
   {
     "name": "ボーナンザ",
@@ -605,7 +636,8 @@
     "procedure": "手番の最初に、手札の先頭の豆カードを必ず畑に植える（同じ種類しか1つの畑にまとめられない）\n山札から2枚めくって場に出し、それらと自分の手札を使って他プレイヤーと交渉・交換する\n受け取った豆や場の豆を畑に植える\n手番の最後に山札から手札を補充する（補充したカードは列の最後尾に加わり順番は変えられない）\n畑がいっぱいになったら豆を売って金貨に換える",
     "end_condition": "山札を規定回数（通常3回）使い切ったらゲーム終了。各自が畑の豆を清算し、貯めた金貨が最も多いプレイヤーが勝利する。",
     "online_url": "",
-    "bgg_url": "https://boardgamegeek.com/boardgame/11"
+    "bgg_url": "https://boardgamegeek.com/boardgame/11",
+    "image_url": ""
   },
   {
     "name": "ガイスター",
@@ -624,7 +656,8 @@
     "procedure": "盤の自陣にオバケ8体を、正体を相手に見せないよう配置する\n手番にオバケ1体を縦か横に1マス動かす\n相手のオバケがいるマスに入ると、そのオバケを取り正体が判明する\n良いオバケで相手陣地の角の出口マスに入り、次の手番で脱出できれば勝ち\n相手の良いオバケを取らせる/取ることで勝利条件を狙う",
     "end_condition": "(1)自分の良いオバケを相手陣地の出口から脱出させる、(2)相手の良いオバケを4体すべて取る、(3)自分の悪いオバケを4体すべて相手に取らせる、のいずれかを達成した側が勝利。",
     "online_url": "",
-    "bgg_url": "https://boardgamegeek.com/boardgame/2290"
+    "bgg_url": "https://boardgamegeek.com/boardgame/2290",
+    "image_url": ""
   },
   {
     "name": "スコットランドヤード",
@@ -643,7 +676,8 @@
     "procedure": "全員がタクシー・バス・地下鉄のチケットを使ってロンドンの駅を移動する\nMr.Xは位置を伏せたまま動き、使った交通手段だけを記録ボードで公開する\n決められたターン（黒丸のターン）だけMr.Xは現在位置を一瞬だけ公開する\n刑事はMr.Xの移動手段と公開情報から居場所を推理し、包囲していく\n刑事はチケットが有限で、協力して退路を断つ必要がある",
     "end_condition": "刑事がMr.Xと同じ駅に止まれば捕獲成功で刑事の勝利。規定ターン（通常24ターン）逃げ切ればMr.Xの勝利。",
     "online_url": "",
-    "bgg_url": "https://boardgamegeek.com/boardgame/438"
+    "bgg_url": "https://boardgamegeek.com/boardgame/438",
+    "image_url": ""
   },
   {
     "name": "世界の七不思議：デュエル",
@@ -662,7 +696,8 @@
     "procedure": "ピラミッド状に配置されたカードのうち、他のカードに覆われていない取れるカードを1枚選ぶ\n選んだカードを建設するか、不思議の建造に使うか、捨てて資金にする\n軍事カードを取ると軍事マーカーが相手側へ進み、首都に到達させると即勝利\n科学シンボルを集めたり、施設・商業カードで資源と得点を伸ばす\n第I〜III時代を順にプレイする",
     "end_condition": "軍事マーカーで相手首都を陥落させる、または異なる科学シンボル6種を集めると即勝利。どちらも起きなければ第III時代終了時に勝利点合計が多い方が勝利。",
     "online_url": "https://boardgamearena.com/gamepanel?game=sevenwondersduel",
-    "bgg_url": "https://boardgamegeek.com/boardgame/173346"
+    "bgg_url": "https://boardgamegeek.com/boardgame/173346",
+    "image_url": ""
   },
   {
     "name": "パッチワーク",
@@ -681,7 +716,8 @@
     "procedure": "時間ボード上で後ろにいる（時間が少ない）プレイヤーが手番を行う\n手番に、円形に並んだ布タイルのうち手前3つから1つを選んで購入し、自分のボードに配置する\nタイルのボタンコストを支払い、時間コスト分だけ自分のコマを時間ボードで進める\nまたはタイルを買わず、相手を追い越す手前まで進んで進んだ数だけボタンを得る\nボタン入りマスを通過すると、配置済みタイルのボタン数だけ収入を得る",
     "end_condition": "両者のコマが時間ボードの終点に達したら終了。残ったボタン数から空きマス1つにつき2ボタンを引き、得点が高い方が勝利。",
     "online_url": "https://boardgamearena.com/gamepanel?game=patchwork",
-    "bgg_url": "https://boardgamegeek.com/boardgame/163412"
+    "bgg_url": "https://boardgamegeek.com/boardgame/163412",
+    "image_url": ""
   },
   {
     "name": "ジャイプル",
@@ -700,7 +736,8 @@
     "procedure": "手番に『商品を取る』か『商品を売る』のどちらかを行う\n取る場合：市場から商品1枚を取る／ラクダを全部取る／手札と市場を複数枚交換する\n売る場合：同じ種類の商品カードを好きな枚数まとめて場に出し、対応するトークンを得る\n高額な宝石・金・銀は最低2〜3枚からしか売れない\n3枚・4枚・5枚同時売りには『おまけボーナストークン』が付く",
     "end_condition": "3種類の商品トークンが売り切れたらそのラウンド終了。ラクダ最多の人へボーナス。2ラウンド先取で総合勝者が決まる。",
     "online_url": "https://boardgamearena.com/gamepanel?game=jaipur",
-    "bgg_url": "https://boardgamegeek.com/boardgame/54043"
+    "bgg_url": "https://boardgamegeek.com/boardgame/54043",
+    "image_url": ""
   },
   {
     "name": "ロストシティ",
@@ -719,7 +756,8 @@
     "procedure": "手番に手札から1枚を出すか捨てる\nカードを出す場合、その色の探検路に、すでに出した数字より大きい数字を重ねていく\n各色は一度出し始めると後戻りできない（小さい数字は出せない）\n色ごとの『賭けカード』を先に出すと、その色の得点が倍増するがマイナスも倍に\nカードを出す/捨てた後、山札か捨て札から1枚補充する",
     "end_condition": "山札が尽きたら終了。各色は出したカードの合計から固定費20を引き、賭けカードで倍率をかける。両者の総合計が高い方が勝利。",
     "online_url": "https://boardgamearena.com/gamepanel?game=lostcities",
-    "bgg_url": "https://boardgamegeek.com/boardgame/50"
+    "bgg_url": "https://boardgamegeek.com/boardgame/50",
+    "image_url": ""
   },
   {
     "name": "バトルライン",
@@ -738,7 +776,8 @@
     "procedure": "各旗の自分側に、部隊カードを3枚まで配置して『役（フォーメーション）』を作る\n手番に部隊カードを1枚いずれかの旗に置き、山札から1枚補充する\n両側に3枚揃った旗は、役の強さ（同色の連番＞同数字＞同色…）を比較する\n強い役を作った側、または相手が作れないと証明できた側がその旗を獲得する\n戦術カードで数値を変えたり配置を妨害したりできる",
     "end_condition": "旗を合計5本獲得するか、隣り合う3本を獲得した時点でそのプレイヤーの勝利。",
     "online_url": "https://boardgamearena.com/gamepanel?game=battleline",
-    "bgg_url": "https://boardgamegeek.com/boardgame/760"
+    "bgg_url": "https://boardgamegeek.com/boardgame/760",
+    "image_url": ""
   },
   {
     "name": "キングドミノ",
@@ -757,7 +796,8 @@
     "procedure": "場に公開された地形ドミノに、前ラウンドで選んだ順に自分の駒を置いて取り合う\n選んだドミノを、同じ地形が隣接するよう自分の王国（5×5以内）につなげて置く\n良い（得点の高い）タイルを選ぶと、次ラウンドの手番順が後ろになる\nつなげられない場合はそのタイルを捨てる\nこれを全タイルがなくなるまで繰り返す",
     "end_condition": "全てのタイルを配置し終えたら終了。地形ごとに『マスの数×その地形内の王冠数』を合計し、最高得点のプレイヤーが勝利する。",
     "online_url": "https://boardgamearena.com/gamepanel?game=kingdomino",
-    "bgg_url": "https://boardgamegeek.com/boardgame/204583"
+    "bgg_url": "https://boardgamegeek.com/boardgame/204583",
+    "image_url": ""
   },
   {
     "name": "街コロ",
@@ -776,7 +816,8 @@
     "procedure": "手番にサイコロを1個（条件を満たせば2個）振る\n出目に対応する番号の施設が起動し、所有者に効果（コイン獲得など）が発生する\n青：誰の手番でも収入、緑：自分の手番のみ、赤：他人の手番に課金、紫：特殊効果\nサイコロの後、コインを支払って施設カードかランドマークを1つ購入する\n次のプレイヤーへ手番を渡す",
     "end_condition": "4種類のランドマーク（駅・ショッピングモール・遊園地・電波塔）をすべて建て終えた最初のプレイヤーが勝利。",
     "online_url": "",
-    "bgg_url": "https://boardgamegeek.com/boardgame/143884"
+    "bgg_url": "https://boardgamegeek.com/boardgame/143884",
+    "image_url": ""
   },
   {
     "name": "キャメルアップ",
@@ -795,7 +836,8 @@
     "procedure": "手番に次の4つから1つを行う\n(A) ピラミッド（ダイスタワー）を振り、出たラクダを進める（振った人はコイン1枚を得る）\n(B) その『区間（レグ）』での1着・2着を予想する賭けカードを取る\n(C) 最終的な総合優勝・最下位ラクダに自分の賭けカードを伏せて置く\n(D) コース上に自分の観客タイルを置き、踏んだラクダにボーナス/ペナルティ\nラクダは他のラクダの上に積み重なり、下のラクダが動くと上ごと運ばれる",
     "end_condition": "区間賭けは各レグ終了時に精算。いずれかのラクダがゴールを越えたらレース全体が終了し、総合予想を精算。最も賞金が多いプレイヤーが勝利。",
     "online_url": "https://boardgamearena.com/gamepanel?game=camelup",
-    "bgg_url": "https://boardgamegeek.com/boardgame/153938"
+    "bgg_url": "https://boardgamegeek.com/boardgame/153938",
+    "image_url": ""
   },
   {
     "name": "センチュリー：スパイスロード",
@@ -814,7 +856,8 @@
     "procedure": "手番に次の4つから1つを行う\n(A) 獲得：場の交易カードを取って手札に加える（手前のカードはスパイスを乗せて取る）\n(B) プレイ：手札のカードを使ってスパイスを獲得または変換（グレードアップ）する\n(C) 休息：使ったカードをすべて手札に戻す\n(D) 購入：必要なスパイスを支払い、場の得点カードを獲得する\nこれを繰り返し、効率の良い変換エンジンを育てる",
     "end_condition": "誰かが規定枚数（5〜6枚）の得点カードを獲得したらそのラウンドで終了。得点カードと残ったスパイスなどを合計し、最高得点が勝利。",
     "online_url": "https://boardgamearena.com/gamepanel?game=centuryspiceroad",
-    "bgg_url": "https://boardgamegeek.com/boardgame/209685"
+    "bgg_url": "https://boardgamegeek.com/boardgame/209685",
+    "image_url": ""
   },
   {
     "name": "スカル",
@@ -833,7 +876,8 @@
     "procedure": "全員、自分のカードを1枚伏せて場に置くところから始める\n手番では追加でもう1枚伏せるか、『何枚めくれるか』の宣言（チャレンジ）を始める\nチャレンジが始まると各自はより大きな枚数を宣言するか降りる\n最高額を宣言した人が、自分のカードから順にその枚数だけ花をめくっていく\n全部花ならチャレンジ成功、途中でドクロをめくったら失敗してカードを1枚失う",
     "end_condition": "チャレンジ成功を2回達成したプレイヤーが即勝利。または最後まで脱落せず1人だけ残った場合もそのプレイヤーの勝利。",
     "online_url": "https://boardgamearena.com/gamepanel?game=skull",
-    "bgg_url": "https://boardgamegeek.com/boardgame/92415"
+    "bgg_url": "https://boardgamegeek.com/boardgame/92415",
+    "image_url": ""
   },
   {
     "name": "ザ・マインド",
@@ -852,7 +896,8 @@
     "procedure": "各レベルで人数×レベル数の枚数が配られる（レベル1は1枚ずつ）\nプレイヤーは相談・合図・数字に関する会話を一切してはいけない\n『自分が一番小さい数字を持っている』と感じたタイミングで、その手札を場に出す\n出されたカードが昇順を保てていれば成功、より小さい数字が手札に残っていたら失敗\n全員の手札を出し切ればそのレベルクリア、次のレベルへ進む",
     "end_condition": "失敗するたびにライフを失い、ライフが尽きたらゲームオーバー。最終レベル（人数により8〜12）まで到達できれば全員の勝利。",
     "online_url": "",
-    "bgg_url": "https://boardgamegeek.com/boardgame/244992"
+    "bgg_url": "https://boardgamegeek.com/boardgame/244992",
+    "image_url": ""
   },
   {
     "name": "ナンジャモンジャ",
@@ -871,7 +916,8 @@
     "procedure": "山札を中央に伏せて置き、手番ごとに1枚めくって場に重ねる\n初めて出た生き物には、めくった人がその場で自由な名前を付ける\n以前に名前を付けた生き物が再び出たら、全員でその名前を早い者勝ちで叫ぶ\n最初に正しい名前を叫んだ人が、その場の重なったカードを全部もらう\n間違った名前を叫んだらお手つき。これを山札がなくなるまで続ける",
     "end_condition": "山札をすべてめくり終えたらゲーム終了。獲得したカード枚数が最も多いプレイヤーが勝利する。",
     "online_url": "",
-    "bgg_url": "https://boardgamegeek.com/boardgame/154172"
+    "bgg_url": "https://boardgamegeek.com/boardgame/154172",
+    "image_url": ""
   },
   {
     "name": "ito",
@@ -890,7 +936,8 @@
     "procedure": "全員に1〜100の数字カードが配られ、自分の数字は他人に見せない\nテーマ（例：人気の food、怖さ など）を1つ決める\n数字を直接言わず、その大きさをテーマに沿った言葉で表現して伝え合う（例：100なら『世界一好きな○○』）\n話し合いの感触をもとに、小さいと思う人から順にカードを場に出す\n出した数字が昇順を保てているか確認しながら全員分を出す",
     "end_condition": "全員のカードを小さい順に出し切れれば成功（クモノイト）。順番を間違えるたびにライフを失い、尽きたら失敗。",
     "online_url": "",
-    "bgg_url": "https://boardgamegeek.com/boardgame/308930"
+    "bgg_url": "https://boardgamegeek.com/boardgame/308930",
+    "image_url": ""
   },
   {
     "name": "インカの黄金",
@@ -909,7 +956,8 @@
     "procedure": "遺跡カードを1枚ずつめくって進む。宝石カードなら、その場にいる探検者で山分けする\n各自は『進む』か『引き返す』かを同時に伏せて選ぶ\n引き返した人は、その時点で道に落ちている宝石を回収してテント（安全地帯）に持ち帰る\n進み続ける人は、より奥の大きな宝を狙えるが危険も増す\n同じ種類の罠カードが2枚出ると落盤が起き、まだ遺跡内にいる人は全員その回の宝を失う",
     "end_condition": "5回の探検をすべて終えたらゲーム終了。テントに無事持ち帰った宝石の合計が最も多いプレイヤーが勝利する。",
     "online_url": "https://boardgamearena.com/gamepanel?game=diamant",
-    "bgg_url": "https://boardgamegeek.com/boardgame/15512"
+    "bgg_url": "https://boardgamegeek.com/boardgame/15512",
+    "image_url": ""
   },
   {
     "name": "ワンナイト人狼",
@@ -928,7 +976,8 @@
     "procedure": "各自に役職を配り、2枚を場の中央に伏せる\n夜：ガイド進行で、占い師はカードを覗き、怪盗は他人と役職を入れ替えるなど能力を順に使う（このため正体が変動する）\n朝：全員目を開け、一定時間（数分）だけ自由に議論する\n議論後、せーので一斉に『処刑したい人』を指差し投票する\n最多票の人が処刑される（同数なら全員、票が割れれば誰も処刑されないことも）",
     "end_condition": "処刑された中に人狼がいれば村人陣営の勝利、人狼が1人も処刑されなければ人狼陣営の勝利。たった1晩・1回の投票で決着する。",
     "online_url": "",
-    "bgg_url": "https://boardgamegeek.com/boardgame/147949"
+    "bgg_url": "https://boardgamegeek.com/boardgame/147949",
+    "image_url": ""
   },
   {
     "name": "アヴァロン",
@@ -947,7 +996,8 @@
     "procedure": "リーダーがクエストに行くメンバーを指名し、全員で承認/否決を投票する\n承認されたメンバーは『成功』か『失敗』を秘密裏に提出する（善は成功しか出せない）\n失敗が規定数出ればクエスト失敗、なければ成功\nマーリンは悪の正体を知っているが、暗殺者に正体がバレると最後に殺されるため目立てない\nリーダーを交代しながらクエストを繰り返す",
     "end_condition": "悪がクエストを3回失敗させれば悪の勝利。善が3回成功させても、最後に暗殺者がマーリンを正しく指名すれば悪の逆転勝利、外せば善の勝利。",
     "online_url": "https://www.proavalon.com",
-    "bgg_url": "https://boardgamegeek.com/boardgame/128882"
+    "bgg_url": "https://boardgamegeek.com/boardgame/128882",
+    "image_url": ""
   },
   {
     "name": "スカルキング",
@@ -966,7 +1016,8 @@
     "procedure": "そのラウンドの手札枚数（ラウンド数と同じ）を全員に配る\n自分が取れるトリック数を予想し、一斉に宣言（ビッド）する\n順番にカードを1枚ずつ出し、最も強いカードを出した人がそのトリックを取る\nスカルキングは海賊に勝ち、人魚はスカルキングに勝つなど特殊な強弱がある\n全トリックを消化したら、宣言と実際の獲得数を比べて得点計算する",
     "end_condition": "規定ラウンド（手札が1枚から増えていく）を終えたらゲーム終了。宣言を当てた得点の合計が最も高いプレイヤーが勝利。",
     "online_url": "",
-    "bgg_url": "https://boardgamegeek.com/boardgame/150145"
+    "bgg_url": "https://boardgamegeek.com/boardgame/150145",
+    "image_url": ""
   },
   {
     "name": "テレストレーション",
@@ -985,7 +1036,8 @@
     "procedure": "全員がお題を1つ決め、自分のスケッチブックの最初のページに書く\n一斉に次のページへ、隣から回ってきたお題を絵で描く（制限時間あり）\nブックを次の人へ回す。受け取った人は前のページの『絵』を見て、それが何かを言葉で書く\nさらに回し、今度はその『言葉』を見て絵を描く…を交互に繰り返す\n自分のブックが一周して戻ってきたら、最初のお題からの変遷をみんなで発表する",
     "end_condition": "ブックが一巡したらそのラウンド終了。発表して楽しみ、任意で投票得点を付ける。規定ラウンド後に最多得点が勝者（勝敗より変化を楽しむゲーム）。",
     "online_url": "",
-    "bgg_url": "https://boardgamegeek.com/boardgame/46213"
+    "bgg_url": "https://boardgamegeek.com/boardgame/46213",
+    "image_url": ""
   },
   {
     "name": "犯人は踊る",
@@ -1004,7 +1056,8 @@
     "procedure": "全員に手札を配る。『犯人』カードは誰かの手札に紛れている\n手番に手札から1枚を出し、その効果を実行する\n『うわさ』で全員が手札を1枚隣に渡す、『取り引き』でカードを交換するなどで犯人カードが移動する\n『たくらみ』が出されると犯人側の勝利が近づく\n『探偵』が出されると、犯人だと思う人を指名できる",
     "end_condition": "探偵が犯人カードの所持者を正しく指名すれば探偵側の勝利。犯人が『たくらみ』などで犯人カードを場に出し切れば犯人の勝利。",
     "online_url": "",
-    "bgg_url": "https://boardgamegeek.com/boardgame/98842"
+    "bgg_url": "https://boardgamegeek.com/boardgame/98842",
+    "image_url": ""
   },
   {
     "name": "ドブル",
@@ -1023,7 +1076,8 @@
     "procedure": "遊ぶミニゲーム（5種類）のいずれかを選ぶ\n代表的な『ホットポテト』では、各自に1枚配り、中央に1枚めくる\n自分のカードと中央のカードに共通する絵を見つけ、その名前を叫ぶ\n正しければ自分のカードを中央に重ね、新しい共通絵を探し続ける\n手札を早く出し切る、または多く集めることを目指す（ルールにより目的が変わる）",
     "end_condition": "選んだミニゲームの条件（手札を出し切る／山札を取り切る等）を満たした時点で終了し、勝者が決まる。",
     "online_url": "",
-    "bgg_url": "https://boardgamegeek.com/boardgame/63268"
+    "bgg_url": "https://boardgamegeek.com/boardgame/63268",
+    "image_url": ""
   },
   {
     "name": "ハゲタカ…ハリガリ",
@@ -1042,7 +1096,8 @@
     "procedure": "全員に手札（山札）を伏せて均等に配る\n手番ごとに自分の山札の一番上を1枚、表向きで自分の前にめくる\n場に見えている誰かの一番上のカードで、同じ種類の果物が合計ちょうど5個になったら\nすかさず中央のベルを叩く。最初に叩いた人が、場の全員のめくり札をもらえる\n間違ってベルを叩いたら、ペナルティとして全員に1枚ずつカードを払う",
     "end_condition": "手札（山札）がなくなった人から脱落し、最後にカードを持っている1人が勝利。または時間で区切り最多のカード所持者が勝者。",
     "online_url": "",
-    "bgg_url": "https://boardgamegeek.com/boardgame/3290"
+    "bgg_url": "https://boardgamegeek.com/boardgame/3290",
+    "image_url": ""
   },
   {
     "name": "エバーデール",
@@ -1061,7 +1116,8 @@
     "procedure": "手番に次のいずれかを行う\n(A) ワーカーを配置して資源やカードを獲得する\n(B) 手札のカードを資源（または建物の効果）で支払い、自分の村に建設する\n(C) 次の季節へ移行する（ワーカーが戻り増える）\n建物と生き物のコンボ（建物があると生き物が無料になる等）を活かす\n春→夏→秋→冬と4つの季節を進む",
     "end_condition": "全員が冬を終えたらゲーム終了。建設したカードの点数、達成イベント、特殊な得点などを合計し、最高得点のプレイヤーが勝利。",
     "online_url": "",
-    "bgg_url": "https://boardgamegeek.com/boardgame/199792"
+    "bgg_url": "https://boardgamegeek.com/boardgame/199792",
+    "image_url": ""
   },
   {
     "name": "アーク・ノヴァ",
@@ -1080,7 +1136,8 @@
     "procedure": "5つのアクションカード（建設・動物・カード・支援者・寄付）にはパワーの強さがあり、左端ほど弱い\n手番に1枚のアクションカードを使い、その時のパワーに応じた効果を実行する\n使ったカードは右端に戻り（弱くなり）、他のカードのパワーが上がる\n動物を展示してアピールを上げ、保護プロジェクトを達成して保護点を上げる\nこれを繰り返して動物園を発展させる",
     "end_condition": "アピール点と保護点のマーカーが盤上ですれ違った（合流を越えた）瞬間に最終ラウンドへ。最終的な点差が最も有利なプレイヤーが勝利。",
     "online_url": "https://boardgamearena.com/gamepanel?game=arknova",
-    "bgg_url": "https://boardgamegeek.com/boardgame/342942"
+    "bgg_url": "https://boardgamegeek.com/boardgame/342942",
+    "image_url": ""
   },
   {
     "name": "カスカディア",
@@ -1099,7 +1156,8 @@
     "procedure": "場に並んだ『地形タイル＋動物トークン』のペアから1組を選んで取る\n地形タイルを自分のエリアに六角形でつなげて配置する\n取った動物トークンを、その動物が描かれた地形マスの上に置く\n各動物には固有の得点条件（隣接や群れの形など）があり、それに沿うほど高得点\nこれを全員のタイルが尽きるまで繰り返す",
     "end_condition": "規定のタイルを配置し終えたらゲーム終了。動物ごとの得点カード、同じ地形のつながり、自然トークンなどを合計し最高得点が勝利。",
     "online_url": "https://boardgamearena.com/gamepanel?game=cascadia",
-    "bgg_url": "https://boardgamegeek.com/boardgame/295947"
+    "bgg_url": "https://boardgamegeek.com/boardgame/295947",
+    "image_url": ""
   },
   {
     "name": "カヴェルナ",
@@ -1118,7 +1176,8 @@
     "procedure": "手番にドワーフ1人をアクションスペースに配置する（森や洞窟の開拓、資源獲得、建設、繁殖など）\n洞窟を掘って居室や鉱石採掘場などの部屋を作り、機能を増やす\n農地を耕し作物を育て、家畜を飼い、収穫期に家族を食料で養う\n武装したドワーフは探検に出て報酬を得られる\n全員が配置を終えたら収穫を行い、次のラウンドへ",
     "end_condition": "規定ラウンドを終えたらゲーム終了。動物・作物・鉱石・建物・ドワーフなどを得点化し、空きスペースの減点を引いて最高得点が勝利。",
     "online_url": "",
-    "bgg_url": "https://boardgamegeek.com/boardgame/102794"
+    "bgg_url": "https://boardgamegeek.com/boardgame/102794",
+    "image_url": ""
   },
   {
     "name": "ル・アーブル",
@@ -1137,7 +1196,8 @@
     "procedure": "ラウンド開始時に、供給スペースに商品（魚・木・粘土など）が補充される\n手番に『供給スペースから商品を全部取る』か『建物に入ってその機能を使う』のいずれかを行う\n建物では商品を加工（魚→燻製、鉄→鋼など）したり、お金を稼いだり、新たな建物を建てたりする\nラウンドごとに食料で労働者を養う必要がある\n建てた建物は他人も使用料を払って使える",
     "end_condition": "規定ラウンドを終えたらゲーム終了。最終決算で建物・船・現金などを合計し、借金を差し引いて総資産が最も多いプレイヤーが勝利。",
     "online_url": "https://boardgamearena.com/gamepanel?game=lehavre",
-    "bgg_url": "https://boardgamegeek.com/boardgame/35677"
+    "bgg_url": "https://boardgamegeek.com/boardgame/35677",
+    "image_url": ""
   },
   {
     "name": "コンコルディア",
@@ -1156,7 +1216,8 @@
     "procedure": "手番に手札からカードを1枚プレイし、そのカードのアクション（入植者の移動、都市での生産、商品の売買、カード購入など）を行う\n手札を使い切ったら『護民官』カードで全カードを手札に戻す\nカードを購入すると、それが終了時の得点係数になる（手札構築＝得点設計）\n地中海の各都市に入植して資源生産網を広げる\nこれを繰り返す",
     "end_condition": "誰かが手持ちの入植コマを全て置く、または都市カードの山が尽きたら最終ラウンドで終了。所持カードの神様ごとの得点係数で計算し、最高得点が勝利。",
     "online_url": "https://boardgamearena.com/gamepanel?game=concordia",
-    "bgg_url": "https://boardgamegeek.com/boardgame/124361"
+    "bgg_url": "https://boardgamegeek.com/boardgame/124361",
+    "image_url": ""
   },
   {
     "name": "ブラス：バーミンガム",
@@ -1175,7 +1236,8 @@
     "procedure": "手番に手札カードを使い、2アクションを行う\nアクションは『産業タイルの建設』『運河/鉄道の敷設』『石炭/鉄での稼働(フリップ)』『借入』『開発』『販売』など\n建てた工場は石炭や鉄を消費して稼働(フリップ)させると勝利点と収入を生む\nビール（醸造所の産物）を使って商品を市場で販売する\n運河時代が終わると盤面を一部リセットし、鉄道時代へ移行する",
     "end_condition": "鉄道時代の終了でゲーム終了。各時代末に流通網と稼働済み産業から勝利点を計算し、2時代の合計が最も高いプレイヤーが勝利。",
     "online_url": "https://boardgamearena.com/gamepanel?game=brassbirmingham",
-    "bgg_url": "https://boardgamegeek.com/boardgame/224517"
+    "bgg_url": "https://boardgamegeek.com/boardgame/224517",
+    "image_url": ""
   },
   {
     "name": "ルート",
@@ -1194,7 +1256,8 @@
     "procedure": "各勢力は固有のルールに沿って手番を行う（猫は工場で生産、鳥は命令を積み上げ、同盟は支持を集めて蜂起、放浪者は探索する）\n森の各地（マス）の支配を巡って兵士を配置し、戦闘で奪い合う\n手札のカードを使って特殊な行動や戦力強化を行う\n勢力ごとに異なる方法で勝利点を獲得していく\nこれを繰り返す",
     "end_condition": "いずれかの勢力が勝利点30点に到達した時点で、その勢力の勝利となりゲーム終了（特定カードによる即時勝利条件もある）。",
     "online_url": "https://boardgamearena.com/gamepanel?game=root",
-    "bgg_url": "https://boardgamegeek.com/boardgame/237182"
+    "bgg_url": "https://boardgamegeek.com/boardgame/237182",
+    "image_url": ""
   },
   {
     "name": "スピリット・アイランド",
@@ -1213,7 +1276,8 @@
     "procedure": "成長フェイズ：精霊を成長させ、パワーカードの獲得やエネルギー・存在の配置を行う\nパワーフェイズ：エネルギーを払ってパワーカードを使い、入植者を破壊・移動させたり恐怖を生む\n侵略者フェイズ：探検→建設→略奪の順で入植者が島を侵食し、ダメージや汚染（ブライト）が広がる\n恐怖を一定量与えると、勝利条件が段階的に緩くなる\nこれを協力して繰り返す",
     "end_condition": "入植者を全滅させる、または恐怖を十分与えて段階的勝利条件を満たせば全員勝利。島が汚染で覆われる/侵略デッキが尽きる前に達成できなければ敗北。",
     "online_url": "",
-    "bgg_url": "https://boardgamegeek.com/boardgame/162886"
+    "bgg_url": "https://boardgamegeek.com/boardgame/162886",
+    "image_url": ""
   },
   {
     "name": "グレート・ウェスタン・トレイル",
@@ -1232,7 +1296,8 @@
     "procedure": "手番に自分のコマをトレイル（道）に沿って前進させ、止まった建物のアクションを使う\n自分や他人の建物で、牛の購入・建物建設・鉄道の前進・労働者の雇用などを行う\nカンザスシティに到達したら、手札の牛カードの価値で各都市へ出荷し収入と得点を得る\n出荷後は手札を補充し、再びトレイルの始点から進む\nこれを繰り返してデッキとインフラを強化する",
     "end_condition": "建物・鉄道の進捗や規定の終了条件を満たすとゲーム終了。出荷・建物・駅・労働者・残金などを得点化し、最高得点が勝利。",
     "online_url": "https://boardgamearena.com/gamepanel?game=greatwesterntrail",
-    "bgg_url": "https://boardgamegeek.com/boardgame/193738"
+    "bgg_url": "https://boardgamegeek.com/boardgame/193738",
+    "image_url": ""
   },
   {
     "name": "ヴィティカルチャー",
@@ -1251,7 +1316,8 @@
     "procedure": "1年は春夏秋冬の4季節で構成される\n春に手番順を選び、夏（畑関連）と冬（建物・醸造関連）にワーカーを配置してアクションを行う\nブドウ畑を植え、収穫してブドウを得て、ワイナリーでワインに醸造する\nワイン注文カードを満たして出荷し、勝利点と収入を得る\n年末に訪問者カードや建物の効果を清算し、次の年へ",
     "end_condition": "誰かが勝利点20点に到達したら、その年を最後までプレイして終了。最も勝利点の高いプレイヤーが勝利する。",
     "online_url": "https://boardgamearena.com/gamepanel?game=viticulture",
-    "bgg_url": "https://boardgamegeek.com/boardgame/183394"
+    "bgg_url": "https://boardgamegeek.com/boardgame/183394",
+    "image_url": ""
   },
   {
     "name": "ツォルキン",
@@ -1270,7 +1336,8 @@
     "procedure": "手番に『ワーカーを歯車に乗せる』か『歯車からワーカーを取り上げてアクションを得る』のどちらかを行う\n毎ラウンド、中央の大歯車が1つ回り、乗っているワーカーの位置が進む\nワーカーは長く乗せておくほど（歯車が進むほど）強いアクションを得られる\n得た資源で建物やモニュメントを建て、神々のトラックを上げて加護や得点を得る\n食料供給日には全ワーカーを養う必要がある",
     "end_condition": "マヤ暦（中央歯車）が規定回数回って一周したらゲーム終了。建物・モニュメント・神トラック・資源などを得点化し、最高得点が勝利。",
     "online_url": "https://boardgamearena.com/gamepanel?game=tzolkin",
-    "bgg_url": "https://boardgamegeek.com/boardgame/126163"
+    "bgg_url": "https://boardgamegeek.com/boardgame/126163",
+    "image_url": ""
   },
   {
     "name": "ロビンソン・クルーソー",
@@ -1289,7 +1356,8 @@
     "procedure": "イベントフェイズでカードをめくり、島の脅威や出来事に対応する\nアクションフェイズで、各自のコマ（アクションポイント）を『探検』『建設』『資源集め』『狩り』などに割り当てる\n1人より2人で同じ行動をすると成功が確実になる（協力の判断）\n天候フェイズで嵐や寒さに耐え、夜フェイズで食料を消費し士気を保つ\nこれを規定ターン内で繰り返し、目標達成を急ぐ",
     "end_condition": "シナリオの目標を期限内に達成すれば全員勝利。キャラの体力が尽きる、または期限を超えても達成できなければ全員敗北。",
     "online_url": "",
-    "bgg_url": "https://boardgamegeek.com/boardgame/121921"
+    "bgg_url": "https://boardgamegeek.com/boardgame/121921",
+    "image_url": ""
   },
   {
     "name": "宝石の煌き：デュエル",
@@ -1308,6 +1376,7 @@
     "procedure": "手番に次のいずれかを行う\n(A) 共有ボードの一直線（縦横斜め）に並ぶ宝石トークンを最大3個取る\n(B) 宝石を支払って発展カードを購入する（王冠や永続ボーナスを得る）\n(C) カードを確保（リザーブ）して黄金を得る\n王冠を集めると相手のカードを奪える『特権』などの効果が発動する\n複数の勝利条件をにらみつつカードを集める",
     "end_condition": "勝利点20点、同色5点、王冠10個のいずれかの条件を満たした瞬間にそのプレイヤーが勝利する。",
     "online_url": "https://boardgamearena.com/gamepanel?game=splendorduel",
-    "bgg_url": "https://boardgamegeek.com/boardgame/364073"
+    "bgg_url": "https://boardgamegeek.com/boardgame/364073",
+    "image_url": ""
   }
 ]

@@ -14,16 +14,21 @@ from flask import (
     Flask,
     abort,
     flash,
+    g,
     redirect,
     render_template,
     request,
     url_for,
 )
 
+import secrets
+
 import ai_rules
 import ai_search
 import storage
-from models import Game, Participant, PlaySession, db
+from models import Game, Participant, PlaySession, UserGameRecord, db
+
+CLIENT_COOKIE = "bg_client_id"
 
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 
@@ -106,13 +111,58 @@ SORTS = {
 }
 
 
+def _records_by_game(client_id: str) -> dict:
+    """Map game_id -> UserGameRecord for the given browser."""
+    if not client_id:
+        return {}
+    rows = UserGameRecord.query.filter_by(client_id=client_id).all()
+    return {r.game_id: r for r in rows}
+
+
+def _get_or_create_record(client_id: str, game_id: int) -> UserGameRecord:
+    rec = UserGameRecord.query.filter_by(
+        client_id=client_id, game_id=game_id
+    ).first()
+    if rec is None:
+        rec = UserGameRecord(client_id=client_id, game_id=game_id)
+        db.session.add(rec)
+    return rec
+
+
+def _cleanup_or_commit(rec: UserGameRecord) -> None:
+    """Drop empty records so they don't accumulate, otherwise persist."""
+    if rec.id is not None and rec.is_empty:
+        db.session.delete(rec)
+    db.session.commit()
+
+
 def register_routes(app: Flask) -> None:
+    @app.before_request
+    def _ensure_client_id():
+        # Anonymous per-browser id for favorites/played records (no login).
+        cid = request.cookies.get(CLIENT_COOKIE)
+        g.client_id = cid or secrets.token_hex(16)
+        g.set_client_cookie = cid is None
+
+    @app.after_request
+    def _persist_client_id(response):
+        if getattr(g, "set_client_cookie", False):
+            response.set_cookie(
+                CLIENT_COOKIE, g.client_id,
+                max_age=60 * 60 * 24 * 365 * 5,  # 5 years
+                samesite="Lax",
+            )
+        return response
+
     @app.route("/")
     def index():
         q = (request.args.get("q") or "").strip()
         gtype = (request.args.get("type") or "").strip()
         players = request.args.get("players", type=int)
         sort = request.args.get("sort") or "name"
+        show = (request.args.get("show") or "").strip()  # "fav" | "played" | ""
+
+        records = _records_by_game(g.client_id)
 
         query = Game.query
         if q:
@@ -131,6 +181,14 @@ def register_routes(app: Flask) -> None:
         order = SORTS.get(sort, SORTS["name"])[1]
         games = query.order_by(order).all()
 
+        # "お気に入り/プレイ済みのみ" は記録に基づくのでPython側で絞り込む。
+        if show == "fav":
+            games = [gm for gm in games
+                     if gm.id in records and records[gm.id].favorite]
+        elif show == "played":
+            games = [gm for gm in games
+                     if gm.id in records and records[gm.id].played]
+
         types = [
             t[0]
             for t in db.session.query(Game.game_type)
@@ -141,13 +199,17 @@ def register_routes(app: Flask) -> None:
         return render_template(
             "index.html",
             games=games,
+            records=records,
             types=types,
             sorts=SORTS,
             q=q,
             gtype=gtype,
             players=players,
             sort=sort,
+            show=show,
             total=Game.query.count(),
+            fav_count=sum(1 for r in records.values() if r.favorite),
+            played_count=sum(1 for r in records.values() if r.played),
             ai_available=ai_search.is_available(),
         )
 
@@ -191,7 +253,43 @@ def register_routes(app: Flask) -> None:
     @app.route("/game/<int:game_id>")
     def game_detail(game_id):
         game = Game.query.get_or_404(game_id)
-        return render_template("detail.html", game=game)
+        record = UserGameRecord.query.filter_by(
+            client_id=g.client_id, game_id=game_id
+        ).first()
+        return render_template("detail.html", game=game, record=record)
+
+    # --- favorite / played records (per browser, no login) ------------------
+    @app.route("/game/<int:game_id>/favorite", methods=["POST"])
+    def toggle_favorite(game_id):
+        Game.query.get_or_404(game_id)
+        rec = _get_or_create_record(g.client_id, game_id)
+        rec.favorite = not rec.favorite
+        _cleanup_or_commit(rec)
+        return redirect(request.form.get("next") or url_for("game_detail",
+                                                            game_id=game_id))
+
+    @app.route("/game/<int:game_id>/played", methods=["POST"])
+    def toggle_played(game_id):
+        Game.query.get_or_404(game_id)
+        rec = _get_or_create_record(g.client_id, game_id)
+        rec.played = not rec.played
+        _cleanup_or_commit(rec)
+        return redirect(request.form.get("next") or url_for("game_detail",
+                                                            game_id=game_id))
+
+    @app.route("/game/<int:game_id>/record", methods=["POST"])
+    def save_record(game_id):
+        """Save rating + memo (and implicitly mark as played)."""
+        Game.query.get_or_404(game_id)
+        rec = _get_or_create_record(g.client_id, game_id)
+        rating = request.form.get("rating", type=int)
+        rec.rating = rating if rating and 1 <= rating <= 5 else None
+        rec.memo = (request.form.get("memo") or "").strip()
+        if rec.rating or rec.memo:
+            rec.played = True  # 評価/感想があるなら遊んだとみなす
+        _cleanup_or_commit(rec)
+        flash("記録を保存しました。", "ok")
+        return redirect(url_for("game_detail", game_id=game_id))
 
     @app.route("/game/add", methods=["GET", "POST"])
     def add_game():
@@ -244,6 +342,7 @@ def register_routes(app: Flask) -> None:
                 end_condition=request.form.get("end_condition", "").strip(),
                 online_url=request.form.get("online_url", "").strip(),
                 bgg_url=request.form.get("bgg_url", "").strip(),
+                image_url=request.form.get("image_url", "").strip(),
             )
             db.session.add(game)
             db.session.commit()

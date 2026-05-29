@@ -59,9 +59,21 @@ main.wrap { padding-top: 28px; padding-bottom: 60px; min-height: 70vh; }
 .filters .clear { color: var(--muted); font-size: .9rem; }
 .result-count { color: var(--muted); font-size: .9rem; margin: 6px 0 16px; }
 
+.quick-tabs { display: flex; gap: 8px; margin: 14px 0 4px; flex-wrap: wrap; }
+.qt { padding: 7px 14px; border-radius: 20px; background: #fff; border: 1px solid var(--line); color: var(--ink); font-size: .9rem; }
+.qt:hover { text-decoration: none; border-color: var(--accent); }
+.qt.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+
 .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 16px; }
-.card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 16px; display: block; transition: transform .12s, box-shadow .12s; }
+.card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 0; display: block; overflow: hidden; transition: transform .12s, box-shadow .12s; }
 .card:hover { transform: translateY(-3px); box-shadow: 0 8px 18px rgba(0,0,0,.10); text-decoration: none; }
+.card-thumb { position: relative; aspect-ratio: 16 / 10; background: #ece6da; overflow: hidden; }
+.card-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.thumb-placeholder { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; font-size: 2.6rem; color: #c3b9a6; }
+.card-flags { position: absolute; top: 8px; right: 8px; display: flex; gap: 4px; }
+.card-flags .flag { background: rgba(255,255,255,.92); border-radius: 50%; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; font-size: .9rem; box-shadow: 0 1px 3px rgba(0,0,0,.2); }
+.card-body { padding: 14px 16px 16px; }
+.card-rating { color: #e0a32e; font-size: .85rem; margin: 4px 0 0; }
 .card-top { display: flex; justify-content: space-between; align-items: center; }
 .type-tag { background: #f1e7dd; color: var(--accent-dark); font-size: .75rem; padding: 3px 8px; border-radius: 20px; font-weight: 700; }
 .type-tag.big { font-size: .9rem; padding: 6px 14px; }
@@ -75,6 +87,18 @@ main.wrap { padding-top: 28px; padding-bottom: 60px; min-height: 70vh; }
 
 .back { display: inline-block; margin-bottom: 14px; color: var(--muted); }
 .detail { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 28px; }
+.detail-image { margin: -28px -28px 20px; max-height: 360px; overflow: hidden; background: #ece6da; }
+.detail-image img { width: 100%; max-height: 360px; object-fit: cover; display: block; }
+.record-bar { display: flex; gap: 10px; margin: 16px 0; flex-wrap: wrap; }
+.record-bar form { margin: 0; }
+.rec-btn { padding: 9px 16px; border: 1px solid var(--line); border-radius: 8px; background: #fff; cursor: pointer; font: inherit; font-weight: 700; color: var(--muted); }
+.rec-btn:hover { border-color: var(--accent); }
+.rec-btn.on { background: #fff6e6; border-color: #e0a32e; color: #97700f; }
+.my-record { background: #f1f6ff; border-color: #cfe0f5; }
+.my-record form { display: flex; flex-direction: column; gap: 10px; }
+.my-record label { display: flex; flex-direction: column; gap: 5px; font-weight: 700; font-size: .9rem; }
+.my-record select, .my-record textarea { padding: 8px 12px; border: 1px solid var(--line); border-radius: 8px; font: inherit; font-weight: 400; }
+.my-record .btn-primary { align-self: flex-start; padding: 10px 22px; }
 .detail-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; }
 .detail-head h1 { margin: 0; font-size: 1.8rem; }
 .detail-head .en { color: var(--muted); margin: 4px 0 0; }
