@@ -99,6 +99,23 @@ main.wrap { padding-top: 28px; padding-bottom: 60px; min-height: 70vh; }
 .my-record label { display: flex; flex-direction: column; gap: 5px; font-weight: 700; font-size: .9rem; }
 .my-record select, .my-record textarea { padding: 8px 12px; border: 1px solid var(--line); border-radius: 8px; font: inherit; font-weight: 400; }
 .my-record .btn-primary { align-self: flex-start; padding: 10px 22px; }
+.my-record input[type=text] { padding: 8px 12px; border: 1px solid var(--line); border-radius: 8px; font: inherit; }
+
+.reviews { margin-top: 26px; }
+.reviews h2 { border-left: 5px solid #7c4dcc; padding-left: 12px; display: flex; flex-wrap: wrap; align-items: baseline; gap: 12px; }
+.review-summary { font-size: .95rem; font-weight: 400; color: var(--muted); }
+.avg-stars { color: #e0a32e; letter-spacing: 1px; }
+.review-summary strong { font-size: 1.3rem; color: var(--ink); }
+.review-meta { font-size: .85rem; }
+.review-list { list-style: none; padding: 0; margin: 14px 0 0; }
+.review-item { background: #faf8f3; border: 1px solid var(--line); border-radius: 10px; padding: 12px 16px; margin-bottom: 10px; }
+.review-item.mine { background: #f3ecff; border-color: #d6c6ef; }
+.review-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.review-name { font-weight: 700; }
+.you-tag { background: #7c4dcc; color: #fff; font-size: .7rem; padding: 1px 7px; border-radius: 10px; margin-left: 6px; }
+.review-stars { color: #e0a32e; letter-spacing: 1px; }
+.review-date { color: var(--muted); font-size: .8rem; margin-left: auto; }
+.review-body { margin: 8px 0 0; white-space: pre-wrap; }
 .detail-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; }
 .detail-head h1 { margin: 0; font-size: 1.8rem; }
 .detail-head .en { color: var(--muted); margin: 4px 0 0; }

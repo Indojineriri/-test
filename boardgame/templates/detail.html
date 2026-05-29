@@ -86,9 +86,46 @@
     </div>
   </section>
 
+  <section class="reviews">
+    <h2>
+      💬 みんなのレビュー
+      <span class="review-summary">
+        {% if avg_rating %}
+          <span class="avg-stars">{{ '★' * (avg_rating|round(0,'floor')|int) }}{{ '☆' * (5 - (avg_rating|round(0,'floor')|int)) }}</span>
+          <strong>{{ avg_rating }}</strong> / 5
+          <span class="review-meta">（{{ rating_count }}件の評価・{{ review_count }}件のレビュー）</span>
+        {% else %}
+          <span class="review-meta">まだレビューはありません</span>
+        {% endif %}
+      </span>
+    </h2>
+
+    {% if reviews %}
+    <ul class="review-list">
+      {% for r in reviews %}
+      <li class="review-item {% if r.client_id == my_client_id %}mine{% endif %}">
+        <div class="review-head">
+          <span class="review-name">{{ r.display_name }}{% if r.client_id == my_client_id %}<span class="you-tag">あなた</span>{% endif %}</span>
+          {% if r.rating %}<span class="review-stars">{{ '★' * r.rating }}{{ '☆' * (5 - r.rating) }}</span>{% endif %}
+          {% if r.updated_at %}<span class="review-date">{{ r.updated_at.strftime('%Y-%m-%d') }}</span>{% endif %}
+        </div>
+        {% if r.memo %}<p class="review-body">{{ r.memo }}</p>{% endif %}
+      </li>
+      {% endfor %}
+    </ul>
+    {% endif %}
+  </section>
+
   <section class="rule-block my-record">
-    <h3>📝 あなたの記録（評価・感想）</h3>
+    <h3>✍️ レビューを書く・編集する</h3>
+    <p class="hint">投稿した評価・コメントは<strong>このゲームのページで全員に公開</strong>されます。
+      （お気に入り・プレイ済みは非公開のままです）</p>
     <form method="post" action="{{ url_for('save_record', game_id=game.id) }}">
+      <label class="nick-label">ニックネーム
+        <input type="text" name="nickname" maxlength="60"
+               value="{{ (record.nickname if record and record.nickname else my_nickname) }}"
+               placeholder="例: ボドゲ太郎（未入力なら「名無しさん」）">
+      </label>
       <label class="rating-label">評価
         <select name="rating">
           <option value="">未評価</option>
@@ -99,10 +136,10 @@
           {% endfor %}
         </select>
       </label>
-      <label class="memo-label">感想メモ
-        <textarea name="memo" rows="3" placeholder="一緒に遊んだ人、面白かった点など">{{ record.memo if record else '' }}</textarea>
+      <label class="memo-label">コメント
+        <textarea name="memo" rows="3" placeholder="面白かった点、おすすめの人数、感想など">{{ record.memo if record else '' }}</textarea>
       </label>
-      <button type="submit" class="btn-primary">記録を保存</button>
+      <button type="submit" class="btn-primary">レビューを保存</button>
       {% if record and record.updated_at %}
         <span class="hint">最終更新: {{ record.updated_at.strftime('%Y-%m-%d %H:%M') }}</span>
       {% endif %}

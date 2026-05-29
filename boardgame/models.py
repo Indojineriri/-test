@@ -151,7 +151,8 @@ class UserGameRecord(db.Model):
     favorite = db.Column(db.Boolean, default=False)
     played = db.Column(db.Boolean, default=False)
     rating = db.Column(db.Integer)        # 1..5, optional
-    memo = db.Column(db.Text, default="")  # 感想メモ
+    memo = db.Column(db.Text, default="")  # 感想（公開レビュー本文）
+    nickname = db.Column(db.String(60), default="")  # 公開レビューの表示名
     updated_at = db.Column(db.DateTime, default=datetime.utcnow,
                            onupdate=datetime.utcnow)
 
@@ -166,3 +167,12 @@ class UserGameRecord(db.Model):
             and not self.rating
             and not (self.memo or "").strip()
         )
+
+    @property
+    def is_review(self) -> bool:
+        """A public review = has a star rating and/or a written comment."""
+        return bool(self.rating or (self.memo or "").strip())
+
+    @property
+    def display_name(self) -> str:
+        return (self.nickname or "").strip() or "名無しさん"

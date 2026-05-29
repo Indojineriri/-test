@@ -29,6 +29,7 @@ import storage
 from models import Game, Participant, PlaySession, UserGameRecord, db
 
 CLIENT_COOKIE = "bg_client_id"
+NICK_COOKIE = "bg_nickname"
 
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 
@@ -116,6 +117,15 @@ def _migrate_schema() -> None:
             with db.engine.begin() as conn:
                 conn.execute(text(
                     "ALTER TABLE games ADD COLUMN image_url VARCHAR(800) DEFAULT ''"
+                ))
+
+    # user_game_records.nickname (added with public reviews)
+    if "user_game_records" in existing_tables:
+        cols = {c["name"] for c in inspector.get_columns("user_game_records")}
+        if "nickname" not in cols:
+            with db.engine.begin() as conn:
+                conn.execute(text(
+                    "ALTER TABLE user_game_records ADD COLUMN nickname VARCHAR(60) DEFAULT ''"
                 ))
 
 
@@ -314,7 +324,28 @@ def register_routes(app: Flask) -> None:
         record = UserGameRecord.query.filter_by(
             client_id=g.client_id, game_id=game_id
         ).first()
-        return render_template("detail.html", game=game, record=record)
+
+        # Public reviews = everyone's records that carry a rating and/or comment.
+        review_rows = (
+            UserGameRecord.query.filter_by(game_id=game_id)
+            .order_by(UserGameRecord.updated_at.desc())
+            .all()
+        )
+        reviews = [r for r in review_rows if r.is_review]
+        ratings = [r.rating for r in reviews if r.rating]
+        avg_rating = round(sum(ratings) / len(ratings), 1) if ratings else None
+
+        return render_template(
+            "detail.html",
+            game=game,
+            record=record,
+            reviews=reviews,
+            review_count=len(reviews),
+            rating_count=len(ratings),
+            avg_rating=avg_rating,
+            my_nickname=request.cookies.get(NICK_COOKIE, ""),
+            my_client_id=g.client_id,
+        )
 
     # --- favorite / played records (per browser, no login) ------------------
     @app.route("/game/<int:game_id>/favorite", methods=["POST"])
@@ -337,17 +368,29 @@ def register_routes(app: Flask) -> None:
 
     @app.route("/game/<int:game_id>/record", methods=["POST"])
     def save_record(game_id):
-        """Save rating + memo (and implicitly mark as played)."""
+        """Save a public review (rating + comment + nickname).
+
+        The rating/comment are shown to everyone on the game page; favorite and
+        played flags on the same record stay private.
+        """
         Game.query.get_or_404(game_id)
         rec = _get_or_create_record(g.client_id, game_id)
         rating = request.form.get("rating", type=int)
         rec.rating = rating if rating and 1 <= rating <= 5 else None
         rec.memo = (request.form.get("memo") or "").strip()
+        nickname = (request.form.get("nickname") or "").strip()[:60]
+        rec.nickname = nickname
         if rec.rating or rec.memo:
             rec.played = True  # 評価/感想があるなら遊んだとみなす
         _cleanup_or_commit(rec)
-        flash("記録を保存しました。", "ok")
-        return redirect(url_for("game_detail", game_id=game_id))
+        flash("レビューを保存しました。", "ok")
+
+        resp = redirect(url_for("game_detail", game_id=game_id))
+        # Remember the nickname so it auto-fills next time.
+        if nickname:
+            resp.set_cookie(NICK_COOKIE, nickname,
+                            max_age=60 * 60 * 24 * 365 * 5, samesite="Lax")
+        return resp
 
     @app.route("/game/add", methods=["GET", "POST"])
     def add_game():
