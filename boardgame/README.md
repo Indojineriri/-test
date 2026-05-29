@@ -77,6 +77,30 @@ Cloud Run のディスクは揮発性ですが、本アプリは **SQLite の DB
 > 公開範囲の注意: `deploy.sh` は `--allow-unauthenticated`（URL を知れば誰でもアクセス可）です。
 > 社内限定にするなら `--no-allow-unauthenticated` に変え、IAP もしくは `run.invoker` 権限で制限してください。
 
+## ゲーム画像の取り込み（BGGから自動取得）
+
+主要タイトルの画像は、各ゲームが持つ BGG ページURLから **BoardGameGeek 公式の画像URL**を
+自動取得してデータに書き込めます。**外部ネットワークに到達できる環境**（手元のPCやGCP VM）で実行してください。
+
+```bash
+cd boardgame
+pip install requests
+python fetch_images.py                  # image_url が空のゲームを一括取得
+python fetch_images.py --force          # 既存のimage_urlも上書き
+python fetch_images.py --only カタン ドミニオン   # 特定タイトルだけ
+```
+
+取得後、画像URLを反映させます:
+
+- **ローカル / GCSなし**: `python seed.py` を再実行（名前一致で `image_url` を更新）。
+- **Cloud Run（GCS運用）**: すでにDBがある場合は自動再シードされません。次のいずれかを実施してください。
+  1. ローカルで `fetch_images.py` → `seed.py` を実行して GCS の DB を更新してから再デプロイ、または
+  2. `image_url` を更新した `games.json` を push 後、GCS上の DB を一度削除（`gs://$GCS_BUCKET/$GCS_DB_BLOB`）して再起動 → 自動再シード。
+
+> なぜスクリプト方式か: 画像は閲覧者のブラウザが直接読み込むため、URLさえ正確なら表示されます。
+> 推測でURLを埋めると画像切れの恐れがあるため、BGG公式APIから正しいURLを取得する方式にしています。
+> BGGへの礼儀として、リクエスト間に約2秒の待機を入れています。
+
 ## 収録データについて
 
 `data/games.json` に、カタン・ニムト・カルカソンヌ・ナショナルエコノミー・ドミニオン・
