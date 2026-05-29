@@ -10,14 +10,16 @@
 #
 # Prereqs: gcloud CLI authenticated (`gcloud auth login`) with deploy rights.
 #
-# Note on data persistence: this service uses SQLite on Cloud Run's ephemeral
-# disk. The bundled catalog (data/games.json) is auto-seeded on startup, so the
-# list/rules pages always work. However, games and play-sessions added through
-# the UI do NOT persist across restarts or scale-out. For durable user data,
-# move to Cloud SQL and set DATABASE_URL (see README).
+# Data persistence: the SQLite DB is kept in GCS (download on boot, re-upload
+# after writes), reusing the same bucket/credentials as the meeting-support
+# app. This survives Cloud Run's ephemeral disk with no Cloud SQL needed.
+# Because the whole file is replaced per write, the service is pinned to a
+# single instance (--max-instances 1) to avoid concurrent writers clobbering.
 set -euo pipefail
 
 PROJECT_ID="${PROJECT_ID:-clean-pen-422206-d7}"
+GCS_BUCKET="${GCS_BUCKET:-test_reseach}"
+GCS_DB_BLOB="${GCS_DB_BLOB:-boardgame/boardgames.db}"
 REGION="${REGION:-asia-northeast1}"
 SERVICE="${SERVICE:-boardgame}"
 MODEL="${ANTHROPIC_MODEL:-claude-opus-4-7}"
@@ -30,7 +32,8 @@ gcloud services enable \
   run.googleapis.com \
   cloudbuild.googleapis.com \
   artifactregistry.googleapis.com \
-  secretmanager.googleapis.com
+  secretmanager.googleapis.com \
+  storage.googleapis.com
 
 # The Anthropic key is OPTIONAL here (only the "AIでルール生成" button uses it).
 # We reuse the shared secret if it exists; otherwise the app still runs fine
@@ -51,6 +54,11 @@ fi
 # Runtime service account (defaults to the project's compute SA).
 PROJECT_NUMBER="$(gcloud projects describe "$PROJECT_ID" --format='value(projectNumber)')"
 RUNTIME_SA="${RUNTIME_SA:-${PROJECT_NUMBER}-compute@developer.gserviceaccount.com}"
+
+echo "==> Granting the runtime SA read/write on gs://${GCS_BUCKET} (DB storage)..."
+gcloud storage buckets add-iam-policy-binding "gs://${GCS_BUCKET}" \
+  --member="serviceAccount:${RUNTIME_SA}" \
+  --role="roles/storage.objectAdmin"
 
 SECRET_ARGS=()
 if [ "$USE_SECRET" = "1" ]; then
@@ -73,7 +81,8 @@ gcloud run deploy "$SERVICE" \
   --memory 512Mi \
   --cpu 1 \
   --timeout 120 \
-  --set-env-vars "ANTHROPIC_MODEL=${MODEL}" \
+  --max-instances 1 \
+  --set-env-vars "ANTHROPIC_MODEL=${MODEL},GCS_BUCKET=${GCS_BUCKET},GCS_DB_BLOB=${GCS_DB_BLOB}" \
   "${SECRET_ARGS[@]}"
 
 echo "==> Done. Service URL:"

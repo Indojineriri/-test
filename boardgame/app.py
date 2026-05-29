@@ -21,30 +21,63 @@ from flask import (
 )
 
 import ai_rules
+import storage
 from models import Game, Participant, PlaySession, db
 
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
+
+# GCS-backed persistence (optional). When GCS_BUCKET is set we keep the SQLite
+# file in the bucket: download on boot, re-upload after writes. This survives
+# Cloud Run's ephemeral disk without needing Cloud SQL.
+GCS_BUCKET = os.getenv("GCS_BUCKET", "")
+GCS_DB_BLOB = os.getenv("GCS_DB_BLOB", "boardgame/boardgames.db")
+LOCAL_DB_PATH = os.path.join(BASE_DIR, "boardgames.db")
 
 
 def create_app() -> Flask:
     app = Flask(__name__)
     app.config["SECRET_KEY"] = os.getenv("SECRET_KEY", "dev-boardgame-secret")
-    db_path = os.path.join(BASE_DIR, "boardgames.db")
     app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv(
-        "DATABASE_URL", f"sqlite:///{db_path}"
+        "DATABASE_URL", f"sqlite:///{LOCAL_DB_PATH}"
     )
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+
+    using_gcs = bool(GCS_BUCKET) and "DATABASE_URL" not in os.environ
+    if using_gcs:
+        # Pull the canonical DB down before SQLAlchemy opens it.
+        storage.download_db(GCS_BUCKET, GCS_DB_BLOB, LOCAL_DB_PATH)
 
     db.init_app(app)
     with app.app_context():
         db.create_all()
-        # On a fresh database (e.g. a new Cloud Run instance) load the bundled
-        # catalog so the list/rules pages are never empty.
+        # On a fresh database (e.g. first deploy) load the bundled catalog so
+        # the list/rules pages are never empty.
+        seeded = False
         if os.getenv("AUTO_SEED", "1") == "1" and Game.query.count() == 0:
             _seed_from_json()
+            seeded = True
+        if using_gcs and seeded:
+            # Persist the freshly seeded catalog so the next boot reuses it.
+            _sync_to_gcs()
 
     register_routes(app)
+
+    if using_gcs:
+        @app.after_request
+        def _persist(response):
+            # All write routes use POST; sync the DB up to GCS after them.
+            if request.method == "POST":
+                try:
+                    _sync_to_gcs()
+                except Exception:  # noqa: BLE001 - never break the response
+                    app.logger.exception("Failed to sync DB to GCS")
+            return response
+
     return app
+
+
+def _sync_to_gcs() -> None:
+    storage.upload_db(GCS_BUCKET, GCS_DB_BLOB, LOCAL_DB_PATH)
 
 
 def _seed_from_json() -> None:

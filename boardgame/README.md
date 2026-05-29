@@ -43,17 +43,28 @@ gcloud auth login            # 初回のみ
 - プロジェクト/サービス名などは環境変数で上書きできます:
   `PROJECT_ID=your-project SERVICE=boardgame-staging ./deploy.sh`
 
-### ⚠️ データの永続性について（重要）
+### データの永続性（GCS バックエンド）
 
-Cloud Run のファイルシステムは**揮発性**です。SQLite を使う現構成では、
-インスタンスの再起動・スケールアウト時に DB がリセットされます。
+Cloud Run のディスクは揮発性ですが、本アプリは **SQLite の DB ファイルを GCS に保存**
+することで永続化します（既存 meeting-support アプリと同じバケット・認証を流用）。
 
-- カタログ（一覧・ルール）は起動時に `games.json` から再投入されるため**常に表示されます**。
-- 一方、**画面から追加したゲームや「遊ぶ会・参加者」のデータは永続しません**。
+- 起動時に `gs://$GCS_BUCKET/$GCS_DB_BLOB` から DB をダウンロード。
+- 書き込み（POST）のたびに DB ファイルを GCS へアップロード。
+- DB が無い初回は `games.json` を投入してから GCS に保存。
 
-ユーザーデータを永続化したい場合は **Cloud SQL（PostgreSQL）** へ移行し、
-環境変数 `DATABASE_URL`（例: `postgresql+psycopg://user:pass@/db?host=/cloudsql/INSTANCE`）
-を設定してください。アプリは `DATABASE_URL` があればそれを優先します。
+`deploy.sh` が以下の環境変数を設定します（ローカルで `GCS_BUCKET` 未設定なら
+従来どおりローカルの `boardgames.db` を使います）:
+
+| 環境変数 | 既定値 | 説明 |
+|---|---|---|
+| `GCS_BUCKET` | `test_reseach` | DB を置くバケット |
+| `GCS_DB_BLOB` | `boardgame/boardgames.db` | バケット内のパス |
+
+> ⚠️ **単一インスタンス前提**: GCS はファイル丸ごと置換のため、複数インスタンスが
+> 同時に書くと上書き競合（last-write-wins）が起きます。`deploy.sh` は
+> `--max-instances 1` で固定しています。書き込み頻度が上がる／本格運用する場合は
+> **Cloud SQL（PostgreSQL）** へ移行し、環境変数 `DATABASE_URL` を設定してください
+> （設定時はそちらが優先され、GCS 同期は無効になります）。
 
 > 公開範囲の注意: `deploy.sh` は `--allow-unauthenticated`（URL を知れば誰でもアクセス可）です。
 > 社内限定にするなら `--no-allow-unauthenticated` に変え、IAP もしくは `run.invoker` 権限で制限してください。
