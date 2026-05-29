@@ -298,6 +298,20 @@ def register_routes(app: Flask) -> None:
             .all()
         )
 
+        # Cover image per game: image_url if set, else the latest uploaded
+        # photo. Resolve photos for the shown games in one query (avoid N+1).
+        covers = {gm.id: gm.image_url for gm in games if (gm.image_url or "").strip()}
+        need_photo = [gm.id for gm in games if gm.id not in covers]
+        if need_photo:
+            rows = (
+                GamePhoto.query
+                .filter(GamePhoto.game_id.in_(need_photo))
+                .order_by(GamePhoto.created_at.desc())
+                .all()
+            )
+            for p in rows:
+                covers.setdefault(p.game_id, p.url)  # first seen = newest
+
         types = [
             t[0]
             for t in db.session.query(Game.game_type)
@@ -309,6 +323,7 @@ def register_routes(app: Flask) -> None:
             "index.html",
             games=games,
             records=records,
+            covers=covers,
             fav_counts=fav_counts,
             played_counts=played_counts,
             types=types,

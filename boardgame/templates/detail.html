@@ -4,9 +4,9 @@
 <a class="back" href="{{ url_for('index') }}">← 一覧へ戻る</a>
 
 <article class="detail">
-  {% if game.image_url %}
+  {% if game.cover_image %}
   <div class="detail-image">
-    <img src="{{ game.image_url }}" alt="{{ game.name }}" loading="lazy">
+    <img src="{{ game.cover_image }}" alt="{{ game.name }}" loading="lazy">
   </div>
   {% endif %}
 

@@ -55,8 +55,9 @@
   {% set rec = records.get(gm.id) %}
   <a class="card" href="{{ url_for('game_detail', game_id=gm.id) }}">
     <div class="card-thumb">
-      {% if gm.image_url %}
-        <img src="{{ gm.image_url }}" alt="{{ gm.name }}" loading="lazy">
+      {% set cover = covers.get(gm.id) %}
+      {% if cover %}
+        <img src="{{ cover }}" alt="{{ gm.name }}" loading="lazy">
       {% else %}
         <div class="thumb-placeholder">🎲</div>
       {% endif %}

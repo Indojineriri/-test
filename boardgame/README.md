@@ -103,37 +103,16 @@ python set_links.py links.json --field image_url   # 画像URLにも使える
   `roles/storage.objectViewer` を付与、または該当プレフィックスを公開設定）。
 - `GCS_BUCKET` 未設定（ローカル開発）では `static/uploads/` に保存されます（gitignore 済み）。
 
-## ゲーム画像の取り込み（Wikipedia / BGG ページから解決）
+## ゲームのサムネイル画像
 
-`image_pages.json`（ゲーム名→Wikipedia/BGGの**記事ページURL**）をもとに、各ページの代表画像の
-**直リンク**を解決して `image_url` に書き込みます。記事ページURLはそのままでは `<img>` に使えない
-ため、API/メタタグから画像URLを取り出す必要があります。**外部ネットワークに到達できる環境**で実行してください。
+各ゲームのカード／詳細のメイン画像は、次の優先順位で自動的に決まります。
 
-```bash
-cd boardgame
-pip install requests
-python fetch_page_images.py             # image_pages.json から画像URLを解決
-python fetch_page_images.py --force     # 既存のimage_urlも上書き
-python fetch_page_images.py --only カタン ドミニオン
-```
+1. `image_url` が設定されていればそれを使用（任意・手動設定）。
+2. なければ、そのゲームに**投稿された写真のうち最新の1枚**を自動でサムネイルに使用。
+3. どちらも無ければ 🎲 プレースホルダーを表示。
 
-（各ゲームが持つ BGG ページURL から取得する旧スクリプト `fetch_images.py` も利用できます。）
-
-```bash
-python fetch_images.py                  # bgg_url から image_url を一括取得
-python fetch_images.py --force
-python fetch_images.py --only カタン ドミニオン
-
-取得後、画像URLを反映させます:
-
-- **ローカル / GCSなし**: `python seed.py` を再実行（名前一致で `image_url` を更新）。
-- **Cloud Run（GCS運用）**: すでにDBがある場合は自動再シードされません。次のいずれかを実施してください。
-  1. ローカルで `fetch_images.py` → `seed.py` を実行して GCS の DB を更新してから再デプロイ、または
-  2. `image_url` を更新した `games.json` を push 後、GCS上の DB を一度削除（`gs://$GCS_BUCKET/$GCS_DB_BLOB`）して再起動 → 自動再シード。
-
-> なぜスクリプト方式か: 画像は閲覧者のブラウザが直接読み込むため、URLさえ正確なら表示されます。
-> 推測でURLを埋めると画像切れの恐れがあるため、BGG公式APIから正しいURLを取得する方式にしています。
-> BGGへの礼儀として、リクエスト間に約2秒の待機を入れています。
+つまり、外部サイトから画像を取得する必要はありません。ユーザーが「📷 みんなの写真」に
+プレイ写真を投稿していくほど、図鑑の見た目が育っていきます。
 
 ## 収録データについて
 

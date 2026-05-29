@@ -79,6 +79,23 @@ class Game(db.Model):
         return [t.strip() for t in (self.tags or "").split(",") if t.strip()]
 
     @property
+    def cover_image(self) -> str | None:
+        """Image to show as this game's thumbnail.
+
+        Priority: an explicitly set image_url, otherwise the most recent
+        user-uploaded photo. Returns None when there is nothing (the template
+        then shows the 🎲 placeholder).
+        """
+        if (self.image_url or "").strip():
+            return self.image_url
+        photo = (
+            GamePhoto.query.filter_by(game_id=self.id)
+            .order_by(GamePhoto.created_at.desc())
+            .first()
+        )
+        return photo.url if photo else None
+
+    @property
     def procedure_steps(self) -> list[str]:
         """Procedure is stored as newline-separated steps for clean rendering."""
         return [s.strip() for s in (self.procedure or "").splitlines() if s.strip()]
