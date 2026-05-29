@@ -63,12 +63,13 @@ def create_app() -> Flask:
         # Existing DBs (from older deploys) may be missing newly added columns;
         # create_all() does not alter existing tables, so patch them by hand.
         _migrate_schema()
-        # On a fresh database (e.g. first deploy) load the bundled catalog so
-        # the list/rules pages are never empty.
+        # Load the bundled catalog. This upserts by name, so a DB created by an
+        # earlier deploy (e.g. the original 34 games) picks up newly added games
+        # on the next boot instead of staying frozen. Existing rows and any
+        # user-added games are left untouched.
         seeded = False
-        if os.getenv("AUTO_SEED", "1") == "1" and Game.query.count() == 0:
-            _seed_from_json()
-            seeded = True
+        if os.getenv("AUTO_SEED", "1") == "1":
+            seeded = _seed_from_json()
         if using_gcs and seeded:
             # Persist the freshly seeded catalog so the next boot reuses it.
             try:
@@ -122,8 +123,14 @@ def _sync_to_gcs() -> None:
     storage.upload_db(GCS_BUCKET, GCS_DB_BLOB, LOCAL_DB_PATH)
 
 
-def _seed_from_json() -> None:
-    """Load data/games.json into an empty database. Best-effort."""
+def _seed_from_json() -> bool:
+    """Upsert data/games.json into the DB. Returns True if anything changed.
+
+    Games are matched by name: new entries are inserted, and a couple of fields
+    that we may have backfilled later (image_url) are updated on existing rows.
+    This lets an already-seeded DB grow when games.json gains new titles, while
+    leaving user-added games and play records untouched.
+    """
     import json
 
     path = os.path.join(BASE_DIR, "data", "games.json")
@@ -131,10 +138,25 @@ def _seed_from_json() -> None:
         with open(path, encoding="utf-8") as f:
             entries = json.load(f)
     except Exception:  # noqa: BLE001 - missing/invalid data file is non-fatal
-        return
+        return False
+
+    existing = {g.name: g for g in Game.query.all()}
+    changed = False
     for entry in entries:
-        db.session.add(Game(**entry))
-    db.session.commit()
+        name = entry.get("name")
+        if not name:
+            continue
+        row = existing.get(name)
+        if row is None:
+            db.session.add(Game(**entry))
+            changed = True
+        elif entry.get("image_url") and not row.image_url:
+            # Backfill an image we added to the JSON after the DB was seeded.
+            row.image_url = entry["image_url"]
+            changed = True
+    if changed:
+        db.session.commit()
+    return changed
 
 
 # --- sorting options exposed in the UI --------------------------------------
