@@ -156,6 +156,10 @@ def _seed_from_json() -> bool:
     except Exception:  # noqa: BLE001 - missing/invalid data file is non-fatal
         return False
 
+    # Fields we may flesh out in games.json after a DB was first seeded; we
+    # backfill them onto existing rows when the DB value is still empty.
+    backfill_fields = ("image_url", "detailed_rules", "rules_url")
+
     existing = {g.name: g for g in Game.query.all()}
     changed = False
     for entry in entries:
@@ -166,10 +170,11 @@ def _seed_from_json() -> bool:
         if row is None:
             db.session.add(Game(**entry))
             changed = True
-        elif entry.get("image_url") and not row.image_url:
-            # Backfill an image we added to the JSON after the DB was seeded.
-            row.image_url = entry["image_url"]
-            changed = True
+            continue
+        for field in backfill_fields:
+            if entry.get(field) and not getattr(row, field, None):
+                setattr(row, field, entry[field])
+                changed = True
     if changed:
         db.session.commit()
     return changed
