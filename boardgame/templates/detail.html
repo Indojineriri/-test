@@ -34,7 +34,7 @@
   <div class="specs">
     <div><span>人数</span><strong>{{ game.player_range }}</strong></div>
     <div><span>時間</span><strong>{{ game.play_time_min }}分</strong></div>
-    <div><span>難易度</span><strong>{{ '★' * game.difficulty }}{{ '☆' * (5 - game.difficulty) }}</strong></div>
+    <div><span>難易度</span><strong>{{ '★' * (game.difficulty or 0) }}{{ '☆' * (5 - (game.difficulty or 0)) }}</strong></div>
     {% if game.designer %}<div><span>デザイナー</span><strong>{{ game.designer }}</strong></div>{% endif %}
     {% if game.year %}<div><span>発表年</span><strong>{{ game.year }}</strong></div>{% endif %}
   </div>

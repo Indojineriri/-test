@@ -39,7 +39,7 @@
       <a class="card" href="{{ url_for('game_detail', game_id=g.id) }}">
         <div class="card-top">
           <span class="type-tag">{{ g.game_type }}</span>
-          <span class="diff" title="難易度">{{ '★' * g.difficulty }}{{ '☆' * (5 - g.difficulty) }}</span>
+          <span class="diff" title="難易度">{{ '★' * (g.difficulty or 0) }}{{ '☆' * (5 - (g.difficulty or 0)) }}</span>
         </div>
         <h3>{{ g.name }}</h3>
         {% if g.name_en %}<p class="en">{{ g.name_en }}</p>{% endif %}

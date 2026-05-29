@@ -68,7 +68,7 @@
     <div class="card-body">
       <div class="card-top">
         <span class="type-tag">{{ gm.game_type }}</span>
-        <span class="diff" title="難易度">{{ '★' * gm.difficulty }}{{ '☆' * (5 - gm.difficulty) }}</span>
+        <span class="diff" title="難易度">{{ '★' * (gm.difficulty or 0) }}{{ '☆' * (5 - (gm.difficulty or 0)) }}</span>
       </div>
       <h3>{{ gm.name }}</h3>
       {% if gm.name_en %}<p class="en">{{ gm.name_en }}</p>{% endif %}

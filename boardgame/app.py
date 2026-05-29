@@ -50,12 +50,19 @@ def create_app() -> Flask:
 
     using_gcs = bool(GCS_BUCKET) and "DATABASE_URL" not in os.environ
     if using_gcs:
-        # Pull the canonical DB down before SQLAlchemy opens it.
-        storage.download_db(GCS_BUCKET, GCS_DB_BLOB, LOCAL_DB_PATH)
+        # Pull the canonical DB down before SQLAlchemy opens it. Never let a
+        # GCS/auth problem crash startup — fall back to a local DB instead.
+        try:
+            storage.download_db(GCS_BUCKET, GCS_DB_BLOB, LOCAL_DB_PATH)
+        except Exception:  # noqa: BLE001
+            app.logger.exception("GCS download failed at startup; using local DB")
 
     db.init_app(app)
     with app.app_context():
         db.create_all()
+        # Existing DBs (from older deploys) may be missing newly added columns;
+        # create_all() does not alter existing tables, so patch them by hand.
+        _migrate_schema()
         # On a fresh database (e.g. first deploy) load the bundled catalog so
         # the list/rules pages are never empty.
         seeded = False
@@ -64,7 +71,10 @@ def create_app() -> Flask:
             seeded = True
         if using_gcs and seeded:
             # Persist the freshly seeded catalog so the next boot reuses it.
-            _sync_to_gcs()
+            try:
+                _sync_to_gcs()
+            except Exception:  # noqa: BLE001 - boot must not fail on GCS errors
+                app.logger.exception("GCS sync failed at startup")
 
     register_routes(app)
 
@@ -80,6 +90,32 @@ def create_app() -> Flask:
             return response
 
     return app
+
+
+def _migrate_schema() -> None:
+    """Add columns that newer code expects but an older SQLite DB may lack.
+
+    SQLAlchemy's create_all() creates missing tables but never alters existing
+    ones, so a DB created before `image_url` was introduced would still error
+    on queries. We additively `ALTER TABLE` any missing columns. Safe to run on
+    every boot (it no-ops when the columns already exist).
+    """
+    from sqlalchemy import inspect, text
+
+    inspector = inspect(db.engine)
+    try:
+        existing_tables = set(inspector.get_table_names())
+    except Exception:  # noqa: BLE001
+        return
+
+    # game.image_url (added with the images feature)
+    if "games" in existing_tables:
+        cols = {c["name"] for c in inspector.get_columns("games")}
+        if "image_url" not in cols:
+            with db.engine.begin() as conn:
+                conn.execute(text(
+                    "ALTER TABLE games ADD COLUMN image_url VARCHAR(800) DEFAULT ''"
+                ))
 
 
 def _sync_to_gcs() -> None:
