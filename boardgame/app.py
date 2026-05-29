@@ -38,9 +38,28 @@ def create_app() -> Flask:
     db.init_app(app)
     with app.app_context():
         db.create_all()
+        # On a fresh database (e.g. a new Cloud Run instance) load the bundled
+        # catalog so the list/rules pages are never empty.
+        if os.getenv("AUTO_SEED", "1") == "1" and Game.query.count() == 0:
+            _seed_from_json()
 
     register_routes(app)
     return app
+
+
+def _seed_from_json() -> None:
+    """Load data/games.json into an empty database. Best-effort."""
+    import json
+
+    path = os.path.join(BASE_DIR, "data", "games.json")
+    try:
+        with open(path, encoding="utf-8") as f:
+            entries = json.load(f)
+    except Exception:  # noqa: BLE001 - missing/invalid data file is non-fatal
+        return
+    for entry in entries:
+        db.session.add(Game(**entry))
+    db.session.commit()
 
 
 # --- sorting options exposed in the UI --------------------------------------

@@ -25,6 +25,39 @@ python seed.py     # data/games.json を DB に投入（再実行で更新・追
 python app.py      # http://127.0.0.1:5000
 ```
 
+## Cloud Run へのデプロイ
+
+`boardgame/` ディレクトリで `deploy.sh` を実行します（`gcloud` 認証済みであること）。
+
+```bash
+cd boardgame
+gcloud auth login            # 初回のみ
+./deploy.sh                  # ビルド → Cloud Run へデプロイ → 公開URLを表示
+```
+
+- 本番は **gunicorn**（`app:app`）で起動します。Cloud Run が注入する `$PORT` に bind します。
+- 起動時に DB が空なら `data/games.json` を**自動投入**するので、`seed.py` の手動実行は不要です。
+- `ANTHROPIC_API_KEY` は**任意**です。Secret Manager に `anthropic-api-key` があれば
+  自動で AI ルール生成に使われ、無ければカタログ機能のみで動作します
+  （新規に作りたい場合は `CREATE_SECRET=1 ./deploy.sh`）。
+- プロジェクト/サービス名などは環境変数で上書きできます:
+  `PROJECT_ID=your-project SERVICE=boardgame-staging ./deploy.sh`
+
+### ⚠️ データの永続性について（重要）
+
+Cloud Run のファイルシステムは**揮発性**です。SQLite を使う現構成では、
+インスタンスの再起動・スケールアウト時に DB がリセットされます。
+
+- カタログ（一覧・ルール）は起動時に `games.json` から再投入されるため**常に表示されます**。
+- 一方、**画面から追加したゲームや「遊ぶ会・参加者」のデータは永続しません**。
+
+ユーザーデータを永続化したい場合は **Cloud SQL（PostgreSQL）** へ移行し、
+環境変数 `DATABASE_URL`（例: `postgresql+psycopg://user:pass@/db?host=/cloudsql/INSTANCE`）
+を設定してください。アプリは `DATABASE_URL` があればそれを優先します。
+
+> 公開範囲の注意: `deploy.sh` は `--allow-unauthenticated`（URL を知れば誰でもアクセス可）です。
+> 社内限定にするなら `--no-allow-unauthenticated` に変え、IAP もしくは `run.invoker` 権限で制限してください。
+
 ## 収録データについて
 
 `data/games.json` に、カタン・ニムト・カルカソンヌ・ナショナルエコノミー・ドミニオン・
