@@ -180,3 +180,31 @@ class UserGameRecord(db.Model):
     @property
     def display_name(self) -> str:
         return (self.nickname or "").strip() or "名無しさん"
+
+
+class GamePhoto(db.Model):
+    """A user-uploaded photo for a game (e.g. a play snapshot).
+
+    Anyone can post (no login); we tag each photo with the uploader's browser
+    client_id so they can delete their own. The image bytes live in GCS (or a
+    local static dir in dev); we only store the served URL and a blob key.
+    """
+
+    __tablename__ = "game_photos"
+
+    id = db.Column(db.Integer, primary_key=True)
+    game_id = db.Column(
+        db.Integer, db.ForeignKey("games.id"), nullable=False, index=True
+    )
+    client_id = db.Column(db.String(40), nullable=False, index=True)
+    nickname = db.Column(db.String(60), default="")
+    caption = db.Column(db.String(300), default="")
+    url = db.Column(db.String(800), nullable=False)   # served image URL
+    blob_key = db.Column(db.String(500), default="")  # GCS object name (for delete)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    game = db.relationship("Game")
+
+    @property
+    def display_name(self) -> str:
+        return (self.nickname or "").strip() or "名無しさん"

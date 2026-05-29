@@ -91,18 +91,38 @@ python set_links.py links.json --field image_url   # 画像URLにも使える
 設定後はローカルなら `python seed.py`、Cloud Run なら再デプロイで反映されます
 （rules_url が空のゲームにのみ起動時 backfill されます）。
 
-## ゲーム画像の取り込み（BGGから自動取得）
+## ユーザー投稿写真
 
-主要タイトルの画像は、各ゲームが持つ BGG ページURLから **BoardGameGeek 公式の画像URL**を
-自動取得してデータに書き込めます。**外部ネットワークに到達できる環境**（手元のPCやGCP VM）で実行してください。
+各ゲームの詳細ページから、プレイ風景やコンポーネントの**写真を誰でも投稿**できます
+（ログイン不要・ニックネーム任意・最大8MB・JPEG/PNG/WebP/GIF）。投稿者本人（同じブラウザ）は
+自分の写真を削除できます。
+
+- `GCS_BUCKET` が設定されていれば写真は `gs://$GCS_BUCKET/$GCS_PHOTO_PREFIX/...` に保存され、
+  公開URL（`https://storage.googleapis.com/...`）で表示されます。
+  → **バケットを公開読み取り可能**にしておく必要があります（例: `allUsers` に
+  `roles/storage.objectViewer` を付与、または該当プレフィックスを公開設定）。
+- `GCS_BUCKET` 未設定（ローカル開発）では `static/uploads/` に保存されます（gitignore 済み）。
+
+## ゲーム画像の取り込み（Wikipedia / BGG ページから解決）
+
+`image_pages.json`（ゲーム名→Wikipedia/BGGの**記事ページURL**）をもとに、各ページの代表画像の
+**直リンク**を解決して `image_url` に書き込みます。記事ページURLはそのままでは `<img>` に使えない
+ため、API/メタタグから画像URLを取り出す必要があります。**外部ネットワークに到達できる環境**で実行してください。
 
 ```bash
 cd boardgame
 pip install requests
-python fetch_images.py                  # image_url が空のゲームを一括取得
-python fetch_images.py --force          # 既存のimage_urlも上書き
-python fetch_images.py --only カタン ドミニオン   # 特定タイトルだけ
+python fetch_page_images.py             # image_pages.json から画像URLを解決
+python fetch_page_images.py --force     # 既存のimage_urlも上書き
+python fetch_page_images.py --only カタン ドミニオン
 ```
+
+（各ゲームが持つ BGG ページURL から取得する旧スクリプト `fetch_images.py` も利用できます。）
+
+```bash
+python fetch_images.py                  # bgg_url から image_url を一括取得
+python fetch_images.py --force
+python fetch_images.py --only カタン ドミニオン
 
 取得後、画像URLを反映させます:
 

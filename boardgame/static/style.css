@@ -103,6 +103,19 @@ main.wrap { padding-top: 28px; padding-bottom: 60px; min-height: 70vh; }
 .my-record .btn-primary { align-self: flex-start; padding: 10px 22px; }
 .my-record input[type=text] { padding: 8px 12px; border: 1px solid var(--line); border-radius: 8px; font: inherit; }
 
+.photos { margin-top: 26px; }
+.photos h2 { border-left: 5px solid #2e8b6f; padding-left: 12px; }
+.photo-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 12px; margin: 14px 0; }
+.photo-item { margin: 0; background: #faf8f3; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+.photo-item img { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; display: block; }
+.photo-item figcaption { padding: 8px 10px; font-size: .8rem; }
+.photo-caption { display: block; margin-bottom: 2px; }
+.photo-by { color: var(--muted); }
+.photo-item figcaption form { display: inline; }
+.photo-upload { background: #f1faf6; border: 1px solid #cfe9dd; border-radius: 10px; padding: 14px 16px; display: flex; flex-direction: column; gap: 10px; }
+.photo-upload input[type=text], .photo-upload input[type=file] { padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; font: inherit; background: #fff; }
+.photo-upload .btn-primary { align-self: flex-start; padding: 10px 22px; }
+
 .reviews { margin-top: 26px; }
 .reviews h2 { border-left: 5px solid #7c4dcc; padding-left: 12px; display: flex; flex-wrap: wrap; align-items: baseline; gap: 12px; }
 .review-summary { font-size: .95rem; font-weight: 400; color: var(--muted); }

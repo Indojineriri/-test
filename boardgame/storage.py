@@ -47,3 +47,26 @@ def upload_db(bucket_name: str, blob_name: str, local_path: str) -> None:
     blob = _blob(bucket_name, blob_name)
     blob.upload_from_filename(local_path)
     log.info("Synced DB to gs://%s/%s", bucket_name, blob_name)
+
+
+def upload_photo(bucket_name: str, blob_name: str, data: bytes,
+                 content_type: str) -> str:
+    """Upload an image to GCS and return a public URL.
+
+    Assumes the bucket is configured to serve objects publicly (or via uniform
+    access). Returns the standard https URL for the object.
+    """
+    blob = _blob(bucket_name, blob_name)
+    blob.upload_from_string(data, content_type=content_type)
+    log.info("Uploaded photo to gs://%s/%s", bucket_name, blob_name)
+    return f"https://storage.googleapis.com/{bucket_name}/{blob_name}"
+
+
+def delete_object(bucket_name: str, blob_name: str) -> None:
+    """Delete an object from GCS. Missing object is non-fatal."""
+    try:
+        _blob(bucket_name, blob_name).delete()
+        log.info("Deleted gs://%s/%s", bucket_name, blob_name)
+    except Exception as e:  # noqa: BLE001
+        log.warning("GCS delete failed (%s)", e)
+

@@ -26,7 +26,7 @@ import secrets
 import ai_rules
 import ai_search
 import storage
-from models import Game, Participant, PlaySession, UserGameRecord, db
+from models import Game, GamePhoto, Participant, PlaySession, UserGameRecord, db
 
 CLIENT_COOKIE = "bg_client_id"
 NICK_COOKIE = "bg_nickname"
@@ -38,7 +38,16 @@ BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 # Cloud Run's ephemeral disk without needing Cloud SQL.
 GCS_BUCKET = os.getenv("GCS_BUCKET", "")
 GCS_DB_BLOB = os.getenv("GCS_DB_BLOB", "boardgame/boardgames.db")
+GCS_PHOTO_PREFIX = os.getenv("GCS_PHOTO_PREFIX", "boardgame/photos")
 LOCAL_DB_PATH = os.path.join(BASE_DIR, "boardgames.db")
+
+# Where uploaded photos go: GCS when a bucket is set, else a local static dir
+# (handy for development without GCS).
+LOCAL_UPLOAD_DIR = os.path.join(BASE_DIR, "static", "uploads")
+
+# Upload constraints.
+ALLOWED_IMAGE_TYPES = {"image/jpeg", "image/png", "image/webp", "image/gif"}
+MAX_PHOTO_BYTES = 8 * 1024 * 1024  # 8 MB
 
 
 def create_app() -> Flask:
@@ -48,6 +57,8 @@ def create_app() -> Flask:
         "DATABASE_URL", f"sqlite:///{LOCAL_DB_PATH}"
     )
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+    # Reject oversized uploads early (a little above MAX_PHOTO_BYTES for headers).
+    app.config["MAX_CONTENT_LENGTH"] = MAX_PHOTO_BYTES + 1024 * 1024
 
     using_gcs = bool(GCS_BUCKET) and "DATABASE_URL" not in os.environ
     if using_gcs:
@@ -370,6 +381,12 @@ def register_routes(app: Flask) -> None:
         favorite_count = sum(1 for r in review_rows if r.favorite)
         played_count = sum(1 for r in review_rows if r.played)
 
+        photos = (
+            GamePhoto.query.filter_by(game_id=game_id)
+            .order_by(GamePhoto.created_at.desc())
+            .all()
+        )
+
         return render_template(
             "detail.html",
             game=game,
@@ -380,6 +397,7 @@ def register_routes(app: Flask) -> None:
             avg_rating=avg_rating,
             favorite_count=favorite_count,
             played_count=played_count,
+            photos=photos,
             my_nickname=request.cookies.get(NICK_COOKIE, ""),
             my_client_id=g.client_id,
         )
@@ -428,6 +446,81 @@ def register_routes(app: Flask) -> None:
             resp.set_cookie(NICK_COOKIE, nickname,
                             max_age=60 * 60 * 24 * 365 * 5, samesite="Lax")
         return resp
+
+    # --- user-uploaded photos (per browser, no login) -----------------------
+    @app.route("/game/<int:game_id>/photos", methods=["POST"])
+    def upload_photo(game_id):
+        Game.query.get_or_404(game_id)
+        file = request.files.get("photo")
+        if file is None or not file.filename:
+            flash("写真ファイルを選択してください。", "error")
+            return redirect(url_for("game_detail", game_id=game_id))
+
+        data = file.read()
+        if len(data) > MAX_PHOTO_BYTES:
+            flash("ファイルが大きすぎます（最大8MB）。", "error")
+            return redirect(url_for("game_detail", game_id=game_id))
+        content_type = file.mimetype or "application/octet-stream"
+        if content_type not in ALLOWED_IMAGE_TYPES:
+            flash("対応していない画像形式です（JPEG/PNG/WebP/GIF）。", "error")
+            return redirect(url_for("game_detail", game_id=game_id))
+
+        ext = {
+            "image/jpeg": "jpg", "image/png": "png",
+            "image/webp": "webp", "image/gif": "gif",
+        }[content_type]
+        key = f"{game_id}/{secrets.token_hex(12)}.{ext}"
+
+        try:
+            if GCS_BUCKET:
+                blob_key = f"{GCS_PHOTO_PREFIX}/{key}"
+                url = storage.upload_photo(GCS_BUCKET, blob_key, data, content_type)
+            else:
+                # Local dev fallback: write under static/uploads.
+                dest = os.path.join(LOCAL_UPLOAD_DIR, key)
+                os.makedirs(os.path.dirname(dest), exist_ok=True)
+                with open(dest, "wb") as f:
+                    f.write(data)
+                blob_key = ""  # local files aren't deleted from GCS
+                url = url_for("static", filename=f"uploads/{key}")
+        except Exception as e:  # noqa: BLE001
+            app.logger.exception("Photo upload failed")
+            flash(f"アップロードに失敗しました: {e}", "error")
+            return redirect(url_for("game_detail", game_id=game_id))
+
+        nickname = (request.form.get("nickname") or "").strip()[:60]
+        photo = GamePhoto(
+            game_id=game_id,
+            client_id=g.client_id,
+            nickname=nickname,
+            caption=(request.form.get("caption") or "").strip()[:300],
+            url=url,
+            blob_key=blob_key,
+        )
+        db.session.add(photo)
+        db.session.commit()
+        flash("写真を投稿しました。", "ok")
+
+        resp = redirect(url_for("game_detail", game_id=game_id))
+        if nickname:
+            resp.set_cookie(NICK_COOKIE, nickname,
+                            max_age=60 * 60 * 24 * 365 * 5, samesite="Lax")
+        return resp
+
+    @app.route("/photos/<int:photo_id>/delete", methods=["POST"])
+    def delete_photo(photo_id):
+        photo = GamePhoto.query.get_or_404(photo_id)
+        # Only the uploader (same browser) may delete.
+        if photo.client_id != g.client_id:
+            flash("自分が投稿した写真のみ削除できます。", "error")
+            return redirect(url_for("game_detail", game_id=photo.game_id))
+        gid = photo.game_id
+        if GCS_BUCKET and photo.blob_key:
+            storage.delete_object(GCS_BUCKET, photo.blob_key)
+        db.session.delete(photo)
+        db.session.commit()
+        flash("写真を削除しました。", "ok")
+        return redirect(url_for("game_detail", game_id=gid))
 
     @app.route("/game/add", methods=["GET", "POST"])
     def add_game():
