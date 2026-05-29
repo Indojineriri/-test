@@ -37,11 +37,13 @@ class Game(db.Model):
     # The four rule sections requested by the user.
     objective = db.Column(db.Text, default="")     # 目的
     characters = db.Column(db.Text, default="")    # 登場人物・役職
-    procedure = db.Column(db.Text, default="")     # 手順
+    procedure = db.Column(db.Text, default="")     # ゲームの流れ（1ターンの流れ）
+    detailed_rules = db.Column(db.Text, default="")  # アプリ内の詳細説明（長文）
     end_condition = db.Column(db.Text, default="")  # 終了条件
 
     online_url = db.Column(db.String(500), default="")  # 実際に遊べるサイト
     bgg_url = db.Column(db.String(500), default="")
+    rules_url = db.Column(db.String(500), default="")  # 詳しい解説ページ
     image_url = db.Column(db.String(800), default="")  # ゲームの写真
 
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
@@ -80,9 +82,11 @@ class Game(db.Model):
             "objective": self.objective,
             "characters": self.characters,
             "procedure": self.procedure,
+            "detailed_rules": self.detailed_rules,
             "end_condition": self.end_condition,
             "online_url": self.online_url,
             "bgg_url": self.bgg_url,
+            "rules_url": self.rules_url,
             "image_url": self.image_url,
         }
 

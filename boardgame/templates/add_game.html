@@ -52,8 +52,11 @@
   <label>👤 登場人物・役職
     <textarea name="characters" rows="2">{{ form.characters or '' }}</textarea>
   </label>
-  <label>🔄 手順（1行1ステップ）
+  <label>🔄 ゲームの流れ（1行1ステップ）
     <textarea name="procedure" rows="6">{{ form.procedure or '' }}</textarea>
+  </label>
+  <label>📖 詳細ルール（任意・「もっと詳しく」で展開される長文）
+    <textarea name="detailed_rules" rows="6" placeholder="セットアップの詳細、特殊なケース、例外処理など">{{ form.detailed_rules or '' }}</textarea>
   </label>
   <label>🏁 終了条件
     <textarea name="end_condition" rows="2">{{ form.end_condition or '' }}</textarea>
@@ -63,6 +66,10 @@
     <label>オンラインで遊べるURL<input type="url" name="online_url" value="{{ form.online_url or '' }}"></label>
     <label>BoardGameGeek URL<input type="url" name="bgg_url" value="{{ form.bgg_url or '' }}"></label>
   </div>
+
+  <label>🔗 詳しいルール解説ページURL（任意）
+    <input type="url" name="rules_url" value="{{ form.rules_url or '' }}" placeholder="公式ルール・解説サイト・動画など">
+  </label>
 
   <label>画像URL（ゲームの写真）
     <input type="url" name="image_url" value="{{ form.image_url or '' }}" placeholder="https://...">

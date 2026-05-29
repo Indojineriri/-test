@@ -138,6 +138,11 @@ main.wrap { padding-top: 28px; padding-bottom: 60px; min-height: 70vh; }
 .rule-block h3 { margin: 0 0 8px; }
 .rule-block ol { margin: 0; padding-left: 22px; }
 .rule-block ol li { margin-bottom: 6px; }
+.more-rules { margin-top: 12px; border-top: 1px dashed var(--line); padding-top: 10px; }
+.more-rules summary { cursor: pointer; font-weight: 700; color: var(--accent-dark); list-style: revert; }
+.more-rules summary:hover { text-decoration: underline; }
+.detailed-rules { margin-top: 10px; white-space: pre-wrap; line-height: 1.8; }
+.rules-link { display: inline-block; margin-top: 12px; font-weight: 700; }
 
 .danger { margin-top: 26px; text-align: right; }
 .danger button { background: none; border: 1px solid var(--ng); color: var(--ng); padding: 7px 14px; border-radius: 8px; cursor: pointer; font-size: .85rem; }

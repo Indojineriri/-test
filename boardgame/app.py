@@ -110,14 +110,20 @@ def _migrate_schema() -> None:
     except Exception:  # noqa: BLE001
         return
 
-    # game.image_url (added with the images feature)
+    # Columns added to `games` after the initial schema.
     if "games" in existing_tables:
         cols = {c["name"] for c in inspector.get_columns("games")}
-        if "image_url" not in cols:
-            with db.engine.begin() as conn:
-                conn.execute(text(
-                    "ALTER TABLE games ADD COLUMN image_url VARCHAR(800) DEFAULT ''"
-                ))
+        game_additions = {
+            "image_url": "VARCHAR(800) DEFAULT ''",        # 画像
+            "detailed_rules": "TEXT DEFAULT ''",           # アプリ内の詳細説明
+            "rules_url": "VARCHAR(500) DEFAULT ''",        # 詳しい解説ページ
+        }
+        for col, ddl in game_additions.items():
+            if col not in cols:
+                with db.engine.begin() as conn:
+                    conn.execute(text(
+                        f"ALTER TABLE games ADD COLUMN {col} {ddl}"
+                    ))
 
     # user_game_records.nickname (added with public reviews)
     if "user_game_records" in existing_tables:
@@ -440,9 +446,11 @@ def register_routes(app: Flask) -> None:
                 objective=request.form.get("objective", "").strip(),
                 characters=request.form.get("characters", "").strip(),
                 procedure=request.form.get("procedure", "").strip(),
+                detailed_rules=request.form.get("detailed_rules", "").strip(),
                 end_condition=request.form.get("end_condition", "").strip(),
                 online_url=request.form.get("online_url", "").strip(),
                 bgg_url=request.form.get("bgg_url", "").strip(),
+                rules_url=request.form.get("rules_url", "").strip(),
                 image_url=request.form.get("image_url", "").strip(),
             )
             db.session.add(game)

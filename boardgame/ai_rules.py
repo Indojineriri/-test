@@ -32,7 +32,9 @@ INSTRUCTION = (
     "正体隠匿, タイル配置, 競り, 協力 など）\n"
     "- objective: このゲームの目的（何を目指すか）\n"
     "- characters: 登場人物・役職・コマなど（無ければ「特になし」）\n"
-    "- procedure: 1手番/1ラウンドの手順を1行1ステップの箇条書き（改行区切り）\n"
+    "- procedure: 1手番/1ラウンドの大まかな流れを1行1ステップの箇条書き（改行区切り、簡潔に）\n"
+    "- detailed_rules: セットアップ・各アクションの詳細・特殊ケース・例外処理などを含む"
+    "詳しい解説（段落や箇条書きを使った長めの文章。procedureの要点を肉付けする）\n"
     "- end_condition: 終了条件と勝敗の決め方\n"
     "- min_players / max_players: 推奨プレイ人数\n"
     "- play_time_min: 標準的なプレイ時間（分）\n"
@@ -46,6 +48,7 @@ class GeneratedRules(BaseModel):
     objective: str
     characters: str
     procedure: str
+    detailed_rules: str
     end_condition: str
     min_players: int
     max_players: int

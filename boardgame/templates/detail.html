@@ -70,13 +70,26 @@
     </div>
 
     <div class="rule-block">
-      <h3>🔄 進め方（手順）</h3>
+      <h3>🔄 ゲームの流れ</h3>
       {% if game.procedure_steps %}
         <ol>
           {% for step in game.procedure_steps %}<li>{{ step }}</li>{% endfor %}
         </ol>
       {% else %}
         <p>（未登録）</p>
+      {% endif %}
+
+      {% if game.detailed_rules %}
+      <details class="more-rules">
+        <summary>📖 もっと詳しく（詳細ルール）</summary>
+        <div class="detailed-rules">{{ game.detailed_rules }}</div>
+      </details>
+      {% endif %}
+
+      {% if game.rules_url %}
+      <a class="rules-link" href="{{ game.rules_url }}" target="_blank" rel="noopener">
+        🔗 詳しいルール解説を見る（外部サイト）
+      </a>
       {% endif %}
     </div>
 
