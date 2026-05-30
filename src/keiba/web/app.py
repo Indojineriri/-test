@@ -125,18 +125,22 @@ def index():
         cards = []
         for u in upcoming:
             rid = u["id"]
+            genai_link = (f'<a class="btn" href="/genai/{rid}">🤖 生成AI予想ページ</a>'
+                          if genai_on else
+                          '<span class="btn disabled" title="ANTHROPIC_API_KEY 未設定">🤖 生成AI予想(無効)</span>')
             cards.append(
                 f'<div class="target" data-race="{rid}">'
                 f'<h3>🎯 {u["name"]} <span class="note">{u["date"]}</span></h3>'
                 f'<div class="actions">'
                 f'<button onclick="predict(\'{rid}\',\'predict\',this)">📊 ML予想</button> '
-                f'{_genai_btn(rid)} '
-                f'<button class="secondary" onclick="charts(\'{rid}\',this)">📈 データ可視化</button>'
+                f'<label class="opt"><input type="checkbox" id="h2h-{rid}"> '
+                f'直接対決を反映</label> '
+                f'{genai_link} '
+                f'<a class="btn secondary" href="/visualize/{rid}">📈 データ可視化ページ</a>'
                 f'</div>'
                 f'<div class="comment" id="cm-{rid}"></div>'
                 f'<div class="umabashira" id="uma-{rid}">'
                 f'<span class="note">馬柱を読み込み中…</span></div>'
-                f'<div class="charts" id="chart-{rid}"></div>'
                 f'</div>'
             )
         target_section = "".join(cards)
@@ -199,7 +203,12 @@ def index():
   code {{ background:#eef; padding:1px 4px; border-radius:3px; }}
   .charts {{ margin:8px 0; }}
   .charts .card > div {{ margin:10px 0; }}
-  .actions {{ margin:8px 0; }}
+  .actions {{ margin:8px 0; display:flex; flex-wrap:wrap; gap:8px; align-items:center; }}
+  .btn {{ display:inline-block; padding:6px 12px; border-radius:4px; text-decoration:none;
+         border:1px solid #3b7dd8; background:#3b7dd8; color:#fff; font-size:0.9rem; }}
+  .btn.secondary {{ background:#fff; color:#3b7dd8; }}
+  .btn.disabled {{ background:#aaa; border-color:#aaa; cursor:not-allowed; }}
+  .opt {{ font-size:0.9rem; color:#333; }}
   .umabashira {{ overflow-x:auto; margin-top:8px; }}
   table.uma {{ font-size:0.88rem; white-space:nowrap; }}
   table.uma th, table.uma td {{ padding:5px 8px; }}
@@ -272,11 +281,12 @@ function renderUma(rows, pred) {{
 async function predict(raceId, kind, btn) {{
   const cm = document.getElementById('cm-' + raceId);
   const uma = document.getElementById('uma-' + raceId);
-  cm.innerHTML = '<div class="card spinner">⏳ 予想中…' +
-    (kind === 'genai-predict' ? '（生成AIは数十秒かかります）' : '') + '</div>';
+  cm.innerHTML = '<div class="card spinner">⏳ 予想中…</div>';
   btn.disabled = true;
+  const h2hEl = document.getElementById('h2h-' + raceId);
+  const q = (h2hEl && h2hEl.checked) ? '?h2h=0.3' : '';
   try {{
-    const r = await fetch('/' + kind + '/' + raceId);
+    const r = await fetch('/' + kind + '/' + raceId + q);
     const d = await r.json();
     if (!r.ok) {{ cm.innerHTML = '<div class="card">⚠ ' + (d.error || r.status) + '</div>'; return; }}
     const pred = (kind === 'predict') ? mlToPred(d) : genaiToPred(d);
@@ -296,9 +306,11 @@ function mlToPred(d) {{
   }});
   const top = d.ranking.slice(0,3).map((r,i) =>
     `${{MARKS[i]}} ${{r.horse_name}}（${{fmtPct(r.show_prob)}}）`).join('　');
+  const h2hNote = (d.h2h_weight > 0)
+    ? `<div class="note">出走馬どうしの直接対決を ${{Math.round(d.h2h_weight*100)}}% 反映しています。</div>` : '';
   return {{ byNo, comment:
     '<div class="card"><b>📊 ML予想（過去ダービーで学習）</b>' +
-    `<div class="note">学習: ${{d.trained_on.join(', ')}}</div>` +
+    `<div class="note">学習: ${{d.trained_on.join(', ')}}</div>` + h2hNote +
     '<p>' + top + '</p></div>' }};
 }}
 
@@ -319,17 +331,6 @@ function genaiToPred(d) {{
     '<p><b>② 共通するポイント:</b></p><ul>' + ins + '</ul>' +
     '<p><b>③ 予想（本命 馬番' + d.prediction.honmei_horse_no + '）:</b></p><ul>' + reasons + '</ul>' +
     '<p class="note">' + (d.prediction.commentary || '') + '</p></div>' }};
-}}
-
-function charts(raceId, btn) {{
-  const box = document.getElementById('chart-' + raceId);
-  if (box.dataset.shown) {{ box.innerHTML = ''; box.dataset.shown = ''; btn.textContent='📈 データ可視化'; return; }}
-  const kinds = [['show_rate','複勝率'],['prize','総賞金'],['last3f','決め手(上がり)'],['style','脚質分布']];
-  box.innerHTML = '<div class="card">' + kinds.map(([k,label]) =>
-    `<div><b>${{label}}</b><br><img loading="lazy" src="/chart/${{raceId}}/${{k}}.png" ` +
-    `alt="${{label}}" style="max-width:100%;border:1px solid #eee;border-radius:4px"></div>`
-  ).join('') + '</div>';
-  box.dataset.shown = '1'; btn.textContent='📈 可視化を隠す';
 }}
 
 async function runInsights(btn) {{
@@ -361,6 +362,89 @@ function renderInsights(d) {{
 
 </script>
 </body></html>"""
+    return Response(html, mimetype="text/html")
+
+
+def _page_head(title):
+    return ('<!doctype html><html lang="ja"><head><meta charset="utf-8">'
+            '<meta name="viewport" content="width=device-width, initial-scale=1">'
+            f'<title>{title}</title><style>'
+            'body{font-family:system-ui,sans-serif;margin:2rem;line-height:1.6;color:#222;}'
+            'h1{font-size:1.4rem;} a{color:#3b7dd8;} .note{color:#666;font-size:0.9rem;}'
+            'img{max-width:100%;border:1px solid #eee;border-radius:6px;margin:6px 0;}'
+            '.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(360px,1fr));gap:16px;}'
+            '.card{background:#f8f9fb;border:1px solid #dde;border-radius:8px;padding:12px;}'
+            'button{font-size:0.95rem;padding:8px 16px;cursor:pointer;border:1px solid #3b7dd8;'
+            'background:#3b7dd8;color:#fff;border-radius:5px;} .back{display:inline-block;margin-bottom:1rem;}'
+            '</style></head><body>')
+
+
+@app.get("/visualize/<race_id>")
+def visualize(race_id: str):
+    """③可視化ページ: 複勝率・賞金・脚質・通過順・キャリア・脚質×上がり・直接対決 を一覧。"""
+    from .. import viz
+    from ..service import load_meta
+    meta = load_meta(race_id, _store())
+    if meta is None:
+        return Response(_page_head("可視化") +
+                        f'<a class="back" href="/">← 戻る</a><p>race_id={race_id} のデータがありません。</p>'
+                        '</body></html>', mimetype="text/html")
+    name = (meta.get("race_meta") or {}).get("race_name") or race_id
+    imgs = "".join(
+        f'<div class="card"><b>{viz.CHART_LABELS.get(k, k)}</b><br>'
+        f'<img loading="lazy" src="/chart/{race_id}/{k}.png" alt="{k}"></div>'
+        for k in viz.CHART_KINDS)
+    html = (_page_head(f"可視化 - {name}") +
+            f'<a class="back" href="/">← 予想ページに戻る</a>'
+            f'<h1>📈 {name} のデータ可視化</h1>'
+            f'<p class="note">いろいろな尺度で出走馬を比較します。</p>'
+            f'<div class="grid">{imgs}</div></body></html>')
+    return Response(html, mimetype="text/html")
+
+
+@app.get("/genai/<race_id>")
+def genai_page(race_id: str):
+    """④⑤生成AI予想ページ: ボタンで示唆→予想を実行して表示（馬柱とは別ページ）。"""
+    from ..service import load_meta
+    if not os.environ.get("ANTHROPIC_API_KEY"):
+        return Response(_page_head("生成AI予想") +
+                        '<a class="back" href="/">← 戻る</a>'
+                        '<p>ANTHROPIC_API_KEY が未設定のため生成AI予想は無効です。</p>'
+                        '</body></html>', mimetype="text/html")
+    meta = load_meta(race_id, _store())
+    name = ((meta or {}).get("race_meta") or {}).get("race_name") or race_id
+    html = (_page_head(f"生成AI予想 - {name}") +
+            f'<a class="back" href="/">← 予想ページに戻る</a>'
+            f'<h1>🤖 {name} の生成AI予想</h1>'
+            f'<p>過去ダービーから「①傾向 → ②共通するポイント → ③今年の予想」を導きます。'
+            f'（数十秒かかります）</p>'
+            f'<button id="go" onclick="runGenai()">🤖 生成AI予想を実行</button>'
+            f'<div id="out" style="margin-top:1rem"></div>'
+            f"""<script>
+async function runGenai() {{
+  const out = document.getElementById('out'), btn = document.getElementById('go');
+  out.innerHTML = '<p>⏳ 生成AIが過去から示唆を導出して予想中…（数十秒）</p>';
+  btn.disabled = true;
+  try {{
+    const r = await fetch('/genai-predict/{race_id}');
+    const d = await r.json();
+    if (!r.ok) {{ out.innerHTML = '<div class="card">⚠ ' + (d.error||r.status) + '</div>'; return; }}
+    const ins = (d.insights.insights||[]).map(x =>
+      `<li><b>${{x.pattern}}</b><br><span class="note">根拠: ${{x.rationale||''}}</span></li>`).join('');
+    const M = ['◎','○','▲','△','△'];
+    const rows = (d.prediction.ranking||[]).map((p,i) =>
+      `<tr><td>${{M[i]||(i+1)}}</td><td>${{p.horse_no}}</td><td>${{p.horse_name}}</td>` +
+      `<td>${{Math.round(p.score*100)}}%</td><td>${{p.reason||''}}</td></tr>`).join('');
+    out.innerHTML =
+      '<div class="card"><h3>① 過去の傾向</h3><p>' + (d.insights.summary||'') + '</p>' +
+      '<h3>② 複数年に共通するポイント</h3><ul>' + ins + '</ul>' +
+      '<h3>③ 今年の予想（本命 馬番' + d.prediction.honmei_horse_no + '）</h3>' +
+      '<table border="1" cellpadding="5" style="border-collapse:collapse"><tr><th>印</th><th>馬番</th><th>馬名</th><th>期待度</th><th>理由</th></tr>' +
+      rows + '</table><p class="note">' + (d.prediction.commentary||'') + '</p></div>';
+  }} catch (e) {{ out.innerHTML = '<div class="card">⚠ ' + e + '</div>'; }}
+  finally {{ btn.disabled = false; }}
+}}
+</script></body></html>""")
     return Response(html, mimetype="text/html")
 
 
@@ -492,16 +576,45 @@ def predict(race_id: str):
         return jsonify(error=str(e), race_id=race_id), 404
 
     label = request.args.get("label", "show")
+    try:
+        h2h_w = float(request.args.get("h2h", "0"))
+    except ValueError:
+        h2h_w = 0.0
     X, y, _ = ml.build_target_training_data(train_items, label=label)
     model = ml.ShowProbModel(label=label).fit(X, y)
-    pred = ml.predict_context(model, ctx)
+    pred = ml.predict_context(model, ctx, h2h_weight=h2h_w)
     return jsonify(
         race_id=race_id,
         race_name=ctx.race_name,
         label=label,
+        h2h_weight=h2h_w,
         trained_on=[c.race_id for c, _ in train_items],
         ranking=pred.to_dict(orient="records"),
     )
+
+
+@app.get("/h2h/<race_id>")
+def h2h(race_id: str):
+    """出走馬どうしの直接対決（上下関係）を JSON で返す。"""
+    from ..h2h import head_to_head
+    from ..service import load_context
+    try:
+        ctx = load_context(race_id, _store())
+    except Exception as e:
+        return jsonify(error=str(e), race_id=race_id), 404
+    h = head_to_head(ctx)
+    order = [{"horse_id": i, "horse_no": _int(h["id2no"].get(i)),
+              "horse_name": h["id2name"].get(i, i), **h["meta"][i]}
+             for i in h["order"]]
+    return jsonify(race_id=race_id, race_name=ctx.race_name,
+                   order=order, records=h["records"])
+
+
+def _int(v):
+    try:
+        return int(v)
+    except (TypeError, ValueError):
+        return None
 
 
 @app.get("/genai-predict/<race_id>")

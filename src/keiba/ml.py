@@ -152,15 +152,33 @@ def build_target_training_data(items: list[tuple[RaceContext, pd.DataFrame]],
 # 予測（対象レースの出走馬へ適用）
 # ---------------------------------------------------------------------------
 
-def predict_context(model: ShowProbModel, ctx: RaceContext) -> pd.DataFrame:
-    """学習済みモデルで、対象レースの出走馬の複勝確率を出してランキングする。"""
+def predict_context(model: ShowProbModel, ctx: RaceContext,
+                    h2h_weight: float = 0.0) -> pd.DataFrame:
+    """学習済みモデルで、対象レースの出走馬の複勝確率を出してランキングする。
+
+    Args:
+        h2h_weight: 0〜1。出走馬どうしの直接対決(同一レースでの優劣)を予想に混ぜる比率。
+            0 で従来どおり。>0 にすると show_prob を
+            (1-w)*モデル確率 + w*直接対決の相対強度 でブレンドする。
+            ダービー出走馬は同じステップレースで対戦済みなので、その上下関係を反映できる。
+    """
     feat = build_features_for_context(ctx)
     tgt = feat[feat["is_target"].fillna(False).astype(bool)].copy()
-    tgt["show_prob"] = model.predict_proba(tgt)
+    tgt["model_prob"] = model.predict_proba(tgt)
+
+    if h2h_weight and h2h_weight > 0:
+        from .h2h import h2h_strength
+        strength = h2h_strength(ctx)
+        tgt["h2h_strength"] = tgt["horse_id"].astype(str).map(strength).fillna(0.5)
+        w = float(h2h_weight)
+        tgt["show_prob"] = (1 - w) * tgt["model_prob"] + w * tgt["h2h_strength"]
+    else:
+        tgt["show_prob"] = tgt["model_prob"]
+
     tgt = tgt.sort_values("show_prob", ascending=False).reset_index(drop=True)
     tgt["pred_rank"] = np.arange(1, len(tgt) + 1)
-    cols = ["pred_rank", "horse_no", "horse_name", "show_prob",
-            "pit_show_rate", "pit_total_prize", "pit_running_style"]
+    cols = ["pred_rank", "horse_no", "horse_name", "show_prob", "model_prob",
+            "h2h_strength", "pit_show_rate", "pit_total_prize", "pit_running_style"]
     cols = [c for c in cols if c in tgt.columns]
     return tgt[cols]
 
