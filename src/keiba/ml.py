@@ -81,13 +81,13 @@ def build_features_for_context(ctx: RaceContext) -> pd.DataFrame:
 def stack_training_data(contexts: list[RaceContext], label: str = "show"):
     """複数レースの「対象レース以外の run」を縦に積んで学習データ (X, y) を作る。
 
-    各レースのコンテキストには、出走馬の過去成績（=他レースの run）が含まれる。
-    それらを学習サンプルにする。重複 run は (race_id, horse_id) で一意化する。
+    ※注意: この方式は「各馬のキャリア全 run（楽な条件戦も強敵 G1 も混在）」で
+    学習するため、予想したい母集団（ダービーの 18 頭）とズレる。係数が直感と逆に
+    なることがある。母集団を揃えたいときは build_target_training_data を使う。
     """
     frames = []
     for ctx in contexts:
         feat = build_features_for_context(ctx)
-        # 学習に使うのは結果が確定した過去 run のみ（対象レース自身は除く）
         is_target = feat["is_target"].fillna(False).astype(bool)
         train_part = feat[(~is_target) & feat["finish_pos"].notna()].copy()
         frames.append(train_part)
@@ -96,7 +96,6 @@ def stack_training_data(contexts: list[RaceContext], label: str = "show"):
         return pd.DataFrame(columns=PIT_FEATURES), np.array([]), pd.DataFrame()
 
     allrows = pd.concat(frames, ignore_index=True)
-    # 同一 run が複数レースの履歴に現れるので一意化（リーク・重複防止）
     allrows = allrows.drop_duplicates(subset=["race_id", "horse_id"])
 
     fp = allrows["finish_pos"].astype(float)
@@ -106,6 +105,47 @@ def stack_training_data(contexts: list[RaceContext], label: str = "show"):
         y = (fp <= 3).astype(int).values
     X = allrows[PIT_FEATURES].astype(float)
     return X, y, allrows
+
+
+def build_target_training_data(items: list[tuple[RaceContext, pd.DataFrame]],
+                               label: str = "show"):
+    """学習と予想の母集団を揃えた学習データを作る（推奨）。
+
+    各過去レースについて、その出走馬（is_target の 18 頭）の **レース前時点の特徴量**
+    と、そのレースでの **実際の着順**（actual.csv）を結びつける。
+    こうすると「ダービーに出るレベルの馬の中で、誰が複勝するか」を学習でき、
+    予想（同じくダービー出走馬）と母集団が一致する。リークはしない
+    （特徴量はレース前まで、ラベルは当該レース結果）。
+
+    Args:
+        items: (ctx, actual_df) のリスト。actual_df は horse_id, finish_pos を持つ。
+    Returns:
+        (X, y, rows)
+    """
+    frames = []
+    for ctx, actual in items:
+        feat = build_features_for_context(ctx)
+        tgt = feat[feat["is_target"].fillna(False).astype(bool)].copy()
+        tgt["horse_id"] = tgt["horse_id"].astype(str)
+        act = actual[["horse_id", "finish_pos"]].copy()
+        act["horse_id"] = act["horse_id"].astype(str)
+        act = act.rename(columns={"finish_pos": "_actual_finish"})
+        merged = tgt.merge(act, on="horse_id", how="inner")
+        merged["source_race_id"] = ctx.race_id
+        frames.append(merged)
+
+    if not frames:
+        return pd.DataFrame(columns=PIT_FEATURES), np.array([]), pd.DataFrame()
+
+    rows = pd.concat(frames, ignore_index=True)
+    rows = rows[rows["_actual_finish"].notna()]
+    fp = rows["_actual_finish"].astype(float)
+    if label == "win":
+        y = (fp == 1).astype(int).values
+    else:
+        y = (fp <= 3).astype(int).values
+    X = rows[PIT_FEATURES].astype(float)
+    return X, y, rows
 
 
 # ---------------------------------------------------------------------------
@@ -151,18 +191,22 @@ def format_prediction(pred: pd.DataFrame, race_name: str = "対象レース",
 # バックテスト（過去レースで的中率を測る）
 # ---------------------------------------------------------------------------
 
-def backtest(train_contexts: list[RaceContext],
+def backtest(train_items: list[tuple[RaceContext, pd.DataFrame]],
              test_items: list[tuple[RaceContext, pd.DataFrame]],
              label: str = "show") -> dict:
-    """train_contexts で学習し、各テストレースで予想 vs 実結果を評価する。
+    """train_items で学習し、各テストレースで予想 vs 実結果を評価する。
+
+    学習は build_target_training_data（学習=予想で母集団を揃える方式）を使う。
+    各過去レースの「出走馬のレース前特徴量 → そのレースの実着順」で学習するので、
+    予想（同じくダービー出走馬）と母集団が一致し、係数が直感に沿う。
 
     Args:
-        train_contexts: 学習に使う過去レースの RaceContext 群
-        test_items: (ctx, actual_df) のリスト。actual_df は horse_id, finish_pos を持つ。
+        train_items: (ctx, actual_df) のリスト。学習用の過去レース。
+        test_items: (ctx, actual_df) のリスト。評価用。
     Returns:
         dict: per_race（各レースの的中サマリ DataFrame）と aggregate（集計）。
     """
-    X, y, _ = stack_training_data(train_contexts, label=label)
+    X, y, _ = build_target_training_data(train_items, label=label)
     model = ShowProbModel(label=label).fit(X, y)
 
     rows = []

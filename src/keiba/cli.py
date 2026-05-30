@@ -244,20 +244,50 @@ def _load_contexts(store, race_ids):
     return ctxs
 
 
+def _load_derby_train_items(store, race_ids, require_derby=True):
+    """学習用 (ctx, actual) を読み込む。actual.csv が無い/ダービーでない年は除外。
+
+    ダービー判定はレース名に『優駿』or『ダービー』を含むかで行い、間違った race_id
+    （別レース）を学習から自動的に弾く。
+    """
+    import io
+    import pandas as pd
+    items = []
+    for rid in race_ids:
+        try:
+            ctx = service.load_context(rid, store)
+        except Exception as e:
+            print(f"  ⚠ {rid}: 読み込みスキップ ({e})")
+            continue
+        name = str(ctx.race_name)
+        if require_derby and ("優駿" not in name and "ダービー" not in name):
+            print(f"  ⚠ {rid}: レース名『{name}』はダービーでないため学習から除外")
+            continue
+        atext = store.read_text(f"races/{rid}/actual.csv")
+        if atext is None:
+            print(f"  ⚠ {rid}: actual.csv 無し（fetch --past が必要）→ 学習から除外")
+            continue
+        actual = pd.read_csv(io.StringIO(atext), dtype={"horse_id": str})
+        items.append((ctx, actual))
+    return items
+
+
 def cmd_predict(args):
-    """過去レース群で学習し、対象レースの複勝確率を予想する（ML）。"""
+    """過去ダービーで学習し、対象レースの複勝確率を予想する（ML）。"""
     from . import ml
 
     store = Storage.from_uri(args.store)
     train_ids = [r.strip() for r in args.train.split(",") if r.strip()] if args.train \
         else _default_derby_train_ids(exclude=args.race_id)
-    print(f"[predict] 学習レース {len(train_ids)} 件 / 対象 {args.race_id}")
-    train_ctxs = _load_contexts(store, train_ids)
-    if not train_ctxs:
-        sys.exit("[predict] 学習データが読めません。先に過去レースを fetch してください。")
+    print(f"[predict] 学習候補 {len(train_ids)} 件 / 対象 {args.race_id}")
+    train_items = _load_derby_train_items(store, train_ids)
+    if not train_items:
+        sys.exit("[predict] 学習データがありません。fetch --past で過去ダービーを"
+                 "取得してください（actual.csv が必要）。")
 
-    X, y, rows = ml.stack_training_data(train_ctxs, label=args.label)
-    print(f"  学習サンプル {len(X)} run（{args.label}率 {y.mean():.1%}）")
+    X, y, _ = ml.build_target_training_data(train_items, label=args.label)
+    print(f"  学習サンプル {len(X)} 頭（過去{len(train_items)}年のダービー出走馬 / "
+          f"{args.label}率 {y.mean():.1%}）")
     model = ml.ShowProbModel(label=args.label).fit(X, y)
 
     try:
@@ -284,30 +314,17 @@ def cmd_backtest(args):
     years = _parse_years(args.years) if args.years else list(range(2016, 2025))
     test_ids = [derby_race_id(y) for y in years]
 
-    # 各テストレースの actual.csv を読む（過去レースは fetch --past で保存済み想定）
-    test_items, available = [], []
-    for rid in test_ids:
-        try:
-            ctx = service.load_context(rid, store)
-        except Exception:
-            continue
-        atext = store.read_text(f"races/{rid}/actual.csv")
-        if atext is None:
-            continue
-        actual = pd.read_csv(io.StringIO(atext), dtype={"horse_id": str})
-        test_items.append((ctx, actual))
-        available.append(rid)
-
+    # actual.csv 有り & 実際にダービーの年だけを使う（間違った race_id を自動除外）
+    test_items = _load_derby_train_items(store, test_ids)
     if not test_items:
-        sys.exit("[backtest] テスト可能な過去レースがありません"
+        sys.exit("[backtest] テスト可能な過去ダービーがありません"
                  "（fetch --past で actual.csv を保存してください）。")
 
     print(f"[backtest] テスト {len(test_items)} 年 / 各年それ以外で学習（leave-one-out）")
     rows = []
     for ctx, actual in test_items:
         others = [(c, a) for (c, a) in test_items if c.race_id != ctx.race_id]
-        train_ctxs = [c for c, _ in others]
-        res = ml.backtest(train_ctxs, [(ctx, actual)], label=args.label)
+        res = ml.backtest(others, [(ctx, actual)], label=args.label)
         pr = res["per_race"].iloc[0]
         rows.append(pr)
     per = pd.DataFrame(rows)
