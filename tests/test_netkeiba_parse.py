@@ -119,6 +119,22 @@ def test_race_ids_from_horse_page():
     assert ids == ["202405020811", "202406010512", "202306050810"]
 
 
+def test_race_ids_handles_both_url_forms():
+    """パス形式 /race/ID/ とクエリ形式 ?race_id=ID の両方を取りこぼさない。
+
+    （これが取りこぼしバグの原因: 旧実装は /race/(\\d+) しか見ず、
+      race.netkeiba.com/race/result.html?race_id=... 形式を落としていた）
+    """
+    html = """<html><body>
+      <a href="/race/202405020811/">A</a>
+      <a href="https://race.netkeiba.com/race/result.html?race_id=202406010512&rf=x">B</a>
+      <a href="/race/result.html?race_id=202306050810">C</a>
+      <a href="/horse/2021104001/">無関係</a>
+    </body></html>"""
+    ids = NetkeibaDataSource._race_ids_from_horse_page(html)
+    assert ids == ["202405020811", "202406010512", "202306050810"]
+
+
 # --- race_id ビルダ ----------------------------------------------------------
 
 def test_build_race_id():

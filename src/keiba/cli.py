@@ -100,6 +100,51 @@ def cmd_demo_dataset(args):
     print("   → 出馬表の出走馬を起点にキャリアを辿ると、1レースが数百〜数千行の学習データになる。")
 
 
+def cmd_diagnose_horse(args):
+    """キャッシュ済みの競走馬ページHTMLから race_id 抽出数を点検する（取りこぼし診断）。
+
+    保存済み results.csv の各出走馬について、cache/horse_<id>.html を読み、
+    そこから何件の過去レースIDが取れているかを表示する。HTMLが手元にある
+    （= 一度 fetch 済み）前提。ネットワークは使わない。
+    """
+    import io
+    import pandas as pd
+    from bs4 import BeautifulSoup
+    from .collect.netkeiba import _extract_race_ids_from_links
+
+    store = Storage.from_uri(args.store)
+    # 出走馬IDを entries から得る
+    ent_text = store.read_text(f"races/{args.race_id}/entries.csv")
+    if not ent_text:
+        sys.exit(f"[diagnose-horse] entries.csv が見つかりません: {args.race_id}")
+    entries = pd.read_csv(io.StringIO(ent_text), dtype={"horse_id": str})
+
+    cache = Storage.from_uri(store.uri("cache"))
+    print(f"=== 競走馬ページの race_id 抽出診断: {args.race_id} ===")
+    print(f"{'horse_id':<14} {'馬名':<16} {'HTML':<6} {'抽出race数':>8}")
+    missing_html = 0
+    for _, e in entries.iterrows():
+        hid = str(e["horse_id"])
+        html = cache.read_text(f"horse_{hid}.html")
+        if html is None:
+            print(f"{hid:<14} {str(e.get('horse_name','')):<16} {'なし':<6} "
+                  f"{'-':>8}  ← HTMLキャッシュ無し")
+            missing_html += 1
+            continue
+        ids = _extract_race_ids_from_links(BeautifulSoup(html, "lxml"))
+        # 自身(対象レース)を除いた数も併記
+        n = len(ids)
+        n_excl = len([r for r in ids if r != args.race_id])
+        print(f"{hid:<14} {str(e.get('horse_name','')):<16} {'あり':<6} "
+              f"{n_excl:>8}  (総リンク {n})")
+    if missing_html:
+        print(f"\n⚠ HTMLキャッシュが無い馬が {missing_html} 頭。--no-cache で再 fetch すると"
+              "再取得されます。")
+    print("\nヒント: 抽出race数が極端に少ない/0なら、競走馬ページのリンク形式が"
+          "想定と違う可能性。その馬の cache/horse_<id>.html を keiba.cli parse-file で"
+          "確認してください。")
+
+
 def cmd_analyze(args):
     """保存済みデータを読み戻し、健全性診断と出走馬の成績分析を表示する。"""
     from . import analyze as A
@@ -292,6 +337,13 @@ def build_parser() -> argparse.ArgumentParser:
                     help="過去レース答え合わせの並べ替え指標（既定: pit_show_rate）")
     pa.add_argument("--out-csv", default=None, help="出走馬分析を CSV 保存（任意）")
     pa.set_defaults(func=cmd_analyze)
+
+    pdh = sub.add_parser("diagnose-horse",
+                         help="競走馬ページHTMLからの race_id 抽出を点検（取りこぼし診断）")
+    pdh.add_argument("--race-id", required=True)
+    pdh.add_argument("--store", default="data/fetched",
+                     help="参照先。fetch の --out と同じ場所（ローカル or gs://）")
+    pdh.set_defaults(func=cmd_diagnose_horse)
 
     return p
 

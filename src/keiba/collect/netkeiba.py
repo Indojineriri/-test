@@ -103,16 +103,42 @@ class NetkeibaDataSource(DataSource):
 
     @staticmethod
     def _race_ids_from_horse_page(html: str) -> list[str]:
-        """競走馬ページの戦績表から、過去レースの race_id を新しい順で抽出。"""
+        """競走馬ページの戦績表から、過去レースの race_id を新しい順で抽出。
+
+        netkeiba は race_id を複数の URL 形式で出す:
+          - https://db.netkeiba.com/race/202405021211/        … パス形式
+          - https://race.netkeiba.com/race/result.html?race_id=202405021211 … クエリ形式
+          - /race/result.html?race_id=...&rf=...               … 相対+追加パラメータ
+        いずれも race_id(11〜12桁) を取りこぼさないよう、複数パターンで拾う。
+        """
         soup = BeautifulSoup(html, "lxml")
-        ids = []
-        seen = set()
-        for a in soup.select("a[href*='/race/']"):
-            m = re.search(r"/race/(\d{10,})", a.get("href", ""))
-            if m and m.group(1) not in seen:
-                seen.add(m.group(1))
-                ids.append(m.group(1))
-        return ids
+        return _extract_race_ids_from_links(soup)
+
+
+# race_id を含みうる URL から 11〜12 桁の数字を抽出する複合パターン。
+# 競馬の race_id は 12 桁が基本だが、地方・特殊開催で 11 桁等もありうるので緩めに。
+_RACE_ID_PATTERNS = [
+    re.compile(r"/race/(\d{11,12})\b"),            # /race/202405021211/
+    re.compile(r"[?&]race_id=(\d{11,12})\b"),      # ?race_id=202405021211
+]
+
+
+def _extract_race_ids_from_links(soup) -> list[str]:
+    """ページ内の全 <a href> から race_id を新しい順（出現順）で重複なく抽出。"""
+    ids, seen = [], set()
+    for a in soup.find_all("a", href=True):
+        href = a["href"]
+        if "/race/" not in href and "race_id=" not in href:
+            continue
+        for pat in _RACE_ID_PATTERNS:
+            m = pat.search(href)
+            if m:
+                rid = m.group(1)
+                if rid not in seen:
+                    seen.add(rid)
+                    ids.append(rid)
+                break
+    return ids
 
 
 def _result_to_entries(res: pd.DataFrame) -> pd.DataFrame:
