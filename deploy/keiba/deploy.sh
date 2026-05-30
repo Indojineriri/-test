@@ -16,7 +16,8 @@ SERVICE="${SERVICE:-keiba}"
 REPO="${REPO:-app-images}"
 IMAGE_TAG="${IMAGE_TAG:-latest}"
 # データ保存用 GCS バケット（Cloud Run は揮発性なので永続化に必須）
-BUCKET="${BUCKET:-${PROJECT_ID}-keiba}"
+# 既存の keiba_shohei バケットを既定にする（手元 fetch の保存先と共有）
+BUCKET="${BUCKET:-keiba_shohei}"
 # 出力先 URI（バケット直下の keiba/ prefix に保存）
 STORAGE_URI="${STORAGE_URI:-gs://${BUCKET}/keiba}"
 # 共有 Secret 名（生成AI フェーズで使用。存在すれば自動で注入）
