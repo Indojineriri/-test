@@ -245,30 +245,10 @@ def _load_contexts(store, race_ids):
 
 
 def _load_derby_train_items(store, race_ids, require_derby=True):
-    """学習用 (ctx, actual) を読み込む。actual.csv が無い/ダービーでない年は除外。
-
-    ダービー判定はレース名に『優駿』or『ダービー』を含むかで行い、間違った race_id
-    （別レース）を学習から自動的に弾く。
-    """
-    import io
-    import pandas as pd
-    items = []
-    for rid in race_ids:
-        try:
-            ctx = service.load_context(rid, store)
-        except Exception as e:
-            print(f"  ⚠ {rid}: 読み込みスキップ ({e})")
-            continue
-        name = str(ctx.race_name)
-        if require_derby and ("優駿" not in name and "ダービー" not in name):
-            print(f"  ⚠ {rid}: レース名『{name}』はダービーでないため学習から除外")
-            continue
-        atext = store.read_text(f"races/{rid}/actual.csv")
-        if atext is None:
-            print(f"  ⚠ {rid}: actual.csv 無し（fetch --past が必要）→ 学習から除外")
-            continue
-        actual = pd.read_csv(io.StringIO(atext), dtype={"horse_id": str})
-        items.append((ctx, actual))
+    """学習用 (ctx, actual) を読み込む（service の共有ロジックを使い、除外理由を表示）。"""
+    items, skipped = service.load_derby_items(store, race_ids, require_derby=require_derby)
+    for rid, why in skipped:
+        print(f"  ⚠ {rid}: 除外（{why}）")
     return items
 
 
@@ -337,8 +317,7 @@ def cmd_backtest(args):
 
 
 def _default_derby_train_ids(exclude=None):
-    from .data.derby import DERBY_RACES
-    return [rid for rid in DERBY_RACES if rid != str(exclude)]
+    return service.default_derby_train_ids(exclude=exclude)
 
 
 def cmd_genai_predict(args):

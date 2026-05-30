@@ -102,7 +102,7 @@ curl "$URL/races/202605021211/entries.csv"   # 出馬表 CSV
 
 ## エンドポイント
 
-参照系（常に有効）:
+参照・予想系（常に有効）:
 
 | メソッド | パス | 説明 |
 |---|---|---|
@@ -111,6 +111,28 @@ curl "$URL/races/202605021211/entries.csv"   # 出馬表 CSV
 | GET | `/races` | 取得済みレースID一覧（JSON） |
 | GET | `/races/<race_id>` | メタ + 取得サマリ（JSON） |
 | GET | `/races/<race_id>/<name>.csv` | entries/results/races/horses の CSV |
+| GET | `/predict/<race_id>` | ⑤ML予想：複勝確率ランキング（JSON）。`?label=show\|win`、`?train=id,id` |
+| GET | `/genai-predict/<race_id>` | ④⑤生成AI予想：示唆+予想（JSON）。**要 ANTHROPIC_API_KEY** |
+
+### Cloud Run で予想を実行する
+
+データ（過去ダービー + 対象レース）が GCS にあれば、Cloud Run から直接予想できる。
+スクレイピングと違い netkeiba に触れないので IP ブロックの問題はない。
+
+```bash
+URL="$(gcloud run services describe keiba --region asia-northeast1 \
+       --format 'value(status.url)')"
+
+# ⑤ML予想（過去ダービーで学習→2026を複勝確率で予想）
+curl "$URL/predict/202605021211"
+
+# ④⑤生成AI予想（過去から示唆→2026を推定）。anthropic-api-key Secret が必要
+curl "$URL/genai-predict/202605021211"
+```
+
+`/genai-predict` は `anthropic-api-key` Secret（`deploy.sh` が `ANTHROPIC_API_KEY`
+として自動注入）があれば動く。無い場合は 503 を返す。Claude API 呼び出しがあるので
+レスポンスに数十秒かかることがある（gunicorn timeout は 600 秒に設定済み）。
 
 取得系（既定 **無効=403**。`KEIBA_ENABLE_FETCH=1` のときだけ動作。通常運用では使わない）:
 

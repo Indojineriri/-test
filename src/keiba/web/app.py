@@ -17,12 +17,14 @@ Cloud Run 上で動く WSGI アプリ。エントリポイントは `keiba.web.a
     KEIBA_FETCH_TOKEN   設定すると取得系に ?token= or X-Auth-Token を要求（簡易保護）
     KEIBA_PROXY         外向きプロキシ URL（取得有効時のみ。通常は使わない）
 
-エンドポイント（参照専用 + 任意の取得系）:
+エンドポイント（参照・予想 + 任意の取得系）:
     GET  /healthz                     ヘルスチェック
     GET  /                            使い方 + 保存済みレース一覧（HTML）
     GET  /races                       保存済みレースID一覧（JSON）
     GET  /races/<race_id>             メタ + 取得サマリ（JSON）
     GET  /races/<race_id>/<name>.csv  entries/results/races/horses の CSV
+    GET  /predict/<race_id>           ⑤ML予想: 複勝確率ランキング（JSON）
+    GET  /genai-predict/<race_id>     ④⑤生成AI予想: 示唆+予想（JSON。要 ANTHROPIC_API_KEY）
     -- 以下は KEIBA_ENABLE_FETCH=1 のときだけ動作（既定 無効=403）--
     GET  /diag                        netkeiba への到達性チェック
     GET/POST /fetch?race_id=...       取得して保存
@@ -179,6 +181,84 @@ def race_csv(race_id: str, name: str):
     if text is None:
         return jsonify(error="not found", race_id=race_id, csv=name), 404
     return Response(text, mimetype="text/csv; charset=utf-8")
+
+
+def _train_ids_from_request(default_exclude):
+    """?train=a,b,c があればそれを、無ければ既知ダービー全年(対象除外)を返す。"""
+    from ..service import default_derby_train_ids
+    raw = request.args.get("train")
+    if raw:
+        return [r.strip() for r in raw.split(",") if r.strip()]
+    return default_derby_train_ids(exclude=default_exclude)
+
+
+@app.get("/predict/<race_id>")
+def predict(race_id: str):
+    """⑤ML予想: 過去ダービーで学習し、対象レースの複勝確率ランキングを JSON で返す。"""
+    from .. import ml
+    from ..service import load_context, load_derby_items
+
+    store = _store()
+    train_items, skipped = load_derby_items(store, _train_ids_from_request(race_id))
+    if not train_items:
+        return jsonify(error="学習データがありません（fetch --past で過去ダービーを保存）",
+                       skipped=skipped), 422
+    try:
+        ctx = load_context(race_id, store)
+    except Exception as e:
+        return jsonify(error=str(e), race_id=race_id), 404
+
+    label = request.args.get("label", "show")
+    X, y, _ = ml.build_target_training_data(train_items, label=label)
+    model = ml.ShowProbModel(label=label).fit(X, y)
+    pred = ml.predict_context(model, ctx)
+    return jsonify(
+        race_id=race_id,
+        race_name=ctx.race_name,
+        label=label,
+        trained_on=[c.race_id for c, _ in train_items],
+        ranking=pred.to_dict(orient="records"),
+    )
+
+
+@app.get("/genai-predict/<race_id>")
+def genai_predict(race_id: str):
+    """④⑤生成AI予想: 過去ダービーから示唆を導出し、対象レースを予想して JSON で返す。
+
+    要 ANTHROPIC_API_KEY（Cloud Run では Secret 注入済み）。
+    """
+    if not os.environ.get("ANTHROPIC_API_KEY"):
+        return jsonify(error="ANTHROPIC_API_KEY 未設定。生成AI予想は無効です。"), 503
+
+    from .. import genai
+    from ..service import load_context, load_derby_items
+
+    store = _store()
+    past_items, skipped = load_derby_items(store, _train_ids_from_request(race_id))
+    if not past_items:
+        return jsonify(error="過去ダービーがありません（fetch --past で保存）",
+                       skipped=skipped), 422
+    try:
+        ctx = load_context(race_id, store)
+    except Exception as e:
+        return jsonify(error=str(e), race_id=race_id), 404
+
+    import anthropic
+    client = anthropic.Anthropic()
+    model = request.args.get("model", genai.MODEL)
+    try:
+        insights = genai.derive_insights(client, past_items, model=model)
+        pred = genai.apply_insights(client, insights, ctx, model=model)
+    except Exception as e:  # API エラー等
+        return jsonify(error=f"生成AI 呼び出し失敗: {e}", race_id=race_id), 502
+
+    return jsonify(
+        race_id=race_id,
+        race_name=ctx.race_name,
+        trained_on=[c.race_id for c, _ in past_items],
+        insights=insights.model_dump(),
+        prediction=pred.model_dump(),
+    )
 
 
 def _env_int(key: str):

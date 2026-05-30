@@ -11,7 +11,12 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
+sys.path.insert(0, str(ROOT / "tests"))
 FIXTURES = Path(__file__).resolve().parent / "fixtures"
+
+import json  # noqa: E402
+
+import pandas as pd  # noqa: E402
 
 from keiba.storage import Storage, LocalStorage  # noqa: E402
 from keiba.collect.netkeiba import NetkeibaDataSource  # noqa: E402
@@ -20,6 +25,26 @@ from keiba import service  # noqa: E402
 
 def _read(name):
     return (FIXTURES / name).read_text(encoding="utf-8")
+
+
+def _seed_derby(store, race_id, seed, race_name="第90回東京優駿(GI)"):
+    """合成のダービー（出走馬+結果+actual.csv）を store に投入する。"""
+    from test_dataset import _make_context
+    ctx, strength, _ = _make_context(n_entrants=10, career=6, seed=seed)
+    pfx = f"races/{race_id}"
+    store.write_text(f"{pfx}/entries.csv", ctx.entries.to_csv(index=False))
+    store.write_text(f"{pfx}/results.csv", ctx.history.to_csv(index=False))
+    store.write_text(f"{pfx}/races.csv", ctx.races.to_csv(index=False))
+    store.write_text(f"{pfx}/meta.json", json.dumps(
+        {"race_id": race_id, "race_meta": {**ctx.race, "race_id": race_id,
+         "race_name": race_name, "distance": 2400, "date": race_id[:4] + "-05-31"}},
+        ensure_ascii=False, default=str))
+    order = sorted(ctx.entries["horse_id"], key=lambda h: -strength[h])
+    actual = pd.DataFrame({"horse_id": order,
+                           "horse_name": [f"馬{h}" for h in order],
+                           "finish_pos": list(range(1, len(order) + 1))})
+    store.write_text(f"{pfx}/actual.csv", actual.to_csv(index=False))
+    return ctx
 
 
 class FakeClient:
@@ -193,6 +218,77 @@ def test_web_fetch_blocked_returns_502(tmp, monkeypatch):
     assert body["blocked"] is True and "KEIBA_PROXY" in body["hint"]
 
 
+# --- 予想エンドポイント -----------------------------------------------------
+
+def test_predict_endpoint(tmp, monkeypatch):
+    """/predict/<race_id>: 過去ダービーで学習し複勝確率ランキングを返す（ML・API不要）。"""
+    monkeypatch.setenv("KEIBA_STORAGE_URI", str(tmp / "pred"))
+    store = LocalStorage(tmp / "pred")
+    # 学習用の過去ダービー3年 + 対象1レースを投入
+    for i, rid in enumerate(["202105021211", "202205021211", "202305021211"]):
+        _seed_derby(store, rid, seed=10 + i)
+    _seed_derby(store, "202605021211", seed=99, race_name="第93回東京優駿(GI)")
+
+    from keiba.web import app as webmod
+    client = webmod.app.test_client()
+    r = client.get("/predict/202605021211")
+    assert r.status_code == 200, r.get_data(as_text=True)
+    body = r.get_json()
+    assert body["race_id"] == "202605021211"
+    assert len(body["ranking"]) == 10
+    assert "show_prob" in body["ranking"][0]
+    # 対象は学習から除外されている
+    assert "202605021211" not in body["trained_on"]
+
+
+def test_predict_endpoint_no_training_data(tmp, monkeypatch):
+    monkeypatch.setenv("KEIBA_STORAGE_URI", str(tmp / "empty"))
+    store = LocalStorage(tmp / "empty")
+    _seed_derby(store, "202605021211", seed=99)  # 対象のみ、過去ダービー無し
+    from keiba.web import app as webmod
+    # 学習候補に存在しない race_id を指定 → 読み込めず空に
+    r = webmod.app.test_client().get("/predict/202605021211?train=209905021211")
+    assert r.status_code == 422
+    assert "skipped" in r.get_json()
+
+
+def test_genai_predict_disabled_without_key(tmp, monkeypatch):
+    monkeypatch.setenv("KEIBA_STORAGE_URI", str(tmp / "g"))
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    from keiba.web import app as webmod
+    r = webmod.app.test_client().get("/genai-predict/202605021211")
+    assert r.status_code == 503
+
+
+def test_genai_predict_endpoint(tmp, monkeypatch):
+    """/genai-predict: 生成AIの2段フローを JSON で返す（anthropic をモック）。"""
+    monkeypatch.setenv("KEIBA_STORAGE_URI", str(tmp / "g2"))
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "dummy")
+    store = LocalStorage(tmp / "g2")
+    for i, rid in enumerate(["202105021211", "202205021211"]):
+        _seed_derby(store, rid, seed=20 + i)
+    _seed_derby(store, "202605021211", seed=99, race_name="第93回東京優駿(GI)")
+
+    # genai の2段呼び出しをモック（API を叩かない）
+    from keiba import genai
+    from test_genai import _sample_insights, _sample_prediction
+    monkeypatch.setattr(genai, "derive_insights",
+                        lambda *a, **k: _sample_insights())
+    monkeypatch.setattr(genai, "apply_insights",
+                        lambda *a, **k: _sample_prediction())
+    # anthropic.Anthropic() がキー検証で失敗しないようダミー化
+    import anthropic
+    monkeypatch.setattr(anthropic, "Anthropic", lambda *a, **k: object())
+
+    from keiba.web import app as webmod
+    r = webmod.app.test_client().get("/genai-predict/202605021211")
+    assert r.status_code == 200, r.get_data(as_text=True)
+    body = r.get_json()
+    assert body["race_id"] == "202605021211"
+    assert "insights" in body and "prediction" in body
+    assert body["prediction"]["honmei_horse_no"] == 1
+
+
 # --- 簡易テストランナー（pytest 無し環境でも動く） ------------------------
 
 class _MonkeyPatch:
@@ -205,8 +301,14 @@ class _MonkeyPatch:
         self._env.append((k, os.environ.get(k)))
         os.environ[k] = v
 
+    def delenv(self, k, raising=True):
+        import os
+        self._env.append((k, os.environ.get(k)))
+        os.environ.pop(k, None)
+
     def setattr(self, obj, name, val):
-        self._attr.append((obj, name, getattr(obj, name)))
+        had = hasattr(obj, name)
+        self._attr.append((obj, name, getattr(obj, name, None), had))
         setattr(obj, name, val)
 
     def undo(self):
@@ -216,8 +318,14 @@ class _MonkeyPatch:
                 os.environ.pop(k, None)
             else:
                 os.environ[k] = old
-        for obj, name, old in reversed(self._attr):
-            setattr(obj, name, old)
+        for obj, name, old, had in reversed(self._attr):
+            if had:
+                setattr(obj, name, old)
+            else:
+                try:
+                    delattr(obj, name)
+                except AttributeError:
+                    pass
 
 
 if __name__ == "__main__":

@@ -155,6 +155,47 @@ def load_context(race_id: str, store: Storage):
     )
 
 
+def load_actual(race_id: str, store: Storage):
+    """過去レースの実結果(actual.csv)を DataFrame で返す（無ければ None）。"""
+    import io
+    import pandas as pd
+    text = store.read_text(f"{_race_prefix(race_id)}/actual.csv")
+    if text is None:
+        return None
+    return pd.read_csv(io.StringIO(text), dtype={"horse_id": str})
+
+
+def load_derby_items(store: Storage, race_ids, require_derby: bool = True):
+    """学習/示唆用に (RaceContext, actual_df) のリストを読み込む。
+
+    actual.csv が無い年や、レース名に『優駿/ダービー』を含まない年（間違った
+    race_id で別レースを取ってしまった年）は自動的に除外する。CLI と web 層で共有。
+    """
+    items, skipped = [], []
+    for rid in race_ids:
+        try:
+            ctx = load_context(rid, store)
+        except Exception:
+            skipped.append((rid, "読み込み不可"))
+            continue
+        name = str(ctx.race_name)
+        if require_derby and ("優駿" not in name and "ダービー" not in name):
+            skipped.append((rid, f"ダービーでない({name})"))
+            continue
+        actual = load_actual(rid, store)
+        if actual is None:
+            skipped.append((rid, "actual.csv 無し"))
+            continue
+        items.append((ctx, actual))
+    return items, skipped
+
+
+def default_derby_train_ids(exclude=None):
+    """既知ダービー全年の race_id（exclude を除く）。"""
+    from .data.derby import DERBY_RACES
+    return [rid for rid in DERBY_RACES if rid != str(exclude)]
+
+
 def _subprefix(store: Storage, sub: str) -> Storage:
     """同じバックエンドで prefix を1段掘った Storage を作る。"""
     base = store.uri(sub)
