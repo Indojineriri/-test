@@ -394,6 +394,227 @@ def parse_horse_profile(html: str, horse_id: str) -> dict:
     return prof
 
 
+# --- 競走馬ページの戦績表を直接パース（確実な収集方式） ---------------------
+# db.netkeiba.com/horse/{id}/ の戦績表(.db_h_race_results)には、その馬の全成績が
+# 1 行 1 レースで載っている。race_id を抽出して別ページに飛ぶのではなく、この表を
+# 直接パースすることで「取りこぼし」も「結果ページ取得の失敗」も避けられる。
+
+# 戦績表のヘッダ → 内部キー
+_HORSE_RESULT_HEADER_MAP = {
+    "日付": "date",
+    "開催": "venue",
+    "レース名": "race_name",
+    "映像": "_skip",
+    "頭数": "n_horses",
+    "枠番": "frame_no", "枠": "frame_no",
+    "馬番": "horse_no",
+    "オッズ": "odds",
+    "人気": "popularity",
+    "着順": "finish_pos",
+    "騎手": "jockey",
+    "斤量": "impost",
+    "距離": "distance_raw",
+    "馬場": "going",
+    "タイム": "time",
+    "着差": "margin",
+    "通過": "passing",
+    "ペース": "pace",
+    "上り": "last_3f", "上がり": "last_3f",
+    "馬体重": "horse_weight",
+    "賞金": "prize",
+}
+
+
+def parse_horse_results(html: str, horse_id: str) -> pd.DataFrame:
+    """競走馬ページの戦績表から、その馬の全成績を RESULT_COLUMNS 準拠で返す。
+
+    別ページに飛ばず、この 1 ページだけでその馬の全レースを取得できる。
+    race_id は各行のレース名リンクから取り出す（取れなくても行自体は残す）。
+    """
+    from ..schema import RESULT_COLUMNS
+    soup = BeautifulSoup(html, "lxml")
+    name_title = soup.select_one(".horse_title h1") or soup.find("h1")
+    horse_name = _text(name_title)
+
+    table = (soup.select_one("table.db_h_race_results")
+             or soup.select_one("table.race_results")
+             or _find_results_table(soup))
+    if table is None:
+        return pd.DataFrame(columns=RESULT_COLUMNS)
+
+    # ヘッダ行（最初の tr）から列キーを作る
+    head = table.find("tr")
+    keys = []
+    for c in head.find_all(["th", "td"]):
+        raw = re.sub(r"\s+", "", _text(c))
+        keys.append(_HORSE_RESULT_HEADER_MAP.get(raw, raw))
+
+    rows = []
+    for tr in table.find_all("tr")[1:]:
+        cells = tr.find_all("td")
+        if not cells:
+            continue
+        cmap = dict(zip(keys, cells))
+        if "race_name" not in cmap and "finish_pos" not in cmap:
+            continue
+        rows.append(_horse_result_row(cmap, horse_id, horse_name))
+
+    df = pd.DataFrame(rows)
+    if df.empty:
+        return pd.DataFrame(columns=RESULT_COLUMNS)
+    for c in RESULT_COLUMNS:
+        if c not in df.columns:
+            df[c] = np.nan
+    return df[RESULT_COLUMNS]
+
+
+def _find_results_table(soup):
+    """class 名が違っても、ヘッダに『日付』『着順』を含む表を戦績表とみなす。"""
+    for tbl in soup.find_all("table"):
+        head = tbl.find("tr")
+        if not head:
+            continue
+        htext = _text(head)
+        if "日付" in htext and ("着順" in htext or "着 順" in htext):
+            return tbl
+    return None
+
+
+def _horse_result_row(cmap: dict, horse_id: str, horse_name: str) -> dict:
+    hw, wd = parse_horse_weight(_text(cmap.get("horse_weight")))
+    dist, surface = _parse_distance_raw(_text(cmap.get("distance_raw")))
+    # race_id はレース名セルのリンクから
+    race_id = None
+    name_cell = cmap.get("race_name")
+    if name_cell is not None:
+        for a in name_cell.find_all("a", href=True):
+            m = re.search(r"(\d{11,12})", a["href"])
+            if m:
+                race_id = m.group(1)
+                break
+    return {
+        "race_id": race_id,
+        "horse_id": horse_id,
+        "horse_name": horse_name,
+        "finish_pos": _to_int(_text(cmap.get("finish_pos"))),
+        "frame_no": _to_int(_text(cmap.get("frame_no"))),
+        "horse_no": _to_int(_text(cmap.get("horse_no"))),
+        "sex": None,
+        "age": np.nan,
+        "impost": _to_float(_text(cmap.get("impost"))),
+        "jockey": _text(cmap.get("jockey")),
+        "jockey_id": _first_link_id(cmap.get("jockey"), "jockey"),
+        "time_sec": parse_time_to_sec(_text(cmap.get("time"))),
+        "margin": _text(cmap.get("margin")) or None,
+        "passing": _text(cmap.get("passing")) or None,
+        "last_3f": _to_float(_text(cmap.get("last_3f"))),
+        "odds": _to_float(_text(cmap.get("odds"))),
+        "popularity": _to_int(_text(cmap.get("popularity"))),
+        "horse_weight": hw,
+        "weight_diff": wd,
+        "trainer": None,
+        "trainer_id": None,
+        "prize": _parse_prize(_text(cmap.get("prize"))),
+        # レース条件（races テーブルに展開する用に持っておく）
+        "_date": _text(cmap.get("date")) or None,
+        "_race_name": _text(cmap.get("race_name")) or None,
+        "_distance": dist,
+        "_surface": surface,
+        "_going": _text(cmap.get("going")) or None,
+        "_n_horses": _to_int(_text(cmap.get("n_horses"))),
+    }
+
+
+def _horse_results_meta_rows(html: str, horse_id: str) -> list[dict]:
+    """競走馬ページの戦績表から、各レースのメタ情報（race_id, 日付, 距離, 馬場,
+    レース名, グレード, 競馬場, 頭数）を行ごとに返す。races テーブル構築に使う。"""
+    soup = BeautifulSoup(html, "lxml")
+    table = (soup.select_one("table.db_h_race_results")
+             or soup.select_one("table.race_results")
+             or _find_results_table(soup))
+    if table is None:
+        return []
+    head = table.find("tr")
+    keys = []
+    for c in head.find_all(["th", "td"]):
+        raw = re.sub(r"\s+", "", _text(c))
+        keys.append(_HORSE_RESULT_HEADER_MAP.get(raw, raw))
+
+    out = []
+    for tr in table.find_all("tr")[1:]:
+        cells = tr.find_all("td")
+        if not cells:
+            continue
+        cmap = dict(zip(keys, cells))
+        name_cell = cmap.get("race_name")
+        rid = None
+        race_name = _text(name_cell)
+        if name_cell is not None:
+            for a in name_cell.find_all("a", href=True):
+                m = re.search(r"(\d{11,12})", a["href"])
+                if m:
+                    rid = m.group(1)
+                    break
+        dist, surface = _parse_distance_raw(_text(cmap.get("distance_raw")))
+        # 日付を YYYY-MM-DD に正規化（YYYY/MM/DD 形式）
+        date = _normalize_date(_text(cmap.get("date")))
+        # グレードはレース名から、競馬場は開催セルから
+        grade = _grade_from_name(race_name)
+        venue = _text(cmap.get("venue"))
+        track = _track_from_venue(venue)
+        out.append({
+            "race_id": rid, "date": date, "race_name": race_name,
+            "distance": dist, "surface": surface,
+            "going": _text(cmap.get("going")) or None,
+            "grade": grade, "track": track,
+            "n_horses": _to_int(_text(cmap.get("n_horses"))),
+        })
+    return out
+
+
+def _normalize_date(text: str):
+    text = (text or "").strip()
+    m = re.match(r"(\d{4})[/-](\d{1,2})[/-](\d{1,2})", text)
+    if m:
+        return f"{m.group(1)}-{int(m.group(2)):02d}-{int(m.group(3)):02d}"
+    return text or None
+
+
+def _grade_from_name(name: str):
+    if not name:
+        return None
+    m = re.search(r"\((G[1-3])\)|（(G[1-3])）|(G[ⅠⅡⅢ])", name)
+    if m:
+        g = next((x for x in m.groups() if x), None)
+        return (g or "").replace("Ⅰ", "1").replace("Ⅱ", "2").replace("Ⅲ", "3")
+    return None
+
+
+_VENUE_TRACKS = ["札幌", "函館", "福島", "新潟", "東京", "中山", "中京", "京都",
+                 "阪神", "小倉"]
+
+
+def _track_from_venue(venue: str):
+    if not venue:
+        return None
+    for t in _VENUE_TRACKS:
+        if t in venue:
+            return t
+    return None
+
+
+def _parse_distance_raw(text: str):
+    """'芝2400' / 'ダ1800' / '障3000' を (距離, 馬場種別) に。"""
+    text = (text or "").strip()
+    m = re.search(r"(障?[芝ダ])\s*(\d+)", text)
+    if not m:
+        return (np.nan, None)
+    surf = {"芝": "芝", "ダ": "ダート"}.get(m.group(1)[-1], m.group(1))
+    if m.group(1).startswith("障"):
+        surf = "障害"
+    return (int(m.group(2)), surf)
+
+
 # --- 仕上げ ------------------------------------------------------------------
 
 def _finalize_columns(df: pd.DataFrame, kind: str) -> pd.DataFrame:

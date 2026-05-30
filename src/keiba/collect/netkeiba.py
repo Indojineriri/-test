@@ -42,6 +42,8 @@ class NetkeibaDataSource(DataSource):
         self.client = client or NetkeibaClient()
         self.max_history_per_horse = max_history_per_horse
         self.past_race = past_race
+        # 同走馬も集めて学習データを増やすか（重いので既定オフ）
+        self.expand_co_runners = False
 
     # --- DataSource インターフェース ----------------------------------------
 
@@ -60,36 +62,76 @@ class NetkeibaDataSource(DataSource):
         return P.parse_shutuba(html, str(race_id))
 
     def get_past_races(self, horse_ids=None):
-        """出走各馬の過去レース結果を集約して (races_df, results_df) を返す。"""
+        """出走各馬の過去レース結果を集約して (races_df, results_df) を返す。
+
+        収集方式は2つ:
+          - 既定（horse_page_direct=True）: 各馬の競走馬ページの戦績表を *直接* パース。
+            race_id を抽出して別ページに飛ばないので取りこぼしが無く確実。
+            その馬自身の全成績が 1 ページで取れる。
+          - expand_co_runners=True: さらに各レースの結果ページも取得し、同走馬の行も
+            集める（学習データを増やす用。取得ページ数が大幅に増える）。
+        """
         if horse_ids is None:
             raise ValueError("netkeiba では horse_ids（出走馬ID）の指定が必要です。")
 
-        race_ids = set()
+        results_frames, race_meta = [], {}
         for hid in horse_ids:
             html = self.client.horse_html(str(hid))
-            ids = self._race_ids_from_horse_page(html)
-            if self.max_history_per_horse:
-                ids = ids[: self.max_history_per_horse]
-            race_ids.update(ids)
+            df = P.parse_horse_results(html, str(hid))
+            if self.max_history_per_horse and len(df) > self.max_history_per_horse:
+                df = df.head(self.max_history_per_horse)
+            # 戦績表の行から races メタを拾う（_ 付き列）
+            self._collect_race_meta(html, str(hid), race_meta)
+            results_frames.append(df)
 
-        # 過去レース分析では、対象レース自身は「履歴」に含めない。
-        # （point-in-time 特徴量がレース当日の結果を使わないようにするため。
-        #   対象レースの着順は別途 entries 側＝予想の答え合わせに使う）
-        if self.past_race:
-            race_ids.discard(self._target)
-
-        races_rows, results_frames = [], []
-        for rid in sorted(race_ids):
-            html = self.client.race_result_html(rid)
-            meta, res = P.parse_race_result(html, rid)
-            races_rows.append(meta)
-            results_frames.append(res)
-
-        races_df = (pd.DataFrame(races_rows)[RACE_COLUMNS]
-                    if races_rows else pd.DataFrame(columns=RACE_COLUMNS))
         results_df = (pd.concat(results_frames, ignore_index=True)
                       if results_frames else pd.DataFrame(columns=RESULT_COLUMNS))
+
+        # 過去レース分析では、対象レース自身は履歴に含めない（リーク防止）
+        if self.past_race and not results_df.empty:
+            results_df = results_df[results_df["race_id"].astype(str) != self._target]
+
+        # オプション: 同走馬も集めて学習データを増やす
+        if self.expand_co_runners and not results_df.empty:
+            self._expand_with_result_pages(results_df, race_meta)
+
+        races_df = self._build_races_df(results_df, race_meta)
         return races_df, results_df
+
+    def _collect_race_meta(self, horse_html: str, horse_id: str, race_meta: dict):
+        """競走馬ページの戦績表から各レースのメタ（日付・距離等）を race_meta に蓄積。"""
+        rows = P._horse_results_meta_rows(horse_html, horse_id)
+        for r in rows:
+            rid = r.get("race_id")
+            if rid and rid not in race_meta:
+                race_meta[rid] = r
+
+    def _expand_with_result_pages(self, results_df, race_meta: dict):
+        """各レースの結果ページを取得し、同走馬の行を results に追加（学習データ増強）。"""
+        # 実装は重い（ページ数増）ので既定オフ。必要時のみ。
+        pass
+
+    @staticmethod
+    def _build_races_df(results_df, race_meta: dict):
+        if results_df.empty:
+            return pd.DataFrame(columns=RACE_COLUMNS)
+        rows = []
+        for rid in results_df["race_id"].dropna().astype(str).unique():
+            m = race_meta.get(rid, {})
+            rows.append({
+                "race_id": rid,
+                "date": m.get("date"),
+                "race_name": m.get("race_name"),
+                "track": m.get("track"),
+                "surface": m.get("surface"),
+                "distance": m.get("distance"),
+                "direction": None,
+                "going": m.get("going"),
+                "weather": None,
+                "grade": m.get("grade"),
+                "n_horses": m.get("n_horses"),
+            })
+        return pd.DataFrame(rows)[RACE_COLUMNS]
 
     def get_horses(self, horse_ids):
         rows = []

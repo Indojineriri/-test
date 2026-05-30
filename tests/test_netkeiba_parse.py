@@ -158,6 +158,32 @@ class FakeClient:
         return _read("race_result.html")
 
 
+def test_parse_horse_results_full_career():
+    """競走馬ページの戦績表を直接パースし、全成績を取りこぼし無く取得する。"""
+    df = P.parse_horse_results(_read("horse.html"), "2021104001")
+    assert len(df) == 3  # 戦績表の全 3 走
+    # race_id がパス形式・クエリ形式の両方から取れている
+    assert list(df["race_id"]) == ["202405020811", "202406010512", "202306050810"]
+    # 各レースの成績が埋まっている（別ページに飛ばず1ページで取得）
+    top = df.iloc[0]
+    assert top["finish_pos"] == 1 and top["horse_no"] == 9
+    assert top["passing"] == "5-5-3" and top["last_3f"] == 34.1
+    assert top["prize"] == 6500.0
+    assert top["popularity"] == 2
+
+
+def test_horse_results_meta_rows():
+    """戦績表から races メタ（距離・グレード・頭数等）が取れる。"""
+    rows = P._horse_results_meta_rows(_read("horse.html"), "2021104001")
+    assert len(rows) == 3
+    r0 = rows[0]
+    assert r0["race_id"] == "202405020811"
+    assert r0["date"] == "2024-04-14"
+    assert r0["distance"] == 2000 and r0["surface"] == "芝"
+    assert r0["grade"] == "G1" and r0["track"] == "中山"
+    assert r0["n_horses"] == 18
+
+
 def test_datasource_build_context():
     src = NetkeibaDataSource("202405021211", client=FakeClient())
     ctx = src.build_context()
