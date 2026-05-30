@@ -282,7 +282,8 @@ def cmd_fetch(args):
             summary = service.fetch_and_store(
                 rid, store, wait=args.wait,
                 max_history_per_horse=args.max_history,
-                use_cache=not args.no_cache, proxy=args.proxy, past_race=args.past)
+                use_cache=not args.no_cache, proxy=args.proxy, past_race=args.past,
+                race_date=args.race_date)
         except Exception as e:
             print(f"  ✗ {rid}: 失敗 ({e})")
             failed.append(rid)
@@ -345,6 +346,9 @@ def build_parser() -> argparse.ArgumentParser:
                          "（東京・2回・12日目・11R を仮定。開催日目がずれる年は空になる）")
     pf.add_argument("--out", default="data/fetched",
                     help="保存先。ローカルパス or gs://<bucket>/keiba")
+    pf.add_argument("--race-date", default=None,
+                    help="対象レースの施行日 YYYY-MM-DD（出馬表に日付が無い未来レース"
+                         "の間隔計算用。ダービーは既知表から自動補完）")
     pf.add_argument("--wait", type=float, default=1.5, help="リクエスト間ウェイト秒")
     pf.add_argument("--max-history", type=int, default=None,
                     help="1頭あたり遡る過去レース数の上限")

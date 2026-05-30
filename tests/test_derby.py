@@ -70,6 +70,13 @@ def test_verify_pending_year_match_none():
     assert vw is not None and vw["match"] is None
 
 
+def test_derby_date_lookup():
+    from keiba.data.derby import derby_date
+    assert derby_date("202405021211") == "2024-05-26"
+    assert derby_date("202605021211") == "2026-05-31"
+    assert derby_date("999999999999") is None
+
+
 if __name__ == "__main__":
     fns = [(k, v) for k, v in sorted(globals().items())
            if k.startswith("test_") and callable(v)]

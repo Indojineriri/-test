@@ -31,7 +31,7 @@ def _race_prefix(race_id: str) -> str:
 def fetch_and_store(race_id: str, store: Storage, *, cache: Storage | None = None,
                     wait: float = 1.5, max_history_per_horse: int | None = None,
                     use_cache: bool = True, proxy: str | None = None,
-                    past_race: bool = False) -> dict:
+                    past_race: bool = False, race_date: str | None = None) -> dict:
     """netkeiba から1レース分を取得し、CSV/JSON を store に保存してサマリを返す。
 
     Args:
@@ -52,6 +52,12 @@ def fetch_and_store(race_id: str, store: Storage, *, cache: Storage | None = Non
                              past_race=past_race)
 
     ctx = src.build_context()
+
+    # 対象レースの施行日を補完（出馬表ページには日付が無いことが多い）。
+    # 間隔(日) などの計算に必要。明示指定 > 既知ダービー表 の順で補う。
+    if not ctx.race.get("date"):
+        from .data.derby import derby_date
+        ctx.race["date"] = race_date or derby_date(race_id)
 
     prefix = _race_prefix(race_id)
     store.write_text(f"{prefix}/entries.csv", ctx.entries.to_csv(index=False))
