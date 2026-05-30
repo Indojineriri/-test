@@ -58,8 +58,8 @@ def test_no_history_still_returns_png():
     assert png.startswith(_PNG_SIG)
 
 
-def test_past_trend_all_single_strip():
-    """全年まとめ：縦軸で3着内/着外を分けず、色だけで区別する1本帯になっている。"""
+def test_past_trend_all_overlay():
+    """全年まとめ：render_past_result と同じ尺度(横=着順,縦=指標)で全年を重ねて描く。"""
     import pandas as pd
     items = []
     for seed in (4, 5):

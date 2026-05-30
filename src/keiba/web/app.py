@@ -450,9 +450,9 @@ def visualize(race_id: str):
             for k, lbl in ind_labels.items())
         past_block = (
             f'<h2>📚 過去ダービー（{len(past_ids)}年）の好走傾向（橙＝複勝圏 3着以内）</h2>'
-            f'<p class="note">過去全年をまとめて、選んだ指標で出走馬をプロットします。'
-            f'橙＝実際に3着以内に来た馬。橙が指標のどこに集まるか（破線＝複勝圏の中央値）で、'
-            f'複数年に共通する傾向が分かります。</p>'
+            f'<p class="note">過去全年をまとめて、横軸=実着順・縦軸=選んだ指標でプロットします。'
+            f'橙＝実際に3着以内に来た馬。橙がどのあたりに集まるかで、'
+            f'複数年に共通する傾向が分かります（対象レースの可視化と同じ尺度）。</p>'
             f'<p>指標: {radios}</p>'
             f'<div class="card" style="max-width:760px"><img id="trendimg" loading="lazy" '
             f'src="/chart-trend.png?indicator=pit_total_prize" alt="trend"></div>'
