@@ -381,15 +381,24 @@ def _page_head(title):
 
 @app.get("/chart-result/<race_id>.png")
 def chart_result(race_id: str):
-    """過去レースの着順グラフ（3着内を色分け）を PNG で返す。"""
+    """過去レースを指標でプロットし、3着内を色分けした PNG を返す（傾向が見える）。
+
+    ?indicator=pit_total_prize|pit_show_rate|pit_best_last3f|pit_avg_corner_pos|pit_max_grade_win
+    """
     from .. import viz
-    from ..service import load_actual, load_meta
+    from ..service import load_actual, load_context
     actual = load_actual(race_id, _store())
     if actual is None:
         return jsonify(error="この race_id に実結果がありません", race_id=race_id), 404
-    meta = load_meta(race_id, _store()) or {}
-    name = (meta.get("race_meta") or {}).get("race_name") or race_id
-    return Response(viz.render_past_result(name, actual), mimetype="image/png")
+    try:
+        ctx = load_context(race_id, _store())
+    except Exception as e:
+        return jsonify(error=str(e), race_id=race_id), 404
+    indicator = request.args.get("indicator", "pit_total_prize")
+    if indicator not in viz.PAST_INDICATORS:
+        indicator = "pit_total_prize"
+    return Response(viz.render_past_result(ctx, actual, indicator=indicator),
+                   mimetype="image/png")
 
 
 @app.get("/visualize/<race_id>")
@@ -411,25 +420,43 @@ def visualize(race_id: str):
         f'<img loading="lazy" src="/chart/{race_id}/{k}.png" alt="{k}"></div>'
         for k in viz.CHART_KINDS)
 
-    # 過去ダービー（actual.csv あり＝結果が出ている）の結果グラフ（3着内を色分け）
+    # 過去ダービー（actual.csv あり）を「指標 × 好走(3着内)」でプロット。
+    # 指標をラジオで切替え、橙＝複勝圏。どんな指標の馬が来たかの傾向が見える。
     past_ids = [r for r in default_derby_train_ids() if load_actual(r, store) is not None]
     if past_ids:
+        ind_labels = {"pit_total_prize": "賞金", "pit_show_rate": "複勝率",
+                      "pit_best_last3f": "上がり3F", "pit_avg_corner_pos": "脚質(通過順)",
+                      "pit_max_grade_win": "最高勝鞍格"}
+        radios = "".join(
+            f'<label><input type="radio" name="ind" value="{k}"'
+            f'{" checked" if k == "pit_total_prize" else ""} '
+            f'onchange="switchInd(this.value)"> {lbl}</label> '
+            for k, lbl in ind_labels.items())
         past_imgs = "".join(
             f'<div class="card"><b>{(load_meta(r, store).get("race_meta") or {{}}).get("race_name", r)}</b><br>'
-            f'<img loading="lazy" src="/chart-result/{r}.png" alt="{r}"></div>'
+            f'<img class="pastimg" data-race="{r}" loading="lazy" '
+            f'src="/chart-result/{r}.png?indicator=pit_total_prize" alt="{r}"></div>'
             for r in sorted(past_ids))
-        past_block = (f'<h2>📚 過去ダービーの結果（金銀銅＝複勝圏 3着以内）</h2>'
-                      f'<div class="grid">{past_imgs}</div>')
+        past_block = (
+            f'<h2>📚 過去ダービー：好走馬の傾向（橙＝複勝圏 3着以内）</h2>'
+            f'<p class="note">指標を選ぶと、その指標で各馬をプロットし、'
+            f'実際に3着以内に来た馬を橙で示します。好走馬がどのあたりに固まるかで傾向が分かります。</p>'
+            f'<p>指標: {radios}</p>'
+            f'<div class="grid">{past_imgs}</div>'
+        )
     else:
         past_block = ('<p class="note">過去ダービーの結果データがありません'
                       '（fetch --past で取得すると表示されます）。</p>')
 
+    script = ('<script>function switchInd(v){'
+              'document.querySelectorAll("img.pastimg").forEach(function(im){'
+              'im.src="/chart-result/"+im.dataset.race+".png?indicator="+v;});}</script>')
     html = (_page_head(f"可視化 - {name}") +
             f'<a class="back" href="/">← 予想ページに戻る</a>'
             f'<h1>📈 {name} のデータ可視化</h1>'
             f'<p class="note">いろいろな尺度で出走馬を比較します。</p>'
             f'<div class="grid">{imgs}</div>'
-            f'{past_block}</body></html>')
+            f'{past_block}{script}</body></html>')
     return Response(html, mimetype="text/html")
 
 

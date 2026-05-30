@@ -129,36 +129,86 @@ def _h2h_chart(ctx) -> bytes:
     return _to_png(fig)
 
 
-def render_past_result(race_name: str, actual, highlight_top=3) -> bytes:
-    """過去レースの着順を縦棒で表示し、3着以内(複勝圏)を色分けする。
+def render_past_result(ctx, actual, indicator: str = "pit_total_prize") -> bytes:
+    """過去レースの各馬を『指標』でプロットし、3着以内(複勝圏)を色分けする。
+
+    着順そのものではなく、レース前の指標（賞金・複勝率・上がり等）を縦軸に取り、
+    実際に 3 着以内に来た馬を強調色にする。これにより
+    「どんな指標を持つ馬が好走したか（傾向）」が見える。
 
     Args:
-        race_name: レース名
-        actual: 実結果 DataFrame（finish_pos, horse_name/horse_no を含む）
-        highlight_top: 何着までを強調色にするか（既定 3 = 複勝圏）
+        ctx: 過去レースの RaceContext（出走馬の指標を計算するのに使う）
+        actual: 実結果（horse_id, finish_pos）
+        indicator: 縦軸にする指標カラム（pit_total_prize / pit_show_rate /
+                   pit_best_last3f / pit_avg_corner_pos など）
     """
+    import numpy as np
     import pandas as pd
-    if actual is None or actual.empty or "finish_pos" not in actual:
+    from .ml import build_features_for_context
+
+    if actual is None or actual.empty:
         return _placeholder("結果データがありません")
-    d = actual.dropna(subset=["finish_pos"]).copy()
+
+    feat = build_features_for_context(ctx)
+    tgt = feat[feat["is_target"].fillna(False).astype(bool)].copy()
+    tgt["horse_id"] = tgt["horse_id"].astype(str)
+    # 対象行(entries)の finish_pos は未確定なので落とし、実結果を結合する
+    tgt = tgt.drop(columns=["finish_pos"], errors="ignore")
+    if indicator not in tgt.columns:
+        return _placeholder(f"{indicator} のデータがありません")
+    a = actual.copy()
+    a["horse_id"] = a["horse_id"].astype(str)
+    d = tgt.merge(a[["horse_id", "finish_pos"]], on="horse_id", how="inner")
+    d = d.dropna(subset=["finish_pos", indicator])
+    if d.empty:
+        return _placeholder(f"{indicator} のデータがありません")
     d["finish_pos"] = d["finish_pos"].astype(float)
     d = d.sort_values("finish_pos")
+    # 率系(0〜1)は % に直して見やすく
+    if indicator in ("pit_show_rate", "pit_win_rate"):
+        d[indicator] = d[indicator] * 100
+
+    in3 = d["finish_pos"] <= 3
+    label = CHART_LABELS_INDICATOR.get(indicator, indicator)
+
+    fig, ax = plt.subplots(figsize=(8, 5.5))
+    # X = 実着順、Y = 指標。3着内を色分け（金赤）・圏外を灰
+    ax.scatter(d.loc[~in3, "finish_pos"], d.loc[~in3, indicator],
+               s=70, color="#c9d2e0", edgecolor="#999", label="着外", zorder=2)
+    ax.scatter(d.loc[in3, "finish_pos"], d.loc[in3, indicator],
+               s=140, color="#d8703b", edgecolor="#7a3a16", label="3着以内（複勝圏）",
+               zorder=3)
+    # 馬名ラベル
     name_col = "horse_name" if "horse_name" in d else "horse_id"
-    labels = d[name_col].astype(str) if name_col in d else d.index.astype(str)
-    pos = d["finish_pos"].values
-    # 3着以内=金/銀/銅系、それ以外=灰
-    medal = {1: "#e3b203", 2: "#9aa0a6", 3: "#b5651d"}
-    colors = [medal.get(int(p), "#c9d2e0") if p <= highlight_top else "#dfe3ea"
-              for p in pos]
-    fig, ax = plt.subplots(figsize=(max(7, 0.55 * len(d)), 5))
-    ax.bar(range(len(d)), pos, color=colors, edgecolor="#888")
-    ax.set_xticks(range(len(d)))
-    ax.set_xticklabels(labels, rotation=60, ha="right", fontsize=8)
-    ax.set_ylabel("着順（低いほど上位）")
-    ax.invert_yaxis()  # 1着を上に
-    ax.set_title(f"{race_name}：結果（金銀銅＝複勝圏 3着以内）")
+    for _, r in d.iterrows():
+        ax.annotate(str(r.get(name_col, "")), (r["finish_pos"], r[indicator]),
+                    fontsize=7, xytext=(4, 2), textcoords="offset points")
+    ax.axvline(3.5, color="#888", ls="--", lw=1)  # 3着と4着の境
+    ax.set_xlabel("実際の着順（左=上位）")
+    ax.set_ylabel(label)
+    ax.set_title(f"{ctx.race_name}：{label} と好走の関係（橙＝複勝圏）")
+    ax.legend(fontsize=8)
+    ax.grid(True, alpha=0.3)
+    if indicator in _LOWER_BETTER:
+        ax.invert_yaxis()  # 上がり等は小さいほど良い
     fig.tight_layout()
     return _to_png(fig)
+
+
+# 指標→日本語ラベル（過去結果プロットの縦軸用）
+CHART_LABELS_INDICATOR = {
+    "pit_total_prize": "総獲得賞金 [万円]",
+    "pit_show_rate": "複勝率 [%]",
+    "pit_win_rate": "勝率 [%]",
+    "pit_best_last3f": "最速上がり3F [秒]（小=速い）",
+    "pit_avg_corner_pos": "平均通過順位（小=前）",
+    "pit_max_grade_win": "最高勝鞍格（5=G1）",
+    "pit_starts": "キャリア（出走数）",
+}
+_LOWER_BETTER = {"pit_best_last3f", "pit_avg_corner_pos"}
+# 過去結果プロットで選べる指標
+PAST_INDICATORS = ["pit_total_prize", "pit_show_rate", "pit_best_last3f",
+                   "pit_avg_corner_pos", "pit_max_grade_win"]
 
 
 def _label(view):

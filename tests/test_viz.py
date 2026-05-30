@@ -37,6 +37,19 @@ def test_unknown_kind_raises():
         pass
 
 
+def test_past_result_trait_plot():
+    """過去レースを指標でプロットし、3着内を色分けする（着順棒でなく傾向プロット）。"""
+    import pandas as pd
+    ctx, strength, _ = _make_context(n_entrants=10, career=6, seed=4)
+    order = sorted(ctx.entries["horse_id"].astype(str), key=lambda h: -strength[h])
+    actual = pd.DataFrame({"horse_id": order,
+                           "horse_name": [f"馬{h}" for h in order],
+                           "finish_pos": range(1, len(order) + 1)})
+    for ind in viz.PAST_INDICATORS:
+        png = viz.render_past_result(ctx, actual, indicator=ind)
+        assert png.startswith(_PNG_SIG), f"{ind} が PNG でない"
+
+
 def test_no_history_still_returns_png():
     """履歴が無い（新馬ばかり）出走表でも、欠損は placeholder で PNG を返す。"""
     ctx = _ctx()
