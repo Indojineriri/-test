@@ -4,6 +4,40 @@
 既存の PPT 生成アプリ（meeting-support）とは **別イメージ・別サービス**で、
 GCP プロジェクト / Artifact Registry / Anthropic Secret のみ共有する。
 
+## ⚡ Cloud Run で予想するまでの最短手順（3ステップ）
+
+手元（`gcloud` 認証済みの PC / Workbench）で順に実行する。
+
+```bash
+# 0) 取得（前提）— 学習用の過去ダービー + 予想対象を GCS に保存（手元の回線で）
+export PYTHONPATH=src
+python3 -m keiba.cli fetch --derby-years 2019-2024 --past --out gs://keiba_shohei/keiba
+python3 -m keiba.cli fetch --race-id 202605021211         --out gs://keiba_shohei/keiba
+
+# 1) デプロイ（初回のみ／コード更新時）
+./deploy/keiba/deploy.sh
+
+# 2) 予想を実行（URL取得→ヘルスチェック→ML+生成AI予想を整形表示）
+./deploy/keiba/run_predict.sh 202605021211
+```
+
+`run_predict.sh` は `gcloud run services describe` で URL を取り、`/predict` と
+`/genai-predict` を叩いて結果を整形表示する（`jq` があれば見やすく、無ければ生JSON）。
+ML だけ・生成AI だけにするには `MODE=ml` / `MODE=genai` を前置。
+
+手動で叩く場合:
+
+```bash
+URL="$(gcloud run services describe keiba --region asia-northeast1 \
+       --project clean-pen-422206-d7 --format 'value(status.url)')"
+curl "$URL/predict/202605021211"          # ⑤ML予想（複勝確率ランキング）
+curl "$URL/genai-predict/202605021211"    # ④⑤生成AI予想（示唆+予想。要 anthropic-api-key）
+```
+
+> **生成AI予想には `anthropic-api-key` Secret が必要。** `deploy.sh` が存在を検出して
+> `ANTHROPIC_API_KEY` として自動注入する。無い場合 `/genai-predict` は 503 を返す。
+> Claude API 呼び出しのため数十秒かかることがある（gunicorn timeout 600 秒）。
+
 ## アーキテクチャ：取得は手元、Cloud Run は参照・予想
 
 **netkeiba は GCP/データセンタの IP を 403 で弾く**（anti-bot。実測で確認済み）。
