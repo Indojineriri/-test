@@ -269,3 +269,65 @@ def _to_png(fig) -> bytes:
     fig.savefig(buf, format="png", dpi=110)
     plt.close(fig)
     return buf.getvalue()
+
+
+def render_past_trend_all(items, indicator="pit_total_prize"):
+    """過去全年を1枚に集約して、指標 × 好走(3着内) の傾向を見る。
+
+    年ごとに分けず、全年の出走馬をまとめてプロットする。3着内(橙)と着外(灰)を
+    指標値の横軸で2群に散らし、各群の中央値を縦線で示す。好走馬が指標のどこに
+    集まるかで、複数年に共通する傾向が分かる。
+    """
+    import numpy as np
+    import pandas as pd
+    from .ml import build_features_for_context
+
+    recs = []
+    for ctx, actual in items:
+        if actual is None or len(actual) == 0:
+            continue
+        feat = build_features_for_context(ctx)
+        tgt = feat[feat["is_target"].fillna(False).astype(bool)].copy()
+        tgt["horse_id"] = tgt["horse_id"].astype(str)
+        tgt = tgt.drop(columns=["finish_pos"], errors="ignore")
+        if indicator not in tgt.columns:
+            continue
+        a = actual.copy()
+        a["horse_id"] = a["horse_id"].astype(str)
+        d = tgt.merge(a[["horse_id", "finish_pos"]], on="horse_id", how="inner")
+        d = d.dropna(subset=["finish_pos", indicator])
+        for _, r in d.iterrows():
+            recs.append({"val": float(r[indicator]),
+                         "in3": float(r["finish_pos"]) <= 3})
+    if not recs:
+        return _placeholder("過去レースのデータがありません")
+
+    df = pd.DataFrame(recs)
+    if indicator in ("pit_show_rate", "pit_win_rate"):
+        df["val"] = df["val"] * 100.0
+    label = CHART_LABELS_INDICATOR.get(indicator, indicator)
+    win = df[df["in3"]]["val"].values
+    lose = df[~df["in3"]]["val"].values
+
+    fig, ax = plt.subplots(figsize=(8, 5))
+    rng = np.random.default_rng(0)
+    if len(lose):
+        ax.scatter(lose, 0.0 + rng.uniform(-0.12, 0.12, len(lose)),
+                   s=45, color="#c9d2e0", edgecolor="#aaa", alpha=0.8,
+                   label="着外", zorder=2)
+    if len(win):
+        ax.scatter(win, 1.0 + rng.uniform(-0.12, 0.12, len(win)),
+                   s=75, color="#d8703b", edgecolor="#7a3a16", alpha=0.9,
+                   label="3着以内（複勝圏）", zorder=3)
+        ax.axvline(float(np.median(win)), color="#d8703b", ls="--", lw=1.5)
+    if len(lose):
+        ax.axvline(float(np.median(lose)), color="#9aa0a6", ls=":", lw=1.2)
+    ax.set_yticks([0, 1])
+    ax.set_yticklabels(["着外", "3着内"])
+    ax.set_ylim(-0.5, 1.5)
+    ax.set_xlabel(label + "（破線=複勝圏の中央値, 点線=着外の中央値）")
+    ax.set_title("過去" + str(len(items)) + "年まとめ：" + label + " と好走の傾向")
+    ax.legend(fontsize=8, loc="best")
+    ax.grid(True, axis="x", alpha=0.3)
+    fig.tight_layout()
+    return _to_png(fig)

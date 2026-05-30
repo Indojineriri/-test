@@ -379,6 +379,22 @@ def _page_head(title):
             '</style></head><body>')
 
 
+@app.get("/chart-trend.png")
+def chart_trend():
+    """過去ダービー全年をまとめて、指標 × 好走(3着内) の傾向を1枚で返す。"""
+    from .. import viz
+    from ..service import load_derby_items, default_derby_train_ids
+    items, _ = load_derby_items(_store(), default_derby_train_ids())
+    if not items:
+        return Response(viz._placeholder("過去ダービーのデータがありません"),
+                        mimetype="image/png")
+    indicator = request.args.get("indicator", "pit_total_prize")
+    if indicator not in viz.PAST_INDICATORS:
+        indicator = "pit_total_prize"
+    return Response(viz.render_past_trend_all(items, indicator=indicator),
+                    mimetype="image/png")
+
+
 @app.get("/chart-result/<race_id>.png")
 def chart_result(race_id: str):
     """過去レースを指標でプロットし、3着内を色分けした PNG を返す（傾向が見える）。
@@ -432,25 +448,22 @@ def visualize(race_id: str):
             f'{" checked" if k == "pit_total_prize" else ""} '
             f'onchange="switchInd(this.value)"> {lbl}</label> '
             for k, lbl in ind_labels.items())
-        past_imgs = "".join(
-            f'<div class="card"><b>{(load_meta(r, store).get("race_meta") or {{}}).get("race_name", r)}</b><br>'
-            f'<img class="pastimg" data-race="{r}" loading="lazy" '
-            f'src="/chart-result/{r}.png?indicator=pit_total_prize" alt="{r}"></div>'
-            for r in sorted(past_ids))
         past_block = (
-            f'<h2>📚 過去ダービー：好走馬の傾向（橙＝複勝圏 3着以内）</h2>'
-            f'<p class="note">指標を選ぶと、その指標で各馬をプロットし、'
-            f'実際に3着以内に来た馬を橙で示します。好走馬がどのあたりに固まるかで傾向が分かります。</p>'
+            f'<h2>📚 過去ダービー（{len(past_ids)}年）の好走傾向（橙＝複勝圏 3着以内）</h2>'
+            f'<p class="note">過去全年をまとめて、選んだ指標で出走馬をプロットします。'
+            f'橙＝実際に3着以内に来た馬。橙が指標のどこに集まるか（破線＝複勝圏の中央値）で、'
+            f'複数年に共通する傾向が分かります。</p>'
             f'<p>指標: {radios}</p>'
-            f'<div class="grid">{past_imgs}</div>'
+            f'<div class="card" style="max-width:760px"><img id="trendimg" loading="lazy" '
+            f'src="/chart-trend.png?indicator=pit_total_prize" alt="trend"></div>'
         )
     else:
         past_block = ('<p class="note">過去ダービーの結果データがありません'
                       '（fetch --past で取得すると表示されます）。</p>')
 
     script = ('<script>function switchInd(v){'
-              'document.querySelectorAll("img.pastimg").forEach(function(im){'
-              'im.src="/chart-result/"+im.dataset.race+".png?indicator="+v;});}</script>')
+              'var im=document.getElementById("trendimg");'
+              'if(im){im.src="/chart-trend.png?indicator="+v;}}</script>')
     html = (_page_head(f"可視化 - {name}") +
             f'<a class="back" href="/">← 予想ページに戻る</a>'
             f'<h1>📈 {name} のデータ可視化</h1>'
