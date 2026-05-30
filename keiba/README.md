@@ -157,8 +157,23 @@ python3 -m keiba.cli fetch --race-id 202405021211 --out data/derby2024 --wait 1.
       ／「出馬表とは何か・1レースをデータセットに広げる収集範囲」を docs と動くコードで確定）
 - [x] **フェーズ1.8: Cloud Run 化**（Flask サービス + GCS 永続化 / Storage 抽象 /
       deploy.sh。詳細は [deploy/keiba/README.md](../deploy/keiba/README.md)）
-- [ ] フェーズ2: ③可視化（matplotlib で成績グラフ）
-- [ ] フェーズ3: ④示唆出し（統計指標 + 生成AI による要約・コメント）
-- [ ] フェーズ4: ⑤予想（scikit-learn で複勝/着順予測、生成AIで根拠説明）
-      ← runs + point-in-time 特徴量を入力に、時系列分割でバックテスト
-- [ ] フェーズ5: バックテスト（的中率・回収率の検証）
+- [x] **フェーズ2: ④分析**（健全性診断・出走馬成績・脚質・賞金・グレード・間隔）
+- [x] **フェーズ3: ⑤予想（ML）**（`keiba predict`：過去ダービーで学習→複勝確率ランキング
+      ＋◎○▲印。`keiba backtest`：leave-one-out で的中率集計。リーク防止済み）
+- [ ] フェーズ4: ③可視化（matplotlib で脚質分布・賞金順などのグラフ PNG）
+- [ ] フェーズ5: 生成AI による予想根拠の自然言語説明（Anthropic API）
+- [ ] フェーズ6: 回収率ベースの評価（オッズと結びつけた期待値）
+
+### ⑤予想（ML）の使い方
+
+```bash
+# 過去ダービー全年で学習し、2026 を複勝確率で予想（既知表から学習年を自動選択）
+python3 -m keiba.cli predict --race-id 202605021211 --store gs://keiba_shohei/keiba --show-coef
+
+# 過去ダービーで的中率をバックテスト（leave-one-out）
+python3 -m keiba.cli backtest --years 2016-2024 --store gs://keiba_shohei/keiba
+```
+
+- 特徴量は point-in-time（その馬の前走まで）なのでリークしない。
+- ラベルは複勝(3着内)の二値。ロジスティック回帰ベースライン（係数で根拠が見える）。
+- backtest は各年を「その年以外で学習」して評価するので、未来情報を使わない。

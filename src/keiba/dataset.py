@@ -221,7 +221,7 @@ def add_pointwise_features(runs: pd.DataFrame, target_distance: int | None = Non
                             feats["pit_dist_avg_finish"][ridx] = float(np.nanmean(nf))
                 if prior_grade_wins:
                     feats["pit_max_grade_win"][ridx] = float(max(prior_grade_wins))
-                if prior_field_ratio:
+                if prior_field_ratio and not np.isnan(prior_field_ratio).all():
                     feats["pit_avg_field_ratio"][ridx] = float(np.nanmean(prior_field_ratio))
                 # 累計賞金（実績の総量。NaN を 0 扱いで合算）
                 feats["pit_total_prize"][ridx] = float(np.nansum(prior_prize))

@@ -233,6 +233,97 @@ def cmd_analyze(args):
         print(f"\n出走馬分析を保存しました -> {args.out_csv}")
 
 
+def _load_contexts(store, race_ids):
+    """保存済み race_id 群を RaceContext のリストにロード（読めたものだけ）。"""
+    ctxs = []
+    for rid in race_ids:
+        try:
+            ctxs.append(service.load_context(rid, store))
+        except Exception as e:
+            print(f"  ⚠ {rid}: 読み込みスキップ ({e})")
+    return ctxs
+
+
+def cmd_predict(args):
+    """過去レース群で学習し、対象レースの複勝確率を予想する（ML）。"""
+    from . import ml
+
+    store = Storage.from_uri(args.store)
+    train_ids = [r.strip() for r in args.train.split(",") if r.strip()] if args.train \
+        else _default_derby_train_ids(exclude=args.race_id)
+    print(f"[predict] 学習レース {len(train_ids)} 件 / 対象 {args.race_id}")
+    train_ctxs = _load_contexts(store, train_ids)
+    if not train_ctxs:
+        sys.exit("[predict] 学習データが読めません。先に過去レースを fetch してください。")
+
+    X, y, rows = ml.stack_training_data(train_ctxs, label=args.label)
+    print(f"  学習サンプル {len(X)} run（{args.label}率 {y.mean():.1%}）")
+    model = ml.ShowProbModel(label=args.label).fit(X, y)
+
+    try:
+        ctx = service.load_context(args.race_id, store)
+    except Exception as e:
+        sys.exit(f"[predict] 対象レース読み込み失敗: {e}")
+    pred = ml.predict_context(model, ctx)
+    print()
+    print(ml.format_prediction(pred, race_name=ctx.race_name))
+
+    if args.show_coef:
+        print("\n--- モデル係数（複勝にプラス/マイナスに効く特徴）---")
+        print(model.coef_table().to_string(index=False))
+
+
+def cmd_backtest(args):
+    """過去ダービーで学習→各年テストし、的中率を集計する（ML のバックテスト）。"""
+    import io
+    import pandas as pd
+    from . import ml
+    from .data.derby import derby_race_id
+
+    store = Storage.from_uri(args.store)
+    years = _parse_years(args.years) if args.years else list(range(2016, 2025))
+    test_ids = [derby_race_id(y) for y in years]
+
+    # 各テストレースの actual.csv を読む（過去レースは fetch --past で保存済み想定）
+    test_items, available = [], []
+    for rid in test_ids:
+        try:
+            ctx = service.load_context(rid, store)
+        except Exception:
+            continue
+        atext = store.read_text(f"races/{rid}/actual.csv")
+        if atext is None:
+            continue
+        actual = pd.read_csv(io.StringIO(atext), dtype={"horse_id": str})
+        test_items.append((ctx, actual))
+        available.append(rid)
+
+    if not test_items:
+        sys.exit("[backtest] テスト可能な過去レースがありません"
+                 "（fetch --past で actual.csv を保存してください）。")
+
+    print(f"[backtest] テスト {len(test_items)} 年 / 各年それ以外で学習（leave-one-out）")
+    rows = []
+    for ctx, actual in test_items:
+        others = [(c, a) for (c, a) in test_items if c.race_id != ctx.race_id]
+        train_ctxs = [c for c, _ in others]
+        res = ml.backtest(train_ctxs, [(ctx, actual)], label=args.label)
+        pr = res["per_race"].iloc[0]
+        rows.append(pr)
+    per = pd.DataFrame(rows)
+    print("\n=== 各年の結果（◎=複勝確率1位） ===")
+    print(per[["race_id", "race_name", "honmei_finish",
+               "winner_pred_rank", "top3_hits"]].to_string(index=False))
+    print(f"\n◎の複勝率: {(per['honmei_finish'] <= 3).mean():.1%} / "
+          f"◎の勝率: {(per['honmei_finish'] == 1).mean():.1%} / "
+          f"予想上位3頭の平均的中: {per['top3_hits'].mean():.2f}/3")
+
+
+def _default_derby_train_ids(exclude=None):
+    from .data.derby import DERBY_RACES
+    return [rid for rid in DERBY_RACES if rid != str(exclude)]
+
+
 def _resolve_race_ids(args) -> list[str]:
     """fetch の対象 race_id 群を決める。
 
@@ -371,6 +462,29 @@ def build_parser() -> argparse.ArgumentParser:
                     help="過去レース答え合わせの並べ替え指標（既定: pit_show_rate）")
     pa.add_argument("--out-csv", default=None, help="出走馬分析を CSV 保存（任意）")
     pa.set_defaults(func=cmd_analyze)
+
+    pp_ = sub.add_parser("predict",
+                         help="過去レースで学習し対象レースの複勝確率を予想（ML）")
+    pp_.add_argument("--race-id", required=True, help="予想対象レースID")
+    pp_.add_argument("--store", default="data/fetched",
+                     help="参照先（ローカル or gs://）")
+    pp_.add_argument("--train", default=None,
+                     help="学習レースID（カンマ区切り）。未指定なら既知ダービー全年"
+                          "（対象は除外）")
+    pp_.add_argument("--label", default="show", choices=["show", "win"],
+                     help="予測ラベル: show=複勝(3着内) / win=勝ち(1着)")
+    pp_.add_argument("--show-coef", action="store_true",
+                     help="モデル係数（特徴の効き方）も表示")
+    pp_.set_defaults(func=cmd_predict)
+
+    pb = sub.add_parser("backtest",
+                        help="過去ダービーで学習→各年テストし的中率を集計（ML）")
+    pb.add_argument("--store", default="data/fetched",
+                    help="参照先（ローカル or gs://）")
+    pb.add_argument("--years", default=None,
+                    help="対象年。例 2016-2024 / 2018,2020,2022（既定 2016-2024）")
+    pb.add_argument("--label", default="show", choices=["show", "win"])
+    pb.set_defaults(func=cmd_backtest)
 
     pdh = sub.add_parser("diagnose-horse",
                          help="競走馬ページHTMLの中身を点検（戦績パース不能の原因特定）")
