@@ -121,9 +121,9 @@ def index():
         for u in upcoming:
             cards.append(
                 f'<div class="target">'
-                f'<h3>{u["name"]} <span class="note">{u["date"]}　(ID: {u["id"]})</span></h3>'
-                f'<p>過去のダービー結果から傾向を学び、このレースを予想します。</p>'
-                f'<button onclick="run(\'predict\',\'{u["id"]}\',this)">📊 ML予想する</button> '
+                f'<h3>🎯 {u["name"]} <span class="note">{u["date"]}</span></h3>'
+                f'<p>過去ダービーの見解をもとに予想します。予想の根拠と結果を表示します。</p>'
+                f'<button onclick="run(\'predict\',\'{u["id"]}\',this)">📊 ML予想</button> '
                 f'{_genai_btn(u["id"])}'
                 f'<div class="result" id="res-{u["id"]}"></div>'
                 f'</div>'
@@ -133,16 +133,33 @@ def index():
         target_section = ('<p><em>予想対象レース（未施行）がまだありません。'
                           '今年のレースを <code>fetch --race-id ...</code>（--past 無し）で取得してください。</em></p>')
 
-    # 脇役: 学習に使う過去データ（折りたたみ・小さく）
+    # 脇役: 過去レース = 示唆を得る道具。「実際の結果」と「見解(示唆)」だけを見せる。
     if past:
-        past_rows = "".join(
-            f'<li>{p["name"]} <span class="note">{p["date"]} / {p["id"]} '
-            f'(<a href="/races/{p["id"]}/entries.csv">出馬表</a>)</span></li>'
-            for p in past)
+        # 各年の実結果（上位3頭）をインラインで
+        result_rows = []
+        for p in sorted(past, key=lambda x: x["date"]):
+            actual = load_actual(p["id"], store)
+            top = ""
+            if actual is not None and "finish_pos" in actual:
+                a = actual.sort_values("finish_pos").head(3)
+                marks = ["1着", "2着", "3着"]
+                top = "　".join(
+                    f'{m} {row.get("horse_name", row.get("horse_id",""))}'
+                    for m, (_, row) in zip(marks, a.iterrows()))
+            result_rows.append(
+                f'<tr><td>{p["name"]}<br><span class="note">{p["date"]}</span></td>'
+                f'<td>{top}</td></tr>')
+        insight_btn = (
+            '<button onclick="runInsights(this)">🤖 過去全体から示唆（見解）を出す</button>'
+            if genai_on else
+            '<button disabled title="ANTHROPIC_API_KEY 未設定">🤖 示唆を出す(無効)</button>'
+        )
         past_section = (
-            f'<details><summary>📚 予想の根拠に使う過去データ（{len(past)}件）</summary>'
-            f'<p class="note">これらは「示唆を学ぶための内部データ」です。'
-            f'予想対象ではありません。</p><ul>{past_rows}</ul></details>'
+            f'<h2>📚 過去ダービーの結果と見解</h2>'
+            f'<p class="note">これらは予想の根拠（示唆）を得るための材料です。</p>'
+            f'<table><thead><tr><th>レース</th><th>実際の結果（上位3頭）</th></tr></thead>'
+            f'<tbody>{"".join(result_rows)}</tbody></table>'
+            f'<p>{insight_btn}</p><div class="result" id="res-insights"></div>'
         )
     else:
         past_section = ('<p class="note">⚠ 学習用の過去ダービーがありません。'
@@ -198,6 +215,33 @@ async function run(kind, raceId, btn) {{
   }} catch (e) {{
     box.innerHTML = '<div class="card">⚠ 通信エラー: ' + e + '</div>';
   }} finally {{ btn.disabled = false; }}
+}}
+
+async function runInsights(btn) {{
+  const box = document.getElementById('res-insights');
+  box.innerHTML = '<span class="spinner">⏳ 過去全体から示唆を導出中…（数十秒かかります）</span>';
+  btn.disabled = true;
+  try {{
+    const resp = await fetch('/insights');
+    const data = await resp.json();
+    if (!resp.ok) {{ box.innerHTML = '<div class="card">⚠ ' + (data.error || resp.status) + '</div>'; return; }}
+    box.innerHTML = renderInsights(data);
+  }} catch (e) {{
+    box.innerHTML = '<div class="card">⚠ 通信エラー: ' + e + '</div>';
+  }} finally {{ btn.disabled = false; }}
+}}
+
+function renderInsights(d) {{
+  const ins = (d.insights.insights || []).map(x =>
+    `<li>[重要度 ${{x.weight}}] <b>${{x.pattern}}</b><br>` +
+    `<span class="note">根拠: ${{x.rationale || ''}}</span></li>`).join('');
+  const cav = (d.insights.caveats || []).map(c => `<li>${{c}}</li>`).join('');
+  return '<div class="card"><b>🤖 過去ダービーから得た見解（示唆）</b>' +
+    `<div class="note">参考: ${{(d.based_on||[]).join(', ')}}</div>` +
+    '<p><b>全体傾向:</b> ' + (d.insights.summary || '') + '</p>' +
+    '<p><b>複数年に共通するポイント:</b></p><ul>' + ins + '</ul>' +
+    (cav ? '<p class="note"><b>注意:</b></p><ul class="note">' + cav + '</ul>' : '') +
+    '</div>';
 }}
 
 function renderML(d) {{
@@ -366,6 +410,62 @@ def genai_predict(race_id: str):
         trained_on=[c.race_id for c, _ in past_items],
         insights=insights.model_dump(),
         prediction=pred.model_dump(),
+    )
+
+
+@app.get("/result/<race_id>")
+def result(race_id: str):
+    """過去レースの実際の結果（着順）を JSON で返す。ユーザーが見たい『実結果』。"""
+    from ..service import load_actual, load_meta
+    store = _store()
+    actual = load_actual(race_id, store)
+    if actual is None:
+        return jsonify(error="この race_id に実結果(actual.csv)がありません",
+                       race_id=race_id), 404
+    meta = load_meta(race_id, store) or {}
+    rm = meta.get("race_meta") or {}
+    df = actual.sort_values("finish_pos")
+    cols = [c for c in ["finish_pos", "horse_no", "horse_name"] if c in df.columns]
+    return jsonify(
+        race_id=race_id,
+        race_name=rm.get("race_name", race_id),
+        date=rm.get("date", ""),
+        result=df[cols].to_dict(orient="records"),
+    )
+
+
+@app.get("/insights")
+def insights():
+    """過去ダービー群から『示唆(見解)』だけを導出して返す（予想は付けない）。
+
+    2016〜2024 は示唆を得る道具なので、その見解だけを見せるためのエンドポイント。
+    要 ANTHROPIC_API_KEY。?train=id,id で対象を絞れる（既定は既知ダービー全年）。
+    """
+    if not os.environ.get("ANTHROPIC_API_KEY"):
+        return jsonify(error="ANTHROPIC_API_KEY 未設定。示唆出しは無効です。"), 503
+
+    from .. import genai
+    from ..service import load_derby_items, default_derby_train_ids
+
+    store = _store()
+    raw = request.args.get("train")
+    ids = ([r.strip() for r in raw.split(",") if r.strip()] if raw
+           else default_derby_train_ids())
+    past_items, skipped = load_derby_items(store, ids)
+    if not past_items:
+        return jsonify(error="過去ダービーがありません（fetch --past で保存）",
+                       skipped=skipped), 422
+
+    import anthropic
+    client = anthropic.Anthropic()
+    model = request.args.get("model", genai.MODEL)
+    try:
+        ins = genai.derive_insights(client, past_items, model=model)
+    except Exception as e:
+        return jsonify(error=f"生成AI 呼び出し失敗: {e}"), 502
+    return jsonify(
+        based_on=[c.race_id for c, _ in past_items],
+        insights=ins.model_dump(),
     )
 
 
