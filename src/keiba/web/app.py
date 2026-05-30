@@ -98,34 +98,114 @@ def diag():
 def index():
     store = _store()
     races = list_races(store)
-    items = "".join(
-        f'<li><a href="/races/{r}">{r}</a> '
-        f'(<a href="/races/{r}/entries.csv">entries.csv</a>)</li>'
-        for r in races
-    ) or "<li><em>まだ取得済みレースはありません</em></li>"
-    if _fetch_enabled():
-        fetch_section = (
-            '<h2>レース取得（開発時のみ有効）</h2>'
-            '<form action="/fetch" method="get">'
-            'race_id: <input name="race_id" placeholder="202605021211" size="16">'
-            '<input type="submit" value="取得"></form>'
+    genai_on = bool(os.environ.get("ANTHROPIC_API_KEY"))
+
+    if races:
+        rows = []
+        for r in races:
+            genai_btn = (
+                f'<button onclick="run(\'genai-predict\',\'{r}\',this)">🤖 生成AI予想</button>'
+                if genai_on else
+                '<button disabled title="ANTHROPIC_API_KEY 未設定">🤖 生成AI予想(無効)</button>'
+            )
+            rows.append(
+                f'<tr><td><b>{r}</b></td>'
+                f'<td><a href="/races/{r}">メタ</a> / '
+                f'<a href="/races/{r}/entries.csv">出馬表CSV</a></td>'
+                f'<td><button onclick="run(\'predict\',\'{r}\',this)">📊 ML予想</button> '
+                f'{genai_btn}</td></tr>'
+                f'<tr><td colspan="3"><div class="result" id="res-{r}"></div></td></tr>'
+            )
+        race_table = (
+            '<table><thead><tr><th>レースID</th><th>データ</th>'
+            '<th>予想を実行</th></tr></thead><tbody>'
+            + "".join(rows) + '</tbody></table>'
         )
     else:
-        fetch_section = (
-            '<h2>データ取得について</h2>'
-            '<p>このデプロイは<strong>参照・予想専用</strong>です。データ取得は'
-            '手元の回線で次を実行し、GCS に保存してください:</p>'
-            '<pre>python3 -m keiba.cli fetch --race-id 202605021211 '
-            '--out gs://&lt;bucket&gt;/keiba</pre>'
-        )
-    html = f"""<!doctype html><meta charset="utf-8">
-<title>keiba データ参照サービス</title>
-<h1>keiba — 競馬データ参照・予想サービス</h1>
-<p>参照先: <code>{store.uri()}</code></p>
-{fetch_section}
-<h2>取得済みレース</h2>
-<ul>{items}</ul>
-"""
+        race_table = "<p><em>まだ取得済みレースはありません。</em></p>"
+
+    fetch_note = (
+        '<p class="note">データ取得（スクレイピング）は Cloud Run では行いません。'
+        '手元の回線で <code>python3 -m keiba.cli fetch ...</code> を実行し GCS に保存してください。</p>'
+    )
+
+    html = f"""<!doctype html><html lang="ja"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>keiba 予想サービス</title>
+<style>
+  body {{ font-family: system-ui, sans-serif; margin: 2rem; line-height: 1.6; color: #222; }}
+  h1 {{ font-size: 1.5rem; }}
+  table {{ border-collapse: collapse; width: 100%; max-width: 900px; }}
+  th, td {{ border-bottom: 1px solid #ddd; padding: 8px 10px; text-align: left; vertical-align: top; }}
+  th {{ background: #f4f4f4; }}
+  button {{ font-size: 0.9rem; padding: 6px 12px; margin: 2px; cursor: pointer;
+           border: 1px solid #3b7dd8; background: #3b7dd8; color: #fff; border-radius: 4px; }}
+  button:disabled {{ background: #aaa; border-color: #aaa; cursor: not-allowed; }}
+  button.secondary {{ background:#fff; color:#3b7dd8; }}
+  .result {{ margin: 4px 0; }}
+  .result:empty {{ display: none; }}
+  .card {{ background:#f8f9fb; border:1px solid #dde; border-radius:6px; padding:10px 14px; margin:6px 0; }}
+  .rank {{ font-variant-numeric: tabular-nums; }}
+  .mark {{ font-weight: bold; }}
+  .note {{ color:#666; font-size:0.9rem; }}
+  .spinner {{ color:#3b7dd8; }}
+  code {{ background:#eef; padding:1px 4px; border-radius:3px; }}
+</style></head><body>
+<h1>keiba — 競馬予想サービス</h1>
+<p>参照先: <code>{store.uri()}</code>　生成AI予想: <b>{'有効' if genai_on else '無効(キー未設定)'}</b></p>
+{fetch_note}
+<h2>レースを選んで予想を実行</h2>
+{race_table}
+
+<script>
+async function run(kind, raceId, btn) {{
+  const box = document.getElementById('res-' + raceId);
+  box.innerHTML = '<span class="spinner">⏳ 予想中…' +
+    (kind === 'genai-predict' ? '（生成AIは数十秒かかります）' : '') + '</span>';
+  btn.disabled = true;
+  try {{
+    const resp = await fetch('/' + kind + '/' + raceId);
+    const data = await resp.json();
+    if (!resp.ok) {{ box.innerHTML = '<div class="card">⚠ ' + (data.error || resp.status) + '</div>'; return; }}
+    box.innerHTML = (kind === 'predict') ? renderML(data) : renderGenAI(data);
+  }} catch (e) {{
+    box.innerHTML = '<div class="card">⚠ 通信エラー: ' + e + '</div>';
+  }} finally {{ btn.disabled = false; }}
+}}
+
+function renderML(d) {{
+  const marks = ['◎','○','▲','△','△'];
+  let rows = d.ranking.slice(0, 8).map((r, i) =>
+    `<tr><td class="mark">${{marks[i] || (i+1)}}</td>` +
+    `<td class="rank">${{r.horse_no}}</td><td>${{r.horse_name}}</td>` +
+    `<td class="rank">${{(r.show_prob*100).toFixed(0)}}%</td>` +
+    `<td>${{r.pit_running_style || ''}}</td></tr>`).join('');
+  return '<div class="card"><b>📊 ML予想（複勝確率）</b>' +
+    `<div class="note">学習: ${{d.trained_on.join(', ')}}</div>` +
+    '<table><thead><tr><th>印</th><th>馬番</th><th>馬名</th><th>複勝率</th><th>脚質</th></tr></thead>' +
+    '<tbody>' + rows + '</tbody></table></div>';
+}}
+
+function renderGenAI(d) {{
+  const ins = (d.insights.insights || []).map(x =>
+    `<li>[${{x.weight}}] ${{x.pattern}}</li>`).join('');
+  const marks = ['◎','○','▲','△','△'];
+  const rows = (d.prediction.ranking || []).map((p, i) =>
+    `<tr><td class="mark">${{marks[i] || (i+1)}}</td>` +
+    `<td class="rank">${{p.horse_no}}</td><td>${{p.horse_name}}</td>` +
+    `<td class="rank">${{(p.score*100).toFixed(0)}}%</td>` +
+    `<td>${{p.reason || ''}}</td></tr>`).join('');
+  return '<div class="card"><b>🤖 生成AI予想</b>' +
+    `<div class="note">学習: ${{d.trained_on.join(', ')}}</div>` +
+    '<p><b>傾向:</b> ' + (d.insights.summary || '') + '</p>' +
+    '<p><b>導いた示唆:</b></p><ul>' + ins + '</ul>' +
+    '<p><b>本命:</b> 馬番' + d.prediction.honmei_horse_no + '</p>' +
+    '<table><thead><tr><th>印</th><th>馬番</th><th>馬名</th><th>期待度</th><th>理由</th></tr></thead>' +
+    '<tbody>' + rows + '</tbody></table>' +
+    '<p class="note">' + (d.prediction.commentary || '') + '</p></div>';
+}}
+</script>
+</body></html>"""
     return Response(html, mimetype="text/html")
 
 
