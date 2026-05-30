@@ -124,6 +124,38 @@ def _h2h_chart(ctx) -> bytes:
     return _to_png(fig)
 
 
+def render_past_result(race_name: str, actual, highlight_top=3) -> bytes:
+    """過去レースの着順を縦棒で表示し、3着以内(複勝圏)を色分けする。
+
+    Args:
+        race_name: レース名
+        actual: 実結果 DataFrame（finish_pos, horse_name/horse_no を含む）
+        highlight_top: 何着までを強調色にするか（既定 3 = 複勝圏）
+    """
+    import pandas as pd
+    if actual is None or actual.empty or "finish_pos" not in actual:
+        return _placeholder("結果データがありません")
+    d = actual.dropna(subset=["finish_pos"]).copy()
+    d["finish_pos"] = d["finish_pos"].astype(float)
+    d = d.sort_values("finish_pos")
+    name_col = "horse_name" if "horse_name" in d else "horse_id"
+    labels = d[name_col].astype(str) if name_col in d else d.index.astype(str)
+    pos = d["finish_pos"].values
+    # 3着以内=金/銀/銅系、それ以外=灰
+    medal = {1: "#e3b203", 2: "#9aa0a6", 3: "#b5651d"}
+    colors = [medal.get(int(p), "#c9d2e0") if p <= highlight_top else "#dfe3ea"
+              for p in pos]
+    fig, ax = plt.subplots(figsize=(max(7, 0.55 * len(d)), 5))
+    ax.bar(range(len(d)), pos, color=colors, edgecolor="#888")
+    ax.set_xticks(range(len(d)))
+    ax.set_xticklabels(labels, rotation=60, ha="right", fontsize=8)
+    ax.set_ylabel("着順（低いほど上位）")
+    ax.invert_yaxis()  # 1着を上に
+    ax.set_title(f"{race_name}：結果（金銀銅＝複勝圏 3着以内）")
+    fig.tight_layout()
+    return _to_png(fig)
+
+
 def _label(view):
     """馬名（無ければ馬番）のラベル列。"""
     if "horse_name" in view and view["horse_name"].notna().any():

@@ -47,6 +47,31 @@ def test_h2h_strength_range_and_neutral():
     # （ここでは全馬対戦ありの可能性が高いので範囲チェックのみ）
 
 
+def test_transitive_chain_order():
+    """A>B>C>D の連鎖で、未対戦の A と D も A が上・D が下に並ぶ（推移性）。
+
+    勝率だけだと B(1勝1敗) と C(1勝1敗) は同じだが、『B は強い C に勝った』方を
+    上に置くべき。伝播レーティングがそれを反映するか確認。
+    """
+    import pandas as pd
+    from keiba.schema import RaceContext
+    entries = pd.DataFrame({"race_id": "T", "horse_id": ["A", "B", "C", "D"],
+                            "horse_name": ["A", "B", "C", "D"], "horse_no": [1, 2, 3, 4]})
+    rows = []
+
+    def r(rid, hid, pos):
+        rows.append({"race_id": rid, "horse_id": hid, "finish_pos": pos, "passing": ""})
+    r("R1", "A", 1); r("R1", "B", 2)   # A>B
+    r("R2", "B", 1); r("R2", "C", 2)   # B>C
+    r("R3", "C", 1); r("R3", "D", 2)   # C>D
+    ctx = RaceContext(race={"race_id": "T", "race_name": "t", "distance": 2400},
+                      entries=entries, history=pd.DataFrame(rows), races=pd.DataFrame())
+    h = head_to_head(ctx)
+    assert h["order"] == ["A", "B", "C", "D"], h["order"]
+    # B と C は勝率同じ(0.5)だが、レーティングは B > C
+    assert h["meta"]["B"]["rating"] > h["meta"]["C"]["rating"]
+
+
 def test_matrix_shape():
     ctx, _, _ = _make_context(n_entrants=5, career=6, seed=1)
     h = head_to_head(ctx)

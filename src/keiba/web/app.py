@@ -379,26 +379,57 @@ def _page_head(title):
             '</style></head><body>')
 
 
+@app.get("/chart-result/<race_id>.png")
+def chart_result(race_id: str):
+    """過去レースの着順グラフ（3着内を色分け）を PNG で返す。"""
+    from .. import viz
+    from ..service import load_actual, load_meta
+    actual = load_actual(race_id, _store())
+    if actual is None:
+        return jsonify(error="この race_id に実結果がありません", race_id=race_id), 404
+    meta = load_meta(race_id, _store()) or {}
+    name = (meta.get("race_meta") or {}).get("race_name") or race_id
+    return Response(viz.render_past_result(name, actual), mimetype="image/png")
+
+
 @app.get("/visualize/<race_id>")
 def visualize(race_id: str):
-    """③可視化ページ: 複勝率・賞金・脚質・通過順・キャリア・脚質×上がり・直接対決 を一覧。"""
+    """③可視化ページ: 対象レースの各種グラフ + 過去ダービーの結果(3着内を色分け)。"""
     from .. import viz
-    from ..service import load_meta
-    meta = load_meta(race_id, _store())
+    from ..service import load_meta, load_actual, list_races, default_derby_train_ids
+    store = _store()
+    meta = load_meta(race_id, store)
     if meta is None:
         return Response(_page_head("可視化") +
                         f'<a class="back" href="/">← 戻る</a><p>race_id={race_id} のデータがありません。</p>'
                         '</body></html>', mimetype="text/html")
     name = (meta.get("race_meta") or {}).get("race_name") or race_id
+
+    # 対象レースの各種グラフ
     imgs = "".join(
         f'<div class="card"><b>{viz.CHART_LABELS.get(k, k)}</b><br>'
         f'<img loading="lazy" src="/chart/{race_id}/{k}.png" alt="{k}"></div>'
         for k in viz.CHART_KINDS)
+
+    # 過去ダービー（actual.csv あり＝結果が出ている）の結果グラフ（3着内を色分け）
+    past_ids = [r for r in default_derby_train_ids() if load_actual(r, store) is not None]
+    if past_ids:
+        past_imgs = "".join(
+            f'<div class="card"><b>{(load_meta(r, store).get("race_meta") or {{}}).get("race_name", r)}</b><br>'
+            f'<img loading="lazy" src="/chart-result/{r}.png" alt="{r}"></div>'
+            for r in sorted(past_ids))
+        past_block = (f'<h2>📚 過去ダービーの結果（金銀銅＝複勝圏 3着以内）</h2>'
+                      f'<div class="grid">{past_imgs}</div>')
+    else:
+        past_block = ('<p class="note">過去ダービーの結果データがありません'
+                      '（fetch --past で取得すると表示されます）。</p>')
+
     html = (_page_head(f"可視化 - {name}") +
             f'<a class="back" href="/">← 予想ページに戻る</a>'
             f'<h1>📈 {name} のデータ可視化</h1>'
             f'<p class="note">いろいろな尺度で出走馬を比較します。</p>'
-            f'<div class="grid">{imgs}</div></body></html>')
+            f'<div class="grid">{imgs}</div>'
+            f'{past_block}</body></html>')
     return Response(html, mimetype="text/html")
 
 
