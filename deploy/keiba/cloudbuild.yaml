@@ -1,0 +1,18 @@
+# keiba サービスを root コンテキストでビルドし Artifact Registry に push する。
+# deploy.sh から `gcloud builds submit --config deploy/keiba/cloudbuild.yaml .` で使う。
+# 置換変数 _IMAGE はビルド対象イメージの完全パス。
+steps:
+  - name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - -f
+      - deploy/keiba/Dockerfile
+      - -t
+      - ${_IMAGE}
+      - .
+  - name: gcr.io/cloud-builders/docker
+    args: [push, ${_IMAGE}]
+images:
+  - ${_IMAGE}
+options:
+  logging: CLOUD_LOGGING_ONLY

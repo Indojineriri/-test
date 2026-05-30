@@ -12,6 +12,11 @@ requests>=2.28
 beautifulsoup4>=4.11
 lxml>=4.9
 
+# HTTP サービス（Cloud Run / Flask）
+flask>=3.0
+gunicorn>=21.0
+google-cloud-storage>=2.16
+
 # ③可視化・⑤予想（後続フェーズで使用）
 matplotlib>=3.7
 scikit-learn>=1.3

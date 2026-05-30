@@ -16,7 +16,8 @@
 from __future__ import annotations
 
 import time
-from pathlib import Path
+
+from ..storage import Storage
 
 # netkeiba の URL テンプレート
 URL_RACE_RESULT = "https://db.netkeiba.com/race/{race_id}/"
@@ -33,10 +34,17 @@ DEFAULT_HEADERS = {
 
 
 class NetkeibaClient:
-    def __init__(self, cache_dir: str | Path = "data/cache", wait: float = 1.5,
-                 max_retries: int = 4, timeout: int = 20, use_cache: bool = True):
-        self.cache_dir = Path(cache_dir)
-        self.cache_dir.mkdir(parents=True, exist_ok=True)
+    def __init__(self, cache_dir: str = "data/cache", wait: float = 1.5,
+                 max_retries: int = 4, timeout: int = 20, use_cache: bool = True,
+                 cache: Storage | None = None):
+        """
+        Args:
+            cache_dir: ローカルキャッシュのディレクトリ（cache 未指定時に使用）
+            cache: HTML キャッシュの保存先 Storage。GCS を渡せば永続キャッシュになる。
+                   未指定なら LocalStorage(cache_dir)。Cloud Run では gs:// を渡す。
+        """
+        # cache 優先。無ければローカルディレクトリをキャッシュにする（従来互換）。
+        self.cache = cache if cache is not None else Storage.from_uri(cache_dir)
         self.wait = wait
         self.max_retries = max_retries
         self.timeout = timeout
@@ -68,11 +76,12 @@ class NetkeibaClient:
         return self._session
 
     def _get_cached(self, url: str, cache_name: str) -> str:
-        cache_path = self.cache_dir / cache_name
-        if self.use_cache and cache_path.exists():
-            return cache_path.read_text(encoding="utf-8")
+        if self.use_cache:
+            cached = self.cache.read_text(cache_name)
+            if cached is not None:
+                return cached
         html = self._fetch(url)
-        cache_path.write_text(html, encoding="utf-8")  # 常に UTF-8 で保存
+        self.cache.write_text(cache_name, html)  # 常に UTF-8 で保存
         return html
 
     def _fetch(self, url: str) -> str:

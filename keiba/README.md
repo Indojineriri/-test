@@ -20,18 +20,36 @@
 src/keiba/
   schema.py                  正規化スキーマ（列定義・RaceContext・RUN_COLUMNS）★全層の共通語彙
   dataset.py                 ★runs 統合 + point-in-time 特徴量（出馬表→学習データの橋渡し）
+  storage.py                 ローカル / GCS を切り替える Storage 抽象（Cloud Run 永続化）
+  service.py                 取得→保存→参照の中核（Flask 非依存）
   collect/
     base.py                  DataSource 抽象インターフェース（取得元を差し替え可能に）
     netkeiba_client.py       HTTP 取得のみ（キャッシュ/レート制限/リトライ/文字コード）
     netkeiba_parse.py        HTML→DataFrame の純粋関数群（★ネットワーク非依存=テスト可能）
     netkeiba.py              上記2つを束ねる NetkeibaDataSource + race_id ビルダ
+  web/app.py                 Flask アプリ（Cloud Run / WSGI: keiba.web.app:app）
   cli.py                     コマンドライン
 tests/
   fixtures/                  netkeiba 構造を模した HTML（オフライン検証用）
   test_netkeiba_parse.py     パーサ & データソースの単体/結合テスト
   test_dataset.py            runs 統合・特徴量・リーク無しの検証
+  test_web.py                Storage / service / Flask の結合テスト（オフライン）
 docs/
   data-model.md              ★出馬表とは何か / 収集範囲 / 特徴量の作り方（設計の核）
+deploy/keiba/                Cloud Run デプロイ（Dockerfile / cloudbuild.yaml / deploy.sh / README）
+```
+
+## Cloud Run で運用する
+
+HTTP サービスとして Cloud Run にデプロイできます（取得データは GCS に永続化）。
+詳細は **[deploy/keiba/README.md](../deploy/keiba/README.md)**。
+
+```bash
+./deploy/keiba/deploy.sh
+# デプロイ後:
+URL="$(gcloud run services describe keiba --region asia-northeast1 --format 'value(status.url)')"
+curl "$URL/fetch?race_id=202605021211"   # 取得して GCS に保存
+curl "$URL/races/202605021211/entries.csv"
 ```
 
 ### なぜこの分離なのか
@@ -137,6 +155,8 @@ python3 -m keiba.cli fetch --race-id 202405021211 --out data/derby2024 --wait 1.
 - [x] **フェーズ1: ①②データ取得**（netkeiba／HTTPとパースの分離／オフラインテスト）
 - [x] **フェーズ1.5: データモデル設計**（runs 統合 / point-in-time 特徴量 / リーク防止
       ／「出馬表とは何か・1レースをデータセットに広げる収集範囲」を docs と動くコードで確定）
+- [x] **フェーズ1.8: Cloud Run 化**（Flask サービス + GCS 永続化 / Storage 抽象 /
+      deploy.sh。詳細は [deploy/keiba/README.md](../deploy/keiba/README.md)）
 - [ ] フェーズ2: ③可視化（matplotlib で成績グラフ）
 - [ ] フェーズ3: ④示唆出し（統計指標 + 生成AI による要約・コメント）
 - [ ] フェーズ4: ⑤予想（scikit-learn で複勝/着順予測、生成AIで根拠説明）
