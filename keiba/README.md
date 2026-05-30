@@ -162,7 +162,8 @@ python3 -m keiba.cli fetch --race-id 202405021211 --out data/derby2024 --wait 1.
       ＋◎○▲印。`keiba backtest`：leave-one-out で的中率集計。リーク防止済み）
 - [x] **フェーズ4: ④⑤ 生成AI（2段エージェント）**（`keiba genai-predict`：過去ダービーから
       Claude が示唆を導出→その示唆で今年の出走馬を評価。Opus 4.8 / 構造化出力 / プロンプトキャッシュ）
-- [ ] フェーズ5: ③可視化（matplotlib で脚質分布・賞金順などのグラフ PNG）
+- [x] **フェーズ5: ③可視化**（matplotlib で複勝率・総賞金・上がり・脚質分布を PNG 化。
+      Web の `/chart/<race_id>/<kind>.png` で配信、トップの「📈 データ可視化」ボタンで表示）
 - [ ] フェーズ6: 回収率ベースの評価（オッズと結びつけた期待値）
 
 ### ④⑤ 生成AI予想の使い方

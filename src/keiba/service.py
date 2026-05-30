@@ -191,9 +191,14 @@ def load_derby_items(store: Storage, race_ids, require_derby: bool = True):
 
 
 def default_derby_train_ids(exclude=None):
-    """既知ダービー全年の race_id（exclude を除く）。"""
+    """学習に使う既知ダービーの race_id（exclude を除く）。
+
+    verified=True の年（=実データでダービーと確認済み）のみ。2016-2018 は
+    `年05021211` が別レース（薫風ステークス）だったため verified=False で除外する。
+    """
     from .data.derby import DERBY_RACES
-    return [rid for rid in DERBY_RACES if rid != str(exclude)]
+    return [rid for rid, info in DERBY_RACES.items()
+            if info.get("verified") and rid != str(exclude)]
 
 
 def _subprefix(store: Storage, sub: str) -> Storage:

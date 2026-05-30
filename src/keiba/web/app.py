@@ -101,14 +101,19 @@ def index():
     races = list_races(store)
     genai_on = bool(os.environ.get("ANTHROPIC_API_KEY"))
 
-    # 予想対象（actual.csv が無い＝未施行）と、学習用の過去データ（actual.csv あり）に分ける
+    # 予想対象（actual.csv が無い＝未施行）と、学習用の過去データ（actual.csv あり）に分ける。
+    # 過去側はダービー(優駿/ダービー)のみ採用。2016-2018 は別レース(薫風S)なので名前で除外される。
     upcoming, past = [], []
     for r in races:
         meta = load_meta(r, store) or {}
         name = (meta.get("race_meta") or {}).get("race_name") or r
         date = (meta.get("race_meta") or {}).get("date") or ""
         info = {"id": r, "name": name, "date": date}
-        (past if load_actual(r, store) is not None else upcoming).append(info)
+        if load_actual(r, store) is not None:
+            if "優駿" in name or "ダービー" in name:  # 別レースは過去一覧に出さない
+                past.append(info)
+        else:
+            upcoming.append(info)
 
     def _genai_btn(rid):
         if genai_on:
@@ -124,8 +129,10 @@ def index():
                 f'<h3>🎯 {u["name"]} <span class="note">{u["date"]}</span></h3>'
                 f'<p>過去ダービーの見解をもとに予想します。予想の根拠と結果を表示します。</p>'
                 f'<button onclick="run(\'predict\',\'{u["id"]}\',this)">📊 ML予想</button> '
-                f'{_genai_btn(u["id"])}'
+                f'{_genai_btn(u["id"])} '
+                f'<button class="secondary" onclick="charts(\'{u["id"]}\',this)">📈 データ可視化</button>'
                 f'<div class="result" id="res-{u["id"]}"></div>'
+                f'<div class="charts" id="chart-{u["id"]}"></div>'
                 f'</div>'
             )
         target_section = "".join(cards)
@@ -186,6 +193,8 @@ def index():
   .note {{ color:#666; font-size:0.9rem; }}
   .spinner {{ color:#3b7dd8; }}
   code {{ background:#eef; padding:1px 4px; border-radius:3px; }}
+  .charts {{ margin:8px 0; }}
+  .charts .card > div {{ margin:10px 0; }}
   .target {{ background:#fff; border:2px solid #3b7dd8; border-radius:8px;
             padding:14px 18px; margin:12px 0; max-width:900px; }}
   .target h3 {{ margin:0 0 6px; }}
@@ -215,6 +224,17 @@ async function run(kind, raceId, btn) {{
   }} catch (e) {{
     box.innerHTML = '<div class="card">⚠ 通信エラー: ' + e + '</div>';
   }} finally {{ btn.disabled = false; }}
+}}
+
+function charts(raceId, btn) {{
+  const box = document.getElementById('chart-' + raceId);
+  if (box.dataset.shown) {{ box.innerHTML = ''; box.dataset.shown = ''; btn.textContent='📈 データ可視化'; return; }}
+  const kinds = [['show_rate','複勝率'],['prize','総賞金'],['last3f','決め手(上がり)'],['style','脚質分布']];
+  box.innerHTML = '<div class="card">' + kinds.map(([k,label]) =>
+    `<div><b>${{label}}</b><br><img loading="lazy" src="/chart/${{raceId}}/${{k}}.png" ` +
+    `alt="${{label}}" style="max-width:100%;border:1px solid #eee;border-radius:4px"></div>`
+  ).join('') + '</div>';
+  box.dataset.shown = '1'; btn.textContent='📈 可視化を隠す';
 }}
 
 async function runInsights(btn) {{
@@ -333,6 +353,25 @@ def race_csv(race_id: str, name: str):
     if text is None:
         return jsonify(error="not found", race_id=race_id, csv=name), 404
     return Response(text, mimetype="text/csv; charset=utf-8")
+
+
+@app.get("/chart/<race_id>/<kind>.png")
+def chart(race_id: str, kind: str):
+    """③可視化: 出走馬分析のグラフを PNG 画像で返す。
+
+    kind = show_rate（複勝率）/ prize（賞金）/ last3f（上がり）/ style（脚質分布）。
+    """
+    from .. import viz
+    from ..service import load_context
+    if kind not in viz.CHART_KINDS:
+        return jsonify(error=f"未知のチャート: {kind}",
+                       available=viz.CHART_KINDS), 400
+    try:
+        ctx = load_context(race_id, _store())
+    except Exception as e:
+        return jsonify(error=str(e), race_id=race_id), 404
+    png = viz.render_chart(ctx, kind=kind)
+    return Response(png, mimetype="image/png")
 
 
 def _train_ids_from_request(default_exclude):

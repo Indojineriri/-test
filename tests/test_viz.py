@@ -1,0 +1,54 @@
+"""③可視化（matplotlib → PNG）の検証。ネットワーク不要。
+
+    python3 tests/test_viz.py
+"""
+
+import sys
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / "src"))
+sys.path.insert(0, str(ROOT / "tests"))
+
+from keiba import viz  # noqa: E402
+from test_dataset import _make_context  # noqa: E402
+
+_PNG_SIG = bytes.fromhex("89504e470d0a1a0a")
+
+
+def _ctx():
+    ctx, _, _ = _make_context(n_entrants=10, career=6, seed=3)
+    return ctx
+
+
+def test_all_chart_kinds_return_png():
+    ctx = _ctx()
+    for kind in viz.CHART_KINDS:
+        png = viz.render_chart(ctx, kind=kind)
+        assert isinstance(png, bytes) and len(png) > 1000
+        assert png.startswith(_PNG_SIG), f"{kind} は PNG ではない"
+
+
+def test_unknown_kind_raises():
+    try:
+        viz.render_chart(_ctx(), kind="bogus")
+        assert False, "未知種別は ValueError になるべき"
+    except ValueError:
+        pass
+
+
+def test_no_history_still_returns_png():
+    """履歴が無い（新馬ばかり）出走表でも、欠損は placeholder で PNG を返す。"""
+    ctx = _ctx()
+    ctx.history = ctx.history.iloc[0:0]  # 過去成績ゼロにする
+    png = viz.render_chart(ctx, kind="prize")
+    assert png.startswith(_PNG_SIG)
+
+
+if __name__ == "__main__":
+    fns = [(k, v) for k, v in sorted(globals().items())
+           if k.startswith("test_") and callable(v)]
+    for name, fn in fns:
+        fn()
+        print(f"  ok: {name}")
+    print(f"OK: {len(fns)} tests passed")
