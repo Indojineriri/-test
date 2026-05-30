@@ -174,6 +174,29 @@ def test_parse_horse_results_real_header_layout():
     assert r["race_id"] == "202506050811"
 
 
+def test_grade_from_name_roman_forms():
+    """netkeiba の GI/GII/GIII（ASCIIローマ数字）も G1/G2/G3 に正規化する。"""
+    g = P._grade_from_name
+    assert g("日本ダービー(GI)") == "G1"
+    assert g("共同通信杯(GIII)") == "G3"
+    assert g("弥生賞ディープインパクト記念(GII)") == "G2"
+    assert g("皐月賞(G1)") == "G1"
+    assert g("プリンシパルS(L)") is None
+    assert g("1勝クラス") is None
+
+
+def test_parse_horse_results_carries_race_meta():
+    """1パスで各行に date/grade/distance/n_horses が載る（2回パースのズレ解消）。"""
+    df = P.parse_horse_results(_read("horse.html"), "2021104001")
+    assert len(df) == 3
+    r = df.iloc[0]
+    assert r["race_date"] == "2024-04-14"
+    assert r["race_distance"] == 2000
+    assert r["race_grade"] == "G1"
+    assert r["race_n_horses"] == 18
+    assert r["race_track"] == "中山"
+
+
 # --- race_id ビルダ ----------------------------------------------------------
 
 def test_build_race_id():

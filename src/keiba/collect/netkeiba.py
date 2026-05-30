@@ -72,64 +72,53 @@ class NetkeibaDataSource(DataSource):
         if horse_ids is None:
             raise ValueError("netkeiba では horse_ids（出走馬ID）の指定が必要です。")
 
-        results_frames, race_meta = [], {}
+        frames = []
         for hid in horse_ids:
             html = self.client.horse_result_html(str(hid))
-            df = P.parse_horse_results(html, str(hid))
+            df = P.parse_horse_results(html, str(hid))  # 1パスで成績+レースメタ
             if self.max_history_per_horse and len(df) > self.max_history_per_horse:
                 df = df.head(self.max_history_per_horse)
-            # 戦績表の行から races メタを拾う（_ 付き列）
-            self._collect_race_meta(html, str(hid), race_meta)
-            results_frames.append(df)
+            frames.append(df)
 
-        results_df = (pd.concat(results_frames, ignore_index=True)
-                      if results_frames else pd.DataFrame(columns=RESULT_COLUMNS))
+        full = (pd.concat(frames, ignore_index=True)
+                if frames else pd.DataFrame(columns=P.HORSE_RESULT_OUTPUT_COLUMNS))
 
         # 過去レース分析では、対象レース自身は履歴に含めない（リーク防止）
-        if self.past_race and not results_df.empty:
-            results_df = results_df[results_df["race_id"].astype(str) != self._target]
+        if self.past_race and not full.empty:
+            full = full[full["race_id"].astype(str) != self._target]
 
-        # オプション: 同走馬も集めて学習データを増やす
-        if self.expand_co_runners and not results_df.empty:
-            self._expand_with_result_pages(results_df, race_meta)
-
-        races_df = self._build_races_df(results_df, race_meta)
+        results_df, races_df = self._split_results_and_races(full)
         return races_df, results_df
 
-    def _collect_race_meta(self, horse_html: str, horse_id: str, race_meta: dict):
-        """競走馬ページの戦績表から各レースのメタ（日付・距離等）を race_meta に蓄積。"""
-        rows = P._horse_results_meta_rows(horse_html, horse_id)
-        for r in rows:
-            rid = r.get("race_id")
-            if rid and rid not in race_meta:
-                race_meta[rid] = r
-
-    def _expand_with_result_pages(self, results_df, race_meta: dict):
-        """各レースの結果ページを取得し、同走馬の行を results に追加（学習データ増強）。"""
-        # 実装は重い（ページ数増）ので既定オフ。必要時のみ。
-        pass
-
     @staticmethod
-    def _build_races_df(results_df, race_meta: dict):
-        if results_df.empty:
-            return pd.DataFrame(columns=RACE_COLUMNS)
-        rows = []
-        for rid in results_df["race_id"].dropna().astype(str).unique():
-            m = race_meta.get(rid, {})
-            rows.append({
-                "race_id": rid,
-                "date": m.get("date"),
-                "race_name": m.get("race_name"),
-                "track": m.get("track"),
-                "surface": m.get("surface"),
-                "distance": m.get("distance"),
-                "direction": None,
-                "going": m.get("going"),
-                "weather": None,
-                "grade": m.get("grade"),
-                "n_horses": m.get("n_horses"),
-            })
-        return pd.DataFrame(rows)[RACE_COLUMNS]
+    def _split_results_and_races(full: pd.DataFrame):
+        """1パスの戦績DataFrameを、results(RESULT_COLUMNS)とraces(RACE_COLUMNS)に分割。
+
+        レースメタ(race_* 接頭辞)は同じ行に載っているので、race_id ごとに 1 行へ
+        集約して races を作る。突き合わせのズレが起きない。
+        """
+        if full.empty:
+            return (pd.DataFrame(columns=RESULT_COLUMNS),
+                    pd.DataFrame(columns=RACE_COLUMNS))
+
+        results_df = full[RESULT_COLUMNS].copy()
+
+        # races: race_id 単位に集約（メタ列は同一レースなら同じ値）
+        meta = full.dropna(subset=["race_id"]).drop_duplicates("race_id")
+        races_df = pd.DataFrame({
+            "race_id": meta["race_id"].astype(str).values,
+            "date": meta["race_date"].values,
+            "race_name": meta["race_name"].values,
+            "track": meta["race_track"].values,
+            "surface": meta["race_surface"].values,
+            "distance": meta["race_distance"].values,
+            "direction": None,
+            "going": meta["race_going"].values,
+            "weather": None,
+            "grade": meta["race_grade"].values,
+            "n_horses": meta["race_n_horses"].values,
+        })[RACE_COLUMNS]
+        return results_df, races_df
 
     def get_horses(self, horse_ids):
         rows = []

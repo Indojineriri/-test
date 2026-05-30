@@ -434,12 +434,13 @@ _HORSE_RESULT_HEADER_MAP = {
 
 
 def parse_horse_results(html: str, horse_id: str) -> pd.DataFrame:
-    """競走馬ページの戦績表から、その馬の全成績を RESULT_COLUMNS 準拠で返す。
+    """競走馬ページの戦績表から、その馬の全成績を返す。
 
     別ページに飛ばず、この 1 ページだけでその馬の全レースを取得できる。
-    race_id は各行のレース名リンクから取り出す（取れなくても行自体は残す）。
+    RESULT_COLUMNS に加え、races テーブル構築用のメタ列（date, race_name,
+    distance, surface, going, grade, track, n_horses）も **同じ行に** 持たせる。
+    こうすることで「2 回パースして race_id で突き合わせる」ズレを無くす。
     """
-    from ..schema import RESULT_COLUMNS
     soup = BeautifulSoup(html, "lxml")
     name_title = soup.select_one(".horse_title h1") or soup.find("h1")
     horse_name = _text(name_title)
@@ -448,9 +449,8 @@ def parse_horse_results(html: str, horse_id: str) -> pd.DataFrame:
              or soup.select_one("table.race_results")
              or _find_results_table(soup))
     if table is None:
-        return pd.DataFrame(columns=RESULT_COLUMNS)
+        return pd.DataFrame(columns=HORSE_RESULT_OUTPUT_COLUMNS)
 
-    # ヘッダ行（最初の tr）から列キーを作る
     head = table.find("tr")
     keys = []
     for c in head.find_all(["th", "td"]):
@@ -469,11 +469,11 @@ def parse_horse_results(html: str, horse_id: str) -> pd.DataFrame:
 
     df = pd.DataFrame(rows)
     if df.empty:
-        return pd.DataFrame(columns=RESULT_COLUMNS)
-    for c in RESULT_COLUMNS:
+        return pd.DataFrame(columns=HORSE_RESULT_OUTPUT_COLUMNS)
+    for c in HORSE_RESULT_OUTPUT_COLUMNS:
         if c not in df.columns:
             df[c] = np.nan
-    return df[RESULT_COLUMNS]
+    return df[HORSE_RESULT_OUTPUT_COLUMNS]
 
 
 def _find_results_table(soup):
@@ -488,9 +488,21 @@ def _find_results_table(soup):
     return None
 
 
+# parse_horse_results が返す列。RESULT_COLUMNS + races メタ（race_* 接頭辞）。
+def _horse_result_output_columns():
+    from ..schema import RESULT_COLUMNS
+    meta = ["race_date", "race_name", "race_distance", "race_surface",
+            "race_going", "race_grade", "race_track", "race_n_horses"]
+    return list(RESULT_COLUMNS) + meta
+
+
+HORSE_RESULT_OUTPUT_COLUMNS = _horse_result_output_columns()
+
+
 def _horse_result_row(cmap: dict, horse_id: str, horse_name: str) -> dict:
     hw, wd = parse_horse_weight(_text(cmap.get("horse_weight")))
     dist, surface = _parse_distance_raw(_text(cmap.get("distance_raw")))
+    race_name = _text(cmap.get("race_name"))
     # race_id はレース名セルのリンクから
     race_id = None
     name_cell = cmap.get("race_name")
@@ -523,13 +535,15 @@ def _horse_result_row(cmap: dict, horse_id: str, horse_name: str) -> dict:
         "trainer": None,
         "trainer_id": None,
         "prize": _parse_prize(_text(cmap.get("prize"))),
-        # レース条件（races テーブルに展開する用に持っておく）
-        "_date": _text(cmap.get("date")) or None,
-        "_race_name": _text(cmap.get("race_name")) or None,
-        "_distance": dist,
-        "_surface": surface,
-        "_going": _text(cmap.get("going")) or None,
-        "_n_horses": _to_int(_text(cmap.get("n_horses"))),
+        # レース条件（races テーブルに展開する用。同じ行に直接持たせる）
+        "race_date": _normalize_date(_text(cmap.get("date"))),
+        "race_name": race_name or None,
+        "race_distance": dist,
+        "race_surface": surface,
+        "race_going": _text(cmap.get("going")) or None,
+        "race_grade": _grade_from_name(race_name),
+        "race_track": _track_from_venue(_text(cmap.get("venue"))),
+        "race_n_horses": _to_int(_text(cmap.get("n_horses"))),
     }
 
 
@@ -589,12 +603,29 @@ def _normalize_date(text: str):
 
 
 def _grade_from_name(name: str):
+    """レース名からグレードを抽出。netkeiba は GI/GII/GIII（ASCII ローマ数字）や
+    G1/G2/G3、全角括弧、特殊ローマ数字 ⅠⅡⅢ など表記ゆれがあるので吸収する。
+
+    例: '日本ダービー(GI)'→'G1', '共同通信杯(GIII)'→'G3', '皐月賞(G1)'→'G1'
+    """
     if not name:
         return None
-    m = re.search(r"\((G[1-3])\)|（(G[1-3])）|(G[ⅠⅡⅢ])", name)
-    if m:
-        g = next((x for x in m.groups() if x), None)
-        return (g or "").replace("Ⅰ", "1").replace("Ⅱ", "2").replace("Ⅲ", "3")
+    # 括弧内（半角/全角）のグレード表記を探す
+    m = re.search(r"[(（]\s*(G[ⅠⅡⅢ123IV]+)\s*[)）]", name)
+    token = m.group(1) if m else None
+    if token is None:
+        # 括弧無しでも末尾等に GI/GII/GIII があれば拾う
+        m2 = re.search(r"\bG(III|II|I|[123])\b", name)
+        if m2:
+            token = "G" + m2.group(1)
+    if token is None:
+        return None
+    # ローマ数字 → 算用数字に正規化（長いものから順に置換）
+    t = token.replace("Ⅲ", "3").replace("Ⅱ", "2").replace("Ⅰ", "1")
+    t = t.replace("III", "3").replace("II", "2")
+    t = re.sub(r"GI\b", "G1", t)  # 残った単独 I
+    if t in ("G1", "G2", "G3"):
+        return t
     return None
 
 

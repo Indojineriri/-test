@@ -87,13 +87,18 @@ def diagnose_coverage(ctx: RaceContext) -> dict:
                 "ステップレースに集中して対戦が重複する ③新馬戦は同条件でも複数に"
                 "分割され同居しにくい。判断は races 件数ではなく上の per_horse（各馬の"
                 "過去出走数）で行ってください。")
-    if summary["n_result_rows"] and summary["n_unique_past_races"]:
-        avg_field = summary["n_result_rows"] / summary["n_unique_past_races"]
-        summary["avg_field_size"] = round(avg_field, 1)
-        if avg_field < 5:
-            w.append(
-                f"1レースあたりの平均出走頭数が {avg_field:.1f} と不自然に小さいです"
-                "（結果ページのパース漏れの可能性）。")
+    # 1レースの実出走頭数は races.n_horses（戦績表の「頭数」列）を使う。
+    # 競走馬ページ直接方式では results は「各馬1行」なので、行数÷レース数で
+    # 頭数を推定すると誤判定する（その方式の誤警告を出さない）。
+    races = ctx.races
+    if races is not None and "n_horses" in races and races["n_horses"].notna().any():
+        fields = pd.to_numeric(races["n_horses"], errors="coerce").dropna()
+        if len(fields):
+            summary["avg_field_size"] = round(float(fields.mean()), 1)
+            if fields.mean() < 5:
+                w.append(
+                    f"レースの平均出走頭数が {fields.mean():.1f} と小さめです"
+                    "（頭数列のパースを確認してください）。")
     return summary
 
 
