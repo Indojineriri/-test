@@ -23,6 +23,7 @@
 from __future__ import annotations
 
 import argparse
+import re
 import sys
 from pathlib import Path
 
@@ -101,48 +102,64 @@ def cmd_demo_dataset(args):
 
 
 def cmd_diagnose_horse(args):
-    """キャッシュ済みの競走馬ページHTMLから race_id 抽出数を点検する（取りこぼし診断）。
+    """キャッシュ済みの競走馬ページHTMLの中身を点検する（戦績パース不能の原因特定）。
 
-    保存済み results.csv の各出走馬について、cache/horse_<id>.html を読み、
-    そこから何件の過去レースIDが取れているかを表示する。HTMLが手元にある
-    （= 一度 fetch 済み）前提。ネットワークは使わない。
+    cache/horse_<id>.html を読み、(1) HTMLサイズ、(2) ページ内の table 一覧と
+    その class・行数・ヘッダ文字列、(3) 戦績表として認識できたか、(4) パース行数 を
+    表示する。これで「なぜ過去成績0行なのか」を実HTMLから機械的に特定できる。
     """
     import io
     import pandas as pd
     from bs4 import BeautifulSoup
-    from .collect.netkeiba import _extract_race_ids_from_links
+    from .collect import netkeiba_parse as P
 
     store = Storage.from_uri(args.store)
-    # 出走馬IDを entries から得る
     ent_text = store.read_text(f"races/{args.race_id}/entries.csv")
     if not ent_text:
         sys.exit(f"[diagnose-horse] entries.csv が見つかりません: {args.race_id}")
     entries = pd.read_csv(io.StringIO(ent_text), dtype={"horse_id": str})
-
     cache = Storage.from_uri(store.uri("cache"))
-    print(f"=== 競走馬ページの race_id 抽出診断: {args.race_id} ===")
-    print(f"{'horse_id':<14} {'馬名':<16} {'HTML':<6} {'抽出race数':>8}")
-    missing_html = 0
-    for _, e in entries.iterrows():
+
+    # 既定では先頭1頭だけ詳しく見る（--all で全頭サマリ）
+    targets = entries if args.all else entries.head(1)
+
+    for _, e in targets.iterrows():
         hid = str(e["horse_id"])
+        name = str(e.get("horse_name", ""))
         html = cache.read_text(f"horse_{hid}.html")
+        print(f"\n===== {name} (horse_id={hid}) =====")
         if html is None:
-            print(f"{hid:<14} {str(e.get('horse_name','')):<16} {'なし':<6} "
-                  f"{'-':>8}  ← HTMLキャッシュ無し")
-            missing_html += 1
+            print("  ⚠ HTMLキャッシュ無し（--no-cache で再fetchが必要）")
             continue
-        ids = _extract_race_ids_from_links(BeautifulSoup(html, "lxml"))
-        # 自身(対象レース)を除いた数も併記
-        n = len(ids)
-        n_excl = len([r for r in ids if r != args.race_id])
-        print(f"{hid:<14} {str(e.get('horse_name','')):<16} {'あり':<6} "
-              f"{n_excl:>8}  (総リンク {n})")
-    if missing_html:
-        print(f"\n⚠ HTMLキャッシュが無い馬が {missing_html} 頭。--no-cache で再 fetch すると"
-              "再取得されます。")
-    print("\nヒント: 抽出race数が極端に少ない/0なら、競走馬ページのリンク形式が"
-          "想定と違う可能性。その馬の cache/horse_<id>.html を keiba.cli parse-file で"
-          "確認してください。")
+        print(f"  HTMLサイズ: {len(html):,} 文字")
+        # 403/エラーページの兆候
+        low = html[:2000]
+        if "403" in low or "Forbidden" in low or "アクセスができません" in html[:4000]:
+            print("  ⚠ ブロック/エラーページの可能性（先頭に 403/Forbidden）")
+        soup = BeautifulSoup(html, "lxml")
+        title = soup.find("h1")
+        print(f"  <h1>: {P._text(title)[:40] if title else '(なし)'}")
+
+        # ページ内の table を列挙
+        tables = soup.find_all("table")
+        print(f"  table 数: {len(tables)}")
+        for i, tbl in enumerate(tables[:12]):
+            cls = ".".join(tbl.get("class", []) or [])
+            head = tbl.find("tr")
+            htxt = re.sub(r"\s+", " ", P._text(head))[:70] if head else ""
+            nrows = len(tbl.find_all("tr"))
+            mark = ""
+            if head and "日付" in P._text(head) and "着" in P._text(head):
+                mark = "  ← 戦績表っぽい"
+            print(f"    [{i}] class='{cls}' 行数={nrows} ヘッダ='{htxt}'{mark}")
+
+        # 現行パーサで戦績表が取れるか
+        df = P.parse_horse_results(html, hid)
+        print(f"  parse_horse_results → {len(df)} 行")
+        if not args.all and len(df) == 0:
+            print("\n  【対処】上の table 一覧で『戦績表っぽい』表の class とヘッダを確認し、")
+            print("         その class/ヘッダに合わせて netkeiba_parse を調整します。")
+            print("         この出力をそのまま共有してください。")
 
 
 def cmd_analyze(args):
@@ -339,10 +356,12 @@ def build_parser() -> argparse.ArgumentParser:
     pa.set_defaults(func=cmd_analyze)
 
     pdh = sub.add_parser("diagnose-horse",
-                         help="競走馬ページHTMLからの race_id 抽出を点検（取りこぼし診断）")
+                         help="競走馬ページHTMLの中身を点検（戦績パース不能の原因特定）")
     pdh.add_argument("--race-id", required=True)
     pdh.add_argument("--store", default="data/fetched",
                      help="参照先。fetch の --out と同じ場所（ローカル or gs://）")
+    pdh.add_argument("--all", action="store_true",
+                     help="全出走馬を点検（既定は先頭1頭を詳しく）")
     pdh.set_defaults(func=cmd_diagnose_horse)
 
     return p
