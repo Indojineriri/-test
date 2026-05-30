@@ -9,9 +9,11 @@ Cloud Run 上で動く WSGI アプリ。エントリポイントは `keiba.web.a
     KEIBA_FETCH_WAIT    リクエスト間ウェイト秒（既定 1.5）
     KEIBA_MAX_HISTORY   1頭あたり遡る過去レース数の上限（既定 無制限）
     KEIBA_FETCH_TOKEN   設定すると /fetch に ?token= or X-Auth-Token を要求（簡易保護）
+    KEIBA_PROXY         外向きプロキシ URL（GCP IP がブロックされる場合の回避策）
 
 エンドポイント:
-    GET  /healthz                     ヘルスチェック
+    GET  /healthz                     ヘルスチェック（外部アクセスしない）
+    GET  /diag                        netkeiba への到達性チェック（IP ブロック診断）
     GET  /                            使い方 + 保存済みレース一覧（HTML）
     GET  /races                       保存済みレースID一覧（JSON）
     POST /fetch  {race_id,...}        取得して GCS に保存（JSON 返却）
@@ -26,7 +28,9 @@ import os
 
 from flask import Flask, Response, jsonify, request
 
-from ..service import (fetch_and_store, list_races, load_meta, read_csv_text)
+from ..collect.netkeiba_client import AccessBlockedError
+from ..service import (check_connectivity, fetch_and_store, list_races,
+                       load_meta, read_csv_text)
 from ..storage import Storage
 
 app = Flask(__name__)
@@ -49,6 +53,21 @@ def _check_token() -> bool:
 @app.get("/healthz")
 def healthz():
     return jsonify(status="ok")
+
+
+@app.get("/diag")
+def diag():
+    """netkeiba に実際に到達できるか確認する。Cloud Run からの IP ブロック診断用。
+
+    例: {"ok": true, "status": 200, "via_proxy": false}
+        {"ok": false, "status": 403, "blocked": true, ...}  ← IP ブロックの疑い
+    """
+    if not _check_token():
+        return jsonify(error="unauthorized"), 401
+    result = check_connectivity(proxy=os.environ.get("KEIBA_PROXY"))
+    # 到達できていれば 200、ブロック/失敗なら 502 で返す（監視しやすく）
+    code = 200 if result.get("ok") else 502
+    return jsonify(result), code
 
 
 @app.get("/")
@@ -95,11 +114,17 @@ def fetch():
     max_history = request.args.get("max_history") or payload.get("max_history")
     max_history = int(max_history) if max_history else _env_int("KEIBA_MAX_HISTORY")
     wait = float(os.environ.get("KEIBA_FETCH_WAIT", "1.5"))
+    proxy = os.environ.get("KEIBA_PROXY")
 
     try:
         summary = fetch_and_store(race_id, _store(), wait=wait,
-                                  max_history_per_horse=max_history)
-    except Exception as e:  # 取得・パース失敗を JSON で返す（500）
+                                  max_history_per_horse=max_history, proxy=proxy)
+    except AccessBlockedError as e:
+        # IP ブロックの可能性 → 502 + 対処法を明示
+        return jsonify(error=str(e), race_id=race_id, blocked=True,
+                       hint="KEIBA_PROXY に外向きプロキシを設定してください。"
+                            "/diag で到達性を確認できます。"), 502
+    except Exception as e:  # その他の取得・パース失敗
         return jsonify(error=str(e), race_id=race_id), 500
     return jsonify(summary)
 

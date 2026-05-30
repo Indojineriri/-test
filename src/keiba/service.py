@@ -29,7 +29,7 @@ def _race_prefix(race_id: str) -> str:
 
 def fetch_and_store(race_id: str, store: Storage, *, cache: Storage | None = None,
                     wait: float = 1.5, max_history_per_horse: int | None = None,
-                    use_cache: bool = True) -> dict:
+                    use_cache: bool = True, proxy: str | None = None) -> dict:
     """netkeiba から1レース分を取得し、CSV/JSON を store に保存してサマリを返す。
 
     Args:
@@ -37,10 +37,12 @@ def fetch_and_store(race_id: str, store: Storage, *, cache: Storage | None = Non
         store: 出力 CSV/JSON の保存先（Cloud Run では gs://...）
         cache: HTML キャッシュの保存先（既定: store の cache/ prefix を流用）
         max_history_per_horse: 1頭あたり遡る過去レース数の上限（負荷/時間の調整）
+        proxy: 外向きプロキシ URL（GCP IP ブロック回避）。未指定なら環境変数を参照。
     """
     # HTML キャッシュ先。未指定なら出力 store と同じバケットの cache/ に置く。
     cache_storage = cache or _subprefix(store, "cache")
-    client = NetkeibaClient(wait=wait, use_cache=use_cache, cache=cache_storage)
+    client = NetkeibaClient(wait=wait, use_cache=use_cache, cache=cache_storage,
+                            proxy=proxy)
     src = NetkeibaDataSource(race_id, client=client,
                              max_history_per_horse=max_history_per_horse)
 
@@ -68,6 +70,16 @@ def fetch_and_store(race_id: str, store: Storage, *, cache: Storage | None = Non
     store.write_text(f"{prefix}/meta.json",
                      json.dumps(summary, ensure_ascii=False, indent=2, default=str))
     return summary
+
+
+def check_connectivity(proxy: str | None = None) -> dict:
+    """Cloud Run から netkeiba に到達できるかを確認する（/diag 用）。
+
+    スクレイピング本体を走らせず、トップページに 1 回だけアクセスして
+    到達性・ブロック有無・プロキシ経由かを返す。
+    """
+    client = NetkeibaClient(use_cache=False, proxy=proxy, max_retries=1)
+    return client.check_connectivity()
 
 
 def list_races(store: Storage) -> list[str]:

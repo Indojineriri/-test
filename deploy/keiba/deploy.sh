@@ -65,16 +65,36 @@ gcloud storage buckets add-iam-policy-binding "gs://$BUCKET" \
     --member "serviceAccount:$RUNTIME_SA" \
     --role roles/storage.objectAdmin >/dev/null
 
-# 6) 共有 Anthropic Secret があれば注入（生成AI フェーズ用。無ければスキップ）
+# 6) Secret 注入（あれば）
+#    - anthropic-api-key : 生成AI フェーズ用（共有）
+#    - keiba-proxy       : 外向きプロキシ URL（netkeiba の IP ブロック回避）
 SECRET_ARGS=()
 if gcloud secrets describe "$ANTHROPIC_SECRET" >/dev/null 2>&1; then
     echo "==> Found secret '$ANTHROPIC_SECRET' — injecting as ANTHROPIC_API_KEY"
-    SECRET_ARGS=(--set-secrets "ANTHROPIC_API_KEY=${ANTHROPIC_SECRET}:latest")
+    SECRET_ARGS+=(--set-secrets "ANTHROPIC_API_KEY=${ANTHROPIC_SECRET}:latest")
     gcloud secrets add-iam-policy-binding "$ANTHROPIC_SECRET" \
         --member "serviceAccount:$RUNTIME_SA" \
         --role roles/secretmanager.secretAccessor >/dev/null || true
 else
     echo "==> Secret '$ANTHROPIC_SECRET' not found — skipping (生成AI は後フェーズ)"
+fi
+
+PROXY_SECRET="${PROXY_SECRET:-keiba-proxy}"
+if gcloud secrets describe "$PROXY_SECRET" >/dev/null 2>&1; then
+    echo "==> Found secret '$PROXY_SECRET' — injecting as KEIBA_PROXY (IP ブロック回避)"
+    # 既存の --set-secrets を上書きしないよう、カンマ連結で追記
+    if [ ${#SECRET_ARGS[@]} -gt 0 ]; then
+        SECRET_ARGS[1]="${SECRET_ARGS[1]},KEIBA_PROXY=${PROXY_SECRET}:latest"
+    else
+        SECRET_ARGS=(--set-secrets "KEIBA_PROXY=${PROXY_SECRET}:latest")
+    fi
+    gcloud secrets add-iam-policy-binding "$PROXY_SECRET" \
+        --member "serviceAccount:$RUNTIME_SA" \
+        --role roles/secretmanager.secretAccessor >/dev/null || true
+else
+    echo "==> Secret '$PROXY_SECRET' not found — KEIBA_PROXY 無しでデプロイ"
+    echo "    （netkeiba が 403 になる場合は keiba-proxy を作成して再デプロイ。"
+    echo "      詳細は deploy/keiba/README.md の『IP ブロックと対策』）"
 fi
 
 # 7) Cloud Run へデプロイ

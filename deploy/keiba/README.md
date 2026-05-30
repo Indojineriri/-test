@@ -60,7 +60,8 @@ SERVICE=keiba-staging ./deploy/keiba/deploy.sh
 3. GCS バケットを作成（無ければ）
 4. `cloudbuild.yaml` でイメージをビルド & push
 5. ランタイム SA にバケットの `objectAdmin` を付与
-6. 共有 Secret `anthropic-api-key` があれば `ANTHROPIC_API_KEY` として注入（生成AI フェーズ用）
+6. Secret 注入（あれば）: `anthropic-api-key`→`ANTHROPIC_API_KEY`（生成AI 用）、
+   `keiba-proxy`→`KEIBA_PROXY`（netkeiba の IP ブロック回避用プロキシ）
 7. Cloud Run へデプロイし、URL を表示
 
 ## 動作確認
@@ -69,12 +70,16 @@ SERVICE=keiba-staging ./deploy/keiba/deploy.sh
 URL="$(gcloud run services describe keiba --region asia-northeast1 \
        --format 'value(status.url)')"
 
-curl "$URL/healthz"                          # {"status":"ok"}
+curl "$URL/healthz"                          # {"status":"ok"}（外部アクセスしない）
+curl "$URL/diag"                             # ★まず到達性を確認（403 なら下記の対策へ）
 curl "$URL/fetch?race_id=202605021211"       # 取得して GCS に保存（2026ダービー）
 curl "$URL/races"                            # 取得済みレース一覧
 curl "$URL/races/202605021211"               # メタ + 取得サマリ
 curl "$URL/races/202605021211/entries.csv"   # 出馬表 CSV
 ```
+
+> **デプロイしたらまず `/diag`。** netkeiba に到達できるか（403 で弾かれていないか）を
+> 確認してから `/fetch` を回してください。403 の場合は下記「IP ブロックと対策」へ。
 
 ## エンドポイント
 
@@ -94,7 +99,71 @@ curl "$URL/races/202605021211/entries.csv"   # 出馬表 CSV
 | `KEIBA_STORAGE_URI` | `/tmp/keiba` | 保存先。Cloud Run では `gs://<bucket>/keiba` |
 | `KEIBA_FETCH_WAIT` | `1.5` | リクエスト間ウェイト秒（netkeiba への配慮） |
 | `KEIBA_MAX_HISTORY` | （無制限） | 1頭あたり遡る過去レース数の上限 |
-| `KEIBA_FETCH_TOKEN` | （無し） | 設定すると `/fetch` に `?token=` / `X-Auth-Token` を要求 |
+| `KEIBA_FETCH_TOKEN` | （無し） | 設定すると `/fetch` `/diag` に `?token=` / `X-Auth-Token` を要求 |
+| `KEIBA_PROXY` | （無し） | 外向きプロキシ URL。**GCP IP ブロックの回避に使う**（後述） |
+
+## ⚠️ Cloud Run から実スクレイピングする際の最重要ポイント：IP ブロック
+
+**netkeiba は anti-bot を入れており、GCP（Cloud Run）のデータセンタ IP からの
+アクセスは `HTTP 403` で弾かれることがあります。** 実際、この開発環境（同じく
+データセンタ IP）から netkeiba にアクセスすると 403 が返ります。Cloud Run の
+デフォルト egress も GCP の共有 IP なので、**そのままでは 403 になる可能性が高い**。
+
+「コードを書けば動く」問題ではなく、**出口 IP の問題**である点に注意してください。
+
+### まず到達性を診断する（`/diag`）
+
+デプロイ後、スクレイピング本体を走らせる前に到達性を確認できます:
+
+```bash
+curl "$URL/diag"
+# 到達OK   → {"ok": true, "status": 200, "via_proxy": false}
+# ブロック → {"ok": false, "status": 403, "blocked": true, ...}  ← 対策が必要
+```
+
+`/fetch` も 403 を検知すると **502 + 対処ヒント**を返します（無駄なリトライはしません）。
+
+### 対策：外向きプロキシを経由する（`KEIBA_PROXY`）
+
+403 になる場合は、ブロックされていない IP を持つプロキシ経由で egress します。
+`KEIBA_PROXY` にプロキシ URL を設定すると、全リクエストがそこを通ります。
+
+```bash
+# プロキシを Secret に入れて注入（推奨。認証情報を環境変数に直書きしない）
+echo -n "http://user:pass@proxy.example.com:8080" | \
+  gcloud secrets create keiba-proxy --data-file=-
+gcloud secrets add-iam-policy-binding keiba-proxy \
+  --member "serviceAccount:<runtime-sa>" --role roles/secretmanager.secretAccessor
+
+gcloud run services update keiba --region asia-northeast1 \
+  --set-secrets "KEIBA_PROXY=keiba-proxy:latest"
+
+# 確認
+curl "$URL/diag"   # {"ok": true, "via_proxy": true} になれば成功
+```
+
+プロキシの選択肢（ブロック回避の確度が高い順）:
+
+| 方式 | 効果 | 備考 |
+|---|---|---|
+| 住宅用(residential)プロキシ | ◎ | 一般家庭 IP。anti-bot を最も通りやすい。有料サービス |
+| データセンタプロキシ | △ | 別 DC の IP。ブロック対象に入っていれば不可 |
+| 自前 VM/VPS をプロキシ化 | ○〜△ | その VM の IP 次第。安価だが IP 評価に依存 |
+
+### （補足）Cloud NAT で固定 IP にする方法とその限界
+
+「Cloud Run → VPC コネクタ → Cloud NAT で固定 IP」にすれば egress IP を固定
+できますが、**その固定 IP も GCP のレンジなので netkeiba にブロックされ得ます**。
+固定 IP 自体はブロック回避の保証にはならない点に注意（業務都合で egress IP を
+固定したい場合の手段、と割り切る）。本ツールでは、確度の高い
+**プロキシ経由（`KEIBA_PROXY`）を第一の対策**として推奨します。
+
+### ローカル（手元の家庭/オフィス回線）なら通ることが多い
+
+開発・検証段階では、`KEIBA_STORAGE_URI=gs://...` を指定しつつ **手元マシンから**
+`fetch` を回して GCS に貯める、という運用も有効です（手元の回線 IP はブロック
+されにくい）。Cloud Run はその後の参照 API / 定期ジョブとして使う、という
+ハイブリッドも現実的です。
 
 ## セキュリティ上の注意
 

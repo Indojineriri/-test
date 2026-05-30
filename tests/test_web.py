@@ -119,6 +119,45 @@ def test_web_token_protection(tmp, monkeypatch):
     assert client.get("/fetch?race_id=2026&token=wrong").status_code == 401
 
 
+def test_web_diag(tmp, monkeypatch):
+    """/diag は check_connectivity を呼び、到達なら 200・ブロックなら 502。"""
+    monkeypatch.setenv("KEIBA_STORAGE_URI", str(tmp / "diag"))
+    import keiba.service as svc
+    from keiba.web import app as webmod
+
+    monkeypatch.setattr(svc, "check_connectivity",
+                        lambda proxy=None: {"ok": True, "status": 200})
+    # web 層は service をモジュール参照で import 済みなので web 側も差し替える
+    monkeypatch.setattr(webmod, "check_connectivity",
+                        lambda proxy=None: {"ok": True, "status": 200})
+    client = webmod.app.test_client()
+    r = client.get("/diag")
+    assert r.status_code == 200 and r.get_json()["ok"] is True
+
+    monkeypatch.setattr(webmod, "check_connectivity",
+                        lambda proxy=None: {"ok": False, "status": 403, "blocked": True})
+    r = client.get("/diag")
+    assert r.status_code == 502 and r.get_json()["blocked"] is True
+
+
+def test_web_fetch_blocked_returns_502(tmp, monkeypatch):
+    """取得が AccessBlockedError なら 502 + hint を返す。"""
+    monkeypatch.setenv("KEIBA_STORAGE_URI", str(tmp / "blk"))
+    import keiba.service as svc
+    from keiba.web import app as webmod
+    from keiba.collect.netkeiba_client import AccessBlockedError
+
+    def boom(*a, **k):
+        raise AccessBlockedError("HTTP 403 ...（現在プロキシ未設定）")
+
+    monkeypatch.setattr(webmod, "fetch_and_store", boom)
+    client = webmod.app.test_client()
+    r = client.get("/fetch?race_id=202605021211")
+    assert r.status_code == 502
+    body = r.get_json()
+    assert body["blocked"] is True and "KEIBA_PROXY" in body["hint"]
+
+
 # --- 簡易テストランナー（pytest 無し環境でも動く） ------------------------
 
 class _MonkeyPatch:
