@@ -1,25 +1,31 @@
 """③④⑤を見据えた keiba の HTTP サービス（Flask）。
 
 Cloud Run 上で動く WSGI アプリ。エントリポイントは `keiba.web.app:app`。
-現フェーズでは ①②データ取得を HTTP 越しに実行・参照できるようにする。
+
+【運用方針】Cloud Run は **GCS に貯めたデータの参照・予想・可視化に専念**する。
+データ取得（スクレイピング）は netkeiba が GCP/データセンタ IP を 403 で弾くため
+**手元の回線で `keiba.cli fetch` を実行**して GCS に保存する（取得は Cloud Run で
+行わない）。そのため取得系エンドポイント（/fetch・/diag）は **既定で無効**。
+どうしても有効化したい開発時のみ KEIBA_ENABLE_FETCH=1 を設定する。
 
 環境変数:
-    KEIBA_STORAGE_URI   出力の保存先。Cloud Run では gs://<bucket>/keiba。
+    KEIBA_STORAGE_URI   参照するデータの場所。Cloud Run では gs://<bucket>/keiba。
                         未設定ならローカル /tmp/keiba（開発用）。
-    KEIBA_FETCH_WAIT    リクエスト間ウェイト秒（既定 1.5）
+    KEIBA_ENABLE_FETCH  "1"/"true" で取得系(/fetch・/diag)を有効化（既定 無効）。
+    KEIBA_FETCH_WAIT    リクエスト間ウェイト秒（既定 1.5。取得有効時のみ）
     KEIBA_MAX_HISTORY   1頭あたり遡る過去レース数の上限（既定 無制限）
-    KEIBA_FETCH_TOKEN   設定すると /fetch に ?token= or X-Auth-Token を要求（簡易保護）
-    KEIBA_PROXY         外向きプロキシ URL（GCP IP がブロックされる場合の回避策）
+    KEIBA_FETCH_TOKEN   設定すると取得系に ?token= or X-Auth-Token を要求（簡易保護）
+    KEIBA_PROXY         外向きプロキシ URL（取得有効時のみ。通常は使わない）
 
-エンドポイント:
-    GET  /healthz                     ヘルスチェック（外部アクセスしない）
-    GET  /diag                        netkeiba への到達性チェック（IP ブロック診断）
+エンドポイント（参照専用 + 任意の取得系）:
+    GET  /healthz                     ヘルスチェック
     GET  /                            使い方 + 保存済みレース一覧（HTML）
     GET  /races                       保存済みレースID一覧（JSON）
-    POST /fetch  {race_id,...}        取得して GCS に保存（JSON 返却）
-    GET  /fetch?race_id=...           上に同じ（ブラウザ確認用）
     GET  /races/<race_id>             メタ + 取得サマリ（JSON）
     GET  /races/<race_id>/<name>.csv  entries/results/races/horses の CSV
+    -- 以下は KEIBA_ENABLE_FETCH=1 のときだけ動作（既定 無効=403）--
+    GET  /diag                        netkeiba への到達性チェック
+    GET/POST /fetch?race_id=...       取得して保存
 """
 
 from __future__ import annotations
@@ -50,6 +56,20 @@ def _check_token() -> bool:
     return given == expected
 
 
+def _fetch_enabled() -> bool:
+    """取得系(/fetch・/diag)が有効か。Cloud Run は参照専用なので既定 無効。"""
+    return os.environ.get("KEIBA_ENABLE_FETCH", "").lower() in ("1", "true", "yes")
+
+
+def _fetch_disabled_response():
+    return jsonify(
+        error="fetch is disabled on this deployment",
+        detail="このデプロイは参照・予想専用です。データ取得は手元の回線で "
+               "`python3 -m keiba.cli fetch --race-id <id> --out gs://<bucket>/keiba` "
+               "を実行してください（netkeiba は GCP/DC IP を 403 で弾くため）。",
+    ), 403
+
+
 @app.get("/healthz")
 def healthz():
     return jsonify(status="ok")
@@ -62,6 +82,8 @@ def diag():
     例: {"ok": true, "status": 200, "via_proxy": false}
         {"ok": false, "status": 403, "blocked": true, ...}  ← IP ブロックの疑い
     """
+    if not _fetch_enabled():
+        return _fetch_disabled_response()
     if not _check_token():
         return jsonify(error="unauthorized"), 401
     result = check_connectivity(proxy=os.environ.get("KEIBA_PROXY"))
@@ -79,17 +101,26 @@ def index():
         f'(<a href="/races/{r}/entries.csv">entries.csv</a>)</li>'
         for r in races
     ) or "<li><em>まだ取得済みレースはありません</em></li>"
+    if _fetch_enabled():
+        fetch_section = (
+            '<h2>レース取得（開発時のみ有効）</h2>'
+            '<form action="/fetch" method="get">'
+            'race_id: <input name="race_id" placeholder="202605021211" size="16">'
+            '<input type="submit" value="取得"></form>'
+        )
+    else:
+        fetch_section = (
+            '<h2>データ取得について</h2>'
+            '<p>このデプロイは<strong>参照・予想専用</strong>です。データ取得は'
+            '手元の回線で次を実行し、GCS に保存してください:</p>'
+            '<pre>python3 -m keiba.cli fetch --race-id 202605021211 '
+            '--out gs://&lt;bucket&gt;/keiba</pre>'
+        )
     html = f"""<!doctype html><meta charset="utf-8">
-<title>keiba データ収集サービス</title>
-<h1>keiba — 競馬データ収集サービス</h1>
-<p>保存先: <code>{store.uri()}</code></p>
-<h2>レース取得</h2>
-<p>例（2026 日本ダービー）:
-<code>GET /fetch?race_id=202605021211</code></p>
-<form action="/fetch" method="get">
-  race_id: <input name="race_id" placeholder="202605021211" size="16">
-  <input type="submit" value="取得">
-</form>
+<title>keiba データ参照サービス</title>
+<h1>keiba — 競馬データ参照・予想サービス</h1>
+<p>参照先: <code>{store.uri()}</code></p>
+{fetch_section}
 <h2>取得済みレース</h2>
 <ul>{items}</ul>
 """
@@ -103,6 +134,8 @@ def races():
 
 @app.route("/fetch", methods=["GET", "POST"])
 def fetch():
+    if not _fetch_enabled():
+        return _fetch_disabled_response()
     if not _check_token():
         return jsonify(error="unauthorized"), 401
 

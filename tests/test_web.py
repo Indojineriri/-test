@@ -81,8 +81,52 @@ def test_fetch_and_store_via_fake(tmp, monkeypatch):
 
 # --- web 層（Flask テストクライアント） -----------------------------------
 
-def test_web_endpoints(tmp, monkeypatch):
+def test_reference_endpoints(tmp, monkeypatch):
+    """参照系（Cloud Run の本来の役割）: 手元取得済みデータを読めること。"""
     monkeypatch.setenv("KEIBA_STORAGE_URI", str(tmp / "web"))
+    # 手元取得を模して、service で直接データを作っておく（参照対象）
+    import keiba.service as svc
+    from keiba.web import app as webmod
+
+    def fake_ds(race_id, client=None, max_history_per_horse=None):
+        return NetkeibaDataSource(race_id, client=FakeClient(),
+                                  max_history_per_horse=max_history_per_horse)
+
+    monkeypatch.setattr(svc, "NetkeibaDataSource", fake_ds)
+    store = LocalStorage(tmp / "web")
+    svc.fetch_and_store("202605021211", store, use_cache=False)  # 事前投入（=手元取得相当）
+
+    client = webmod.app.test_client()
+    assert client.get("/healthz").get_json()["status"] == "ok"
+
+    # 参照系は常に有効
+    assert "202605021211" in client.get("/races").get_json()["races"]
+    assert client.get("/races/202605021211").get_json()["race_id"] == "202605021211"
+    csv = client.get("/races/202605021211/entries.csv")
+    assert csv.status_code == 200 and "テストランナー" in csv.get_data(as_text=True)
+    assert client.get("/races/NOPE").status_code == 404
+    assert client.get("/races/202605021211/bogus.csv").status_code == 400
+
+
+def test_fetch_disabled_by_default(tmp, monkeypatch):
+    """既定では Cloud Run の取得系は無効（403）。参照専用デプロイの担保。"""
+    monkeypatch.setenv("KEIBA_STORAGE_URI", str(tmp / "ro"))
+    # KEIBA_ENABLE_FETCH は設定しない
+    from keiba.web import app as webmod
+    client = webmod.app.test_client()
+
+    r = client.get("/fetch?race_id=202605021211")
+    assert r.status_code == 403
+    assert "cli fetch" in r.get_json()["detail"]
+
+    r = client.get("/diag")
+    assert r.status_code == 403
+
+
+def test_web_endpoints_when_fetch_enabled(tmp, monkeypatch):
+    """開発時に KEIBA_ENABLE_FETCH=1 にすれば /fetch が動く。"""
+    monkeypatch.setenv("KEIBA_STORAGE_URI", str(tmp / "web"))
+    monkeypatch.setenv("KEIBA_ENABLE_FETCH", "1")
 
     import keiba.service as svc
     from keiba.web import app as webmod
@@ -94,24 +138,15 @@ def test_web_endpoints(tmp, monkeypatch):
     monkeypatch.setattr(svc, "NetkeibaDataSource", fake_ds)
     client = webmod.app.test_client()
 
-    assert client.get("/healthz").get_json()["status"] == "ok"
     assert client.get("/fetch").status_code == 400  # race_id 無し
-
     r = client.get("/fetch?race_id=202605021211")
     assert r.status_code == 200, r.get_data(as_text=True)
     assert r.get_json()["counts"]["entries"] == 3
 
-    assert "202605021211" in client.get("/races").get_json()["races"]
-    assert client.get("/races/202605021211").get_json()["race_id"] == "202605021211"
-    csv = client.get("/races/202605021211/entries.csv")
-    assert csv.status_code == 200 and "テストランナー" in csv.get_data(as_text=True)
-
-    assert client.get("/races/NOPE").status_code == 404
-    assert client.get("/races/202605021211/bogus.csv").status_code == 400
-
 
 def test_web_token_protection(tmp, monkeypatch):
     monkeypatch.setenv("KEIBA_STORAGE_URI", str(tmp / "wtok"))
+    monkeypatch.setenv("KEIBA_ENABLE_FETCH", "1")
     monkeypatch.setenv("KEIBA_FETCH_TOKEN", "secret")
     from keiba.web import app as webmod
     client = webmod.app.test_client()
@@ -120,14 +155,11 @@ def test_web_token_protection(tmp, monkeypatch):
 
 
 def test_web_diag(tmp, monkeypatch):
-    """/diag は check_connectivity を呼び、到達なら 200・ブロックなら 502。"""
+    """/diag は（有効時）check_connectivity を呼び、到達なら 200・ブロックなら 502。"""
     monkeypatch.setenv("KEIBA_STORAGE_URI", str(tmp / "diag"))
-    import keiba.service as svc
+    monkeypatch.setenv("KEIBA_ENABLE_FETCH", "1")
     from keiba.web import app as webmod
 
-    monkeypatch.setattr(svc, "check_connectivity",
-                        lambda proxy=None: {"ok": True, "status": 200})
-    # web 層は service をモジュール参照で import 済みなので web 側も差し替える
     monkeypatch.setattr(webmod, "check_connectivity",
                         lambda proxy=None: {"ok": True, "status": 200})
     client = webmod.app.test_client()
@@ -141,9 +173,9 @@ def test_web_diag(tmp, monkeypatch):
 
 
 def test_web_fetch_blocked_returns_502(tmp, monkeypatch):
-    """取得が AccessBlockedError なら 502 + hint を返す。"""
+    """取得（有効時）が AccessBlockedError なら 502 + hint を返す。"""
     monkeypatch.setenv("KEIBA_STORAGE_URI", str(tmp / "blk"))
-    import keiba.service as svc
+    monkeypatch.setenv("KEIBA_ENABLE_FETCH", "1")
     from keiba.web import app as webmod
     from keiba.collect.netkeiba_client import AccessBlockedError
 

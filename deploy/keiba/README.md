@@ -1,27 +1,37 @@
 # keiba を Cloud Run で運用する
 
-競馬データ収集サービス（keiba）を Google Cloud Run 上で動かすための構成。
+競馬データの参照・予想・可視化サービス（keiba）を Google Cloud Run 上で動かす構成。
 既存の PPT 生成アプリ（meeting-support）とは **別イメージ・別サービス**で、
 GCP プロジェクト / Artifact Registry / Anthropic Secret のみ共有する。
 
-## 構成
+## アーキテクチャ：取得は手元、Cloud Run は参照・予想
+
+**netkeiba は GCP/データセンタの IP を 403 で弾く**（anti-bot。実測で確認済み）。
+そのため **データ取得（スクレイピング）は手元のネット回線で実行**し、結果を GCS に
+保存する。**Cloud Run はその GCS のデータを参照・予想・可視化する専用**とする。
 
 ```
-HTTP リクエスト
-   │  GET /fetch?race_id=202605021211
-   ▼
-Cloud Run サービス "keiba"  ── Flask + gunicorn（keiba.web.app:app）
+[手元のPC（家庭/オフィス回線）]
+   python3 -m keiba.cli fetch --race-id 202605021211 --out gs://<bucket>/keiba
    │  ① 出馬表 → ② 各馬キャリア → 各レース結果 をスクレイピング
-   ▼
+   ▼ 直接 GCS に書き込み（races/<id>/*.csv + meta.json）
 GCS バケット  gs://<project>-keiba/keiba/
-   ├ cache/                       … 取得した生 HTML（再取得を避ける永続キャッシュ）
-   └ races/<race_id>/             … パース済み CSV + meta.json
-        entries.csv / results.csv / races.csv / horses.csv / meta.json
+   └ races/<race_id>/  entries.csv / results.csv / races.csv / horses.csv / meta.json
+   ▲ 参照（読み取り）
+   │
+[Cloud Run サービス "keiba"]  ── Flask + gunicorn（keiba.web.app:app）
+   GET /races, /races/<id>, /races/<id>/<name>.csv  … 参照・予想・可視化（取得しない）
 ```
 
-Cloud Run のディスクは揮発性なので、**HTML キャッシュも CSV 出力も GCS に永続化**する
-（`KEIBA_STORAGE_URI=gs://...`）。ローカル開発では `KEIBA_STORAGE_URI` を省略すると
-`/tmp/keiba` に保存され、GCS 無しで動く。
+- Cloud Run 側の取得系（`/fetch`・`/diag`）は **既定で無効（403）**。Cloud Run から
+  netkeiba を叩かないので、IP ブロックにもクレジット乱用にも悩まされない。
+- 手元取得の保存レイアウトは Cloud Run の参照 API と**完全に同一**なので、
+  `--out gs://...` で書けば、そのまま Cloud Run が読める。
+- ローカル開発では `KEIBA_STORAGE_URI` を省略すると `/tmp/keiba` を参照（GCS 不要）。
+
+> 補足: どうしても Cloud Run 側で取得を試したい場合のみ `KEIBA_ENABLE_FETCH=1` で
+> `/fetch`・`/diag` を有効化できる（その際は 403 対策に `KEIBA_PROXY` が要る）。
+> 通常運用では使わない。
 
 ## ファイル
 
@@ -64,33 +74,50 @@ SERVICE=keiba-staging ./deploy/keiba/deploy.sh
    `keiba-proxy`→`KEIBA_PROXY`（netkeiba の IP ブロック回避用プロキシ）
 7. Cloud Run へデプロイし、URL を表示
 
-## 動作確認
+## 使い方（取得は手元、参照は Cloud Run）
+
+### 1. 手元の回線でデータを取得して GCS に保存
+
+```bash
+# 手元の PC（家庭/オフィス回線）で実行。--out に GCS を直接指定できる。
+export PYTHONPATH=src
+python3 -m keiba.cli fetch --race-id 202605021211 --out gs://<bucket>/keiba --wait 1.5
+# -> gs://<bucket>/keiba/races/202605021211/{entries,results,races,horses}.csv + meta.json
+```
+
+### 2. Cloud Run で参照（取得しない）
 
 ```bash
 URL="$(gcloud run services describe keiba --region asia-northeast1 \
        --format 'value(status.url)')"
 
-curl "$URL/healthz"                          # {"status":"ok"}（外部アクセスしない）
-curl "$URL/diag"                             # ★まず到達性を確認（403 なら下記の対策へ）
-curl "$URL/fetch?race_id=202605021211"       # 取得して GCS に保存（2026ダービー）
+curl "$URL/healthz"                          # {"status":"ok"}
 curl "$URL/races"                            # 取得済みレース一覧
 curl "$URL/races/202605021211"               # メタ + 取得サマリ
 curl "$URL/races/202605021211/entries.csv"   # 出馬表 CSV
 ```
 
-> **デプロイしたらまず `/diag`。** netkeiba に到達できるか（403 で弾かれていないか）を
-> 確認してから `/fetch` を回してください。403 の場合は下記「IP ブロックと対策」へ。
+> Cloud Run の `/fetch`・`/diag` は既定で **403（無効）**。データ取得は上記のとおり
+> 手元の `keiba.cli fetch` で行います（netkeiba は GCP/DC IP を弾くため）。
 
 ## エンドポイント
+
+参照系（常に有効）:
 
 | メソッド | パス | 説明 |
 |---|---|---|
 | GET | `/healthz` | ヘルスチェック |
 | GET | `/` | 使い方 + 取得済み一覧（HTML） |
-| GET/POST | `/fetch?race_id=` | 取得して GCS に保存（JSON） |
 | GET | `/races` | 取得済みレースID一覧（JSON） |
 | GET | `/races/<race_id>` | メタ + 取得サマリ（JSON） |
 | GET | `/races/<race_id>/<name>.csv` | entries/results/races/horses の CSV |
+
+取得系（既定 **無効=403**。`KEIBA_ENABLE_FETCH=1` のときだけ動作。通常運用では使わない）:
+
+| メソッド | パス | 説明 |
+|---|---|---|
+| GET | `/diag` | netkeiba 到達性チェック（IP ブロック診断） |
+| GET/POST | `/fetch?race_id=` | 取得して GCS に保存（JSON） |
 
 ## 環境変数
 

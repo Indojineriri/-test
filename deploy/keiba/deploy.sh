@@ -119,18 +119,24 @@ gcloud run services describe "$SERVICE" --region "$REGION" \
 cat <<'EOF'
 
 ----------------------------------------------------------------------
-動作確認:
+このサービスは「参照・予想」専用です（データ取得は手元の回線で行います）。
+
+データ取得（手元の PC で実行 / netkeiba は GCP IP を 403 で弾くため）:
+  export PYTHONPATH=src
+  python3 -m keiba.cli fetch --race-id 202605021211 --out gs://<bucket>/keiba
+
+Cloud Run で参照:
   URL="$(gcloud run services describe keiba --region asia-northeast1 \
          --format 'value(status.url)')"
   curl "$URL/healthz"
-  # 2026 日本ダービーを取得して GCS に保存
-  curl "$URL/fetch?race_id=202605021211"
+  curl "$URL/races"
   curl "$URL/races/202605021211"
+  curl "$URL/races/202605021211/entries.csv"
 
 注意:
   --allow-unauthenticated は URL を知る誰でもアクセス可能になります。
-  scraping が第三者に乱用されないよう、社内利用なら下記いずれかを推奨:
+  社内利用なら下記いずれかを推奨:
     (a) --no-allow-unauthenticated にして IAM(run.invoker) で限定
-    (b) KEIBA_FETCH_TOKEN を Secret で設定し /fetch をトークン保護
+    (b) KEIBA_FETCH_TOKEN を Secret で設定して保護
 ----------------------------------------------------------------------
 EOF

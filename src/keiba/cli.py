@@ -10,8 +10,14 @@
   # 合成データで runs テーブル/特徴量の作られ方を見る（オフラインで動く）
   python3 -m keiba.cli demo-dataset --entrants 18 --career 7
 
-  # netkeiba から取得して CSV 化（※ネットワークのある環境で実行）
-  python3 -m keiba.cli fetch --race-id 202405021211 --out data/derby2024
+  # netkeiba から取得して保存（※手元のネット回線で実行。GCS にも直接書ける）
+  #   ローカルへ:  python3 -m keiba.cli fetch --race-id 202605021211 --out data/derby
+  #   GCS へ直接:  python3 -m keiba.cli fetch --race-id 202605021211 \
+  #                    --out gs://<bucket>/keiba
+  #
+  # 運用方針: 取得は手元回線で実行（netkeiba は GCP/データセンタ IP を 403 で弾く
+  #           ため Cloud Run からは取得しない）。Cloud Run は GCS のデータを
+  #           参照・予想・可視化する専用。詳細は deploy/keiba/README.md。
 """
 
 from __future__ import annotations
@@ -23,8 +29,9 @@ from pathlib import Path
 import pandas as pd
 
 from .collect import netkeiba_parse as P
-from .collect.netkeiba import NetkeibaDataSource, build_race_id
-from .collect.netkeiba_client import NetkeibaClient
+from .collect.netkeiba import build_race_id
+from .storage import Storage
+from . import service
 
 
 def cmd_race_id(args):
@@ -94,27 +101,28 @@ def cmd_demo_dataset(args):
 
 
 def cmd_fetch(args):
-    client = NetkeibaClient(cache_dir=args.cache_dir, wait=args.wait,
-                            use_cache=not args.no_cache)
-    src = NetkeibaDataSource(args.race_id, client=client,
-                             max_history_per_horse=args.max_history)
-    print(f"[fetch] 出馬表とコンテキストを構築します: race_id={args.race_id}")
-    ctx = src.build_context()
-    print(f"  出走 {len(ctx.entries)} 頭 / 過去レース {len(ctx.races)} 件 / "
-          f"成績 {len(ctx.history)} 行")
+    """手元の回線で netkeiba から取得し、ローカル or GCS に保存する。
 
-    out = Path(args.out)
-    out.mkdir(parents=True, exist_ok=True)
-    ctx.entries.to_csv(out / "entries.csv", index=False)
-    ctx.history.to_csv(out / "results.csv", index=False)
-    ctx.races.to_csv(out / "races.csv", index=False)
-    if ctx.horses is not None:
-        ctx.horses.to_csv(out / "horses.csv", index=False)
-    import json
-    (out / "race_meta.json").write_text(
-        json.dumps(ctx.race, ensure_ascii=False, indent=2, default=str),
-        encoding="utf-8")
-    print(f"  -> {out}/ に entries/results/races/horses.csv と race_meta.json を保存")
+    保存レイアウトは Cloud Run の参照 API と同一（races/<race_id>/*.csv + meta.json）
+    なので、--out に gs://<bucket>/keiba を渡せば、そのまま Cloud Run が読める。
+    """
+    store = Storage.from_uri(args.out)
+    print(f"[fetch] race_id={args.race_id} を取得します（保存先: {store.uri()}）")
+    print("        ※ netkeiba は GCP/DC IP を 403 で弾くため、手元回線で実行してください。")
+    try:
+        summary = service.fetch_and_store(
+            args.race_id, store, wait=args.wait,
+            max_history_per_horse=args.max_history,
+            use_cache=not args.no_cache, proxy=args.proxy)
+    except Exception as e:
+        sys.exit(f"[fetch] 失敗: {e}")
+
+    c = summary["counts"]
+    print(f"  出走 {c['entries']} 頭 / 過去レース {c['races']} 件 / "
+          f"成績 {c['results']} 行 / 血統 {c['horses']} 頭")
+    print(f"  -> {summary['storage']}/ に entries/results/races/horses.csv + meta.json")
+    if str(args.out).startswith("gs://"):
+        print(f"  Cloud Run（参照専用）からは /races/{args.race_id} で参照できます。")
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -144,14 +152,18 @@ def build_parser() -> argparse.ArgumentParser:
     pd_.add_argument("--seed", type=int, default=2)
     pd_.set_defaults(func=cmd_demo_dataset)
 
-    pf = sub.add_parser("fetch", help="netkeiba から取得し CSV 化（要ネットワーク）")
+    pf = sub.add_parser("fetch",
+                        help="netkeiba から取得し保存（手元回線で実行。--out に gs:// 可）")
     pf.add_argument("--race-id", required=True)
-    pf.add_argument("--out", default="data/fetched")
-    pf.add_argument("--cache-dir", default="data/cache")
+    pf.add_argument("--out", default="data/fetched",
+                    help="保存先。ローカルパス or gs://<bucket>/keiba")
     pf.add_argument("--wait", type=float, default=1.5, help="リクエスト間ウェイト秒")
     pf.add_argument("--max-history", type=int, default=None,
                     help="1頭あたり遡る過去レース数の上限")
-    pf.add_argument("--no-cache", action="store_true")
+    pf.add_argument("--proxy", default=None,
+                    help="外向きプロキシ URL（通常は手元回線なので不要）")
+    pf.add_argument("--no-cache", action="store_true",
+                    help="HTML キャッシュを使わず必ず再取得")
     pf.set_defaults(func=cmd_fetch)
 
     return p
