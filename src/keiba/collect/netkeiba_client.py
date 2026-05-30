@@ -34,6 +34,9 @@ from ..storage import Storage
 # netkeiba の URL テンプレート
 URL_RACE_RESULT = "https://db.netkeiba.com/race/{race_id}/"
 URL_HORSE = "https://db.netkeiba.com/horse/{horse_id}/"
+# 戦績一覧ページ。db.netkeiba.com/horse/{id}/ はトップで戦績表を JS 描画するため
+# requests では取れない。/horse/result/{id}/ は戦績がサーバHTMLに含まれる（静的）。
+URL_HORSE_RESULT = "https://db.netkeiba.com/horse/result/{horse_id}/"
 URL_SHUTUBA = "https://race.netkeiba.com/race/shutuba.html?race_id={race_id}"
 
 # db.netkeiba.com は EUC-JP、race.netkeiba.com は UTF-8 が基本
@@ -96,8 +99,14 @@ class NetkeibaClient:
                                 f"shutuba_{race_id}.html")
 
     def horse_html(self, horse_id: str) -> str:
+        """競走馬トップ（血統・プロフィール用）。戦績表は JS 描画なので含まれない。"""
         return self._get_cached(URL_HORSE.format(horse_id=horse_id),
                                 f"horse_{horse_id}.html")
+
+    def horse_result_html(self, horse_id: str) -> str:
+        """競走馬の戦績一覧ページ（戦績がサーバHTMLに含まれる＝requestsで取れる）。"""
+        return self._get_cached(URL_HORSE_RESULT.format(horse_id=horse_id),
+                                f"horseresult_{horse_id}.html")
 
     # --- 診断: Cloud Run から netkeiba に到達できるか確かめる ----------------
 

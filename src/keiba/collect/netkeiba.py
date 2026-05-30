@@ -64,19 +64,17 @@ class NetkeibaDataSource(DataSource):
     def get_past_races(self, horse_ids=None):
         """出走各馬の過去レース結果を集約して (races_df, results_df) を返す。
 
-        収集方式は2つ:
-          - 既定（horse_page_direct=True）: 各馬の競走馬ページの戦績表を *直接* パース。
-            race_id を抽出して別ページに飛ばないので取りこぼしが無く確実。
-            その馬自身の全成績が 1 ページで取れる。
-          - expand_co_runners=True: さらに各レースの結果ページも取得し、同走馬の行も
-            集める（学習データを増やす用。取得ページ数が大幅に増える）。
+        各馬の戦績一覧ページ (/horse/result/{id}/) の戦績表を *直接* パースする。
+        トップ (/horse/{id}/) は戦績表を JS 描画するため requests では取れないので、
+        戦績がサーバHTMLに含まれる result ページを使う。race_id を抽出して別ページに
+        飛ばないので取りこぼしが無く、その馬の全成績が 1 ページで取れる。
         """
         if horse_ids is None:
             raise ValueError("netkeiba では horse_ids（出走馬ID）の指定が必要です。")
 
         results_frames, race_meta = [], {}
         for hid in horse_ids:
-            html = self.client.horse_html(str(hid))
+            html = self.client.horse_result_html(str(hid))
             df = P.parse_horse_results(html, str(hid))
             if self.max_history_per_horse and len(df) > self.max_history_per_horse:
                 df = df.head(self.max_history_per_horse)

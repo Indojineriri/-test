@@ -102,58 +102,59 @@ def cmd_demo_dataset(args):
 
 
 def cmd_diagnose_horse(args):
-    """キャッシュ済みの競走馬ページHTMLの中身を点検する（戦績パース不能の原因特定）。
+    """競走馬の戦績一覧ページHTMLの中身を点検する（戦績パース不能の原因特定）。
 
-    cache/horse_<id>.html を読み、(1) HTMLサイズ、(2) ページ内の table 一覧と
-    その class・行数・ヘッダ文字列、(3) 戦績表として認識できたか、(4) パース行数 を
-    表示する。これで「なぜ過去成績0行なのか」を実HTMLから機械的に特定できる。
+    既定では戦績一覧ページ (/horse/result/{id}/) を取得して点検する。
+    /horse/{id}/ トップは戦績表を JS 描画するため requests では戦績が取れない。
+    (1) HTMLサイズ、(2) ページ内の table 一覧（class・行数・ヘッダ）、
+    (3) パース行数 を表示する。
     """
     import io
     import pandas as pd
     from bs4 import BeautifulSoup
     from .collect import netkeiba_parse as P
+    from .collect.netkeiba_client import NetkeibaClient
 
     store = Storage.from_uri(args.store)
     ent_text = store.read_text(f"races/{args.race_id}/entries.csv")
     if not ent_text:
         sys.exit(f"[diagnose-horse] entries.csv が見つかりません: {args.race_id}")
     entries = pd.read_csv(io.StringIO(ent_text), dtype={"horse_id": str})
-    cache = Storage.from_uri(store.uri("cache"))
 
-    # 既定では先頭1頭だけ詳しく見る（--all で全頭サマリ）
+    # 戦績は /horse/result/ を取得して点検（手元回線で実取得）
+    client = NetkeibaClient(cache=Storage.from_uri(store.uri("cache")),
+                            wait=args.wait, proxy=args.proxy)
     targets = entries if args.all else entries.head(1)
 
     for _, e in targets.iterrows():
         hid = str(e["horse_id"])
         name = str(e.get("horse_name", ""))
-        html = cache.read_text(f"horse_{hid}.html")
         print(f"\n===== {name} (horse_id={hid}) =====")
-        if html is None:
-            print("  ⚠ HTMLキャッシュ無し（--no-cache で再fetchが必要）")
+        try:
+            html = client.horse_result_html(hid)
+        except Exception as ex:
+            print(f"  ⚠ 取得失敗: {ex}")
             continue
+        print(f"  URL: db.netkeiba.com/horse/result/{hid}/")
         print(f"  HTMLサイズ: {len(html):,} 文字")
-        # 403/エラーページの兆候
-        low = html[:2000]
-        if "403" in low or "Forbidden" in low or "アクセスができません" in html[:4000]:
-            print("  ⚠ ブロック/エラーページの可能性（先頭に 403/Forbidden）")
+        if "アクセスができません" in html[:4000] or "Forbidden" in html[:2000]:
+            print("  ⚠ ブロック/エラーページの可能性")
         soup = BeautifulSoup(html, "lxml")
         title = soup.find("h1")
         print(f"  <h1>: {P._text(title)[:40] if title else '(なし)'}")
 
-        # ページ内の table を列挙
         tables = soup.find_all("table")
         print(f"  table 数: {len(tables)}")
         for i, tbl in enumerate(tables[:12]):
             cls = ".".join(tbl.get("class", []) or [])
             head = tbl.find("tr")
-            htxt = re.sub(r"\s+", " ", P._text(head))[:70] if head else ""
+            htxt = re.sub(r"\s+", " ", P._text(head))[:80] if head else ""
             nrows = len(tbl.find_all("tr"))
             mark = ""
-            if head and "日付" in P._text(head) and "着" in P._text(head):
+            if head and "日付" in P._text(head):
                 mark = "  ← 戦績表っぽい"
             print(f"    [{i}] class='{cls}' 行数={nrows} ヘッダ='{htxt}'{mark}")
 
-        # 現行パーサで戦績表が取れるか
         df = P.parse_horse_results(html, hid)
         print(f"  parse_horse_results → {len(df)} 行")
         if not args.all and len(df) == 0:
@@ -362,6 +363,8 @@ def build_parser() -> argparse.ArgumentParser:
                      help="参照先。fetch の --out と同じ場所（ローカル or gs://）")
     pdh.add_argument("--all", action="store_true",
                      help="全出走馬を点検（既定は先頭1頭を詳しく）")
+    pdh.add_argument("--wait", type=float, default=1.5, help="リクエスト間ウェイト秒")
+    pdh.add_argument("--proxy", default=None, help="外向きプロキシ URL（任意）")
     pdh.set_defaults(func=cmd_diagnose_horse)
 
     return p

@@ -31,6 +31,9 @@ class FakeClient:
     def horse_html(self, horse_id):
         return _read("horse.html")
 
+    def horse_result_html(self, horse_id):
+        return _read("horse.html")
+
     def race_result_html(self, race_id):
         return _read("race_result.html")
 

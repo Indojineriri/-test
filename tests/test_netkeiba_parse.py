@@ -153,6 +153,10 @@ class FakeClient:
     def horse_html(self, horse_id):
         return _read("horse.html")
 
+    def horse_result_html(self, horse_id):
+        # 戦績一覧ページ。フィクスチャは horse.html に戦績表を含めている。
+        return _read("horse.html")
+
     def race_result_html(self, race_id):
         # どの race_id でも同じ結果ページ構造を返す（race_id は引数で渡る）
         return _read("race_result.html")
