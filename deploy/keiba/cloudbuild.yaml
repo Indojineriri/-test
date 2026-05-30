@@ -11,7 +11,9 @@ steps:
       - ${_IMAGE}
       - .
   - name: gcr.io/cloud-builders/docker
-    args: [push, ${_IMAGE}]
+    args:
+      - push
+      - ${_IMAGE}
 images:
   - ${_IMAGE}
 options:
