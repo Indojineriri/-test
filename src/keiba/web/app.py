@@ -96,38 +96,57 @@ def diag():
 
 @app.get("/")
 def index():
+    from ..service import load_actual, load_meta
     store = _store()
     races = list_races(store)
     genai_on = bool(os.environ.get("ANTHROPIC_API_KEY"))
 
-    if races:
-        rows = []
-        for r in races:
-            genai_btn = (
-                f'<button onclick="run(\'genai-predict\',\'{r}\',this)">🤖 生成AI予想</button>'
-                if genai_on else
-                '<button disabled title="ANTHROPIC_API_KEY 未設定">🤖 生成AI予想(無効)</button>'
+    # 予想対象（actual.csv が無い＝未施行）と、学習用の過去データ（actual.csv あり）に分ける
+    upcoming, past = [], []
+    for r in races:
+        meta = load_meta(r, store) or {}
+        name = (meta.get("race_meta") or {}).get("race_name") or r
+        date = (meta.get("race_meta") or {}).get("date") or ""
+        info = {"id": r, "name": name, "date": date}
+        (past if load_actual(r, store) is not None else upcoming).append(info)
+
+    def _genai_btn(rid):
+        if genai_on:
+            return f'<button onclick="run(\'genai-predict\',\'{rid}\',this)">🤖 生成AI予想</button>'
+        return '<button disabled title="ANTHROPIC_API_KEY 未設定">🤖 生成AI予想(無効)</button>'
+
+    # 主役: 予想対象レース（カード形式で大きく）
+    if upcoming:
+        cards = []
+        for u in upcoming:
+            cards.append(
+                f'<div class="target">'
+                f'<h3>{u["name"]} <span class="note">{u["date"]}　(ID: {u["id"]})</span></h3>'
+                f'<p>過去のダービー結果から傾向を学び、このレースを予想します。</p>'
+                f'<button onclick="run(\'predict\',\'{u["id"]}\',this)">📊 ML予想する</button> '
+                f'{_genai_btn(u["id"])}'
+                f'<div class="result" id="res-{u["id"]}"></div>'
+                f'</div>'
             )
-            rows.append(
-                f'<tr><td><b>{r}</b></td>'
-                f'<td><a href="/races/{r}">メタ</a> / '
-                f'<a href="/races/{r}/entries.csv">出馬表CSV</a></td>'
-                f'<td><button onclick="run(\'predict\',\'{r}\',this)">📊 ML予想</button> '
-                f'{genai_btn}</td></tr>'
-                f'<tr><td colspan="3"><div class="result" id="res-{r}"></div></td></tr>'
-            )
-        race_table = (
-            '<table><thead><tr><th>レースID</th><th>データ</th>'
-            '<th>予想を実行</th></tr></thead><tbody>'
-            + "".join(rows) + '</tbody></table>'
+        target_section = "".join(cards)
+    else:
+        target_section = ('<p><em>予想対象レース（未施行）がまだありません。'
+                          '今年のレースを <code>fetch --race-id ...</code>（--past 無し）で取得してください。</em></p>')
+
+    # 脇役: 学習に使う過去データ（折りたたみ・小さく）
+    if past:
+        past_rows = "".join(
+            f'<li>{p["name"]} <span class="note">{p["date"]} / {p["id"]} '
+            f'(<a href="/races/{p["id"]}/entries.csv">出馬表</a>)</span></li>'
+            for p in past)
+        past_section = (
+            f'<details><summary>📚 予想の根拠に使う過去データ（{len(past)}件）</summary>'
+            f'<p class="note">これらは「示唆を学ぶための内部データ」です。'
+            f'予想対象ではありません。</p><ul>{past_rows}</ul></details>'
         )
     else:
-        race_table = "<p><em>まだ取得済みレースはありません。</em></p>"
-
-    fetch_note = (
-        '<p class="note">データ取得（スクレイピング）は Cloud Run では行いません。'
-        '手元の回線で <code>python3 -m keiba.cli fetch ...</code> を実行し GCS に保存してください。</p>'
-    )
+        past_section = ('<p class="note">⚠ 学習用の過去ダービーがありません。'
+                        '<code>fetch --derby-years 2019-2024 --past</code> で取得すると予想精度が上がります。</p>')
 
     html = f"""<!doctype html><html lang="ja"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -150,12 +169,20 @@ def index():
   .note {{ color:#666; font-size:0.9rem; }}
   .spinner {{ color:#3b7dd8; }}
   code {{ background:#eef; padding:1px 4px; border-radius:3px; }}
+  .target {{ background:#fff; border:2px solid #3b7dd8; border-radius:8px;
+            padding:14px 18px; margin:12px 0; max-width:900px; }}
+  .target h3 {{ margin:0 0 6px; }}
+  details {{ margin:16px 0; max-width:900px; }}
+  summary {{ cursor:pointer; font-weight:bold; }}
 </style></head><body>
 <h1>keiba — 競馬予想サービス</h1>
-<p>参照先: <code>{store.uri()}</code>　生成AI予想: <b>{'有効' if genai_on else '無効(キー未設定)'}</b></p>
-{fetch_note}
-<h2>レースを選んで予想を実行</h2>
-{race_table}
+<p class="note">参照先: <code>{store.uri()}</code>　生成AI予想: <b>{'有効' if genai_on else '無効(キー未設定)'}</b></p>
+
+<h2>🏇 予想する</h2>
+<p>「過去ダービーの傾向 → 共通するポイント → だから今年はこう」という流れで予想します。</p>
+{target_section}
+
+{past_section}
 
 <script>
 async function run(kind, raceId, btn) {{
@@ -188,7 +215,8 @@ function renderML(d) {{
 
 function renderGenAI(d) {{
   const ins = (d.insights.insights || []).map(x =>
-    `<li>[${{x.weight}}] ${{x.pattern}}</li>`).join('');
+    `<li>[重要度 ${{x.weight}}] <b>${{x.pattern}}</b><br>` +
+    `<span class="note">根拠: ${{x.rationale || ''}}</span></li>`).join('');
   const marks = ['◎','○','▲','△','△'];
   const rows = (d.prediction.ranking || []).map((p, i) =>
     `<tr><td class="mark">${{marks[i] || (i+1)}}</td>` +
@@ -196,10 +224,10 @@ function renderGenAI(d) {{
     `<td class="rank">${{(p.score*100).toFixed(0)}}%</td>` +
     `<td>${{p.reason || ''}}</td></tr>`).join('');
   return '<div class="card"><b>🤖 生成AI予想</b>' +
-    `<div class="note">学習: ${{d.trained_on.join(', ')}}</div>` +
-    '<p><b>傾向:</b> ' + (d.insights.summary || '') + '</p>' +
-    '<p><b>導いた示唆:</b></p><ul>' + ins + '</ul>' +
-    '<p><b>本命:</b> 馬番' + d.prediction.honmei_horse_no + '</p>' +
+    `<div class="note">参考にした過去ダービー: ${{d.trained_on.join(', ')}}</div>` +
+    '<p><b>① 過去の傾向:</b> ' + (d.insights.summary || '') + '</p>' +
+    '<p><b>② 複数年に共通するポイント（示唆）:</b></p><ul>' + ins + '</ul>' +
+    '<p><b>③ よって今年の予想 — 本命: 馬番' + d.prediction.honmei_horse_no + '</b></p>' +
     '<table><thead><tr><th>印</th><th>馬番</th><th>馬名</th><th>期待度</th><th>理由</th></tr></thead>' +
     '<tbody>' + rows + '</tbody></table>' +
     '<p class="note">' + (d.prediction.commentary || '') + '</p></div>';

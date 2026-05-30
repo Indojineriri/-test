@@ -48,14 +48,15 @@ _PROMPT_FEATURES = [
 # --- 構造化出力スキーマ ------------------------------------------------------
 
 class Insight(BaseModel):
-    pattern: str = Field(description="ダービーで好走する馬の特徴・傾向（1文）")
-    rationale: str = Field(description="過去データのどこからそう言えるかの根拠")
+    pattern: str = Field(description="複数年のダービーに共通して見られる好走馬の特徴（1文）")
+    rationale: str = Field(description="どの年のどんな結果からその共通点が言えるか（具体的に）")
     weight: float = Field(description="重要度 0.0〜1.0", ge=0.0, le=1.0)
 
 
 class DerbyInsights(BaseModel):
-    summary: str = Field(description="過去ダービーから読み取れる全体傾向の要約")
-    insights: list[Insight] = Field(description="転用可能な示唆のリスト")
+    summary: str = Field(description="過去ダービー全体の傾向の要約（2〜3文）")
+    insights: list[Insight] = Field(
+        description="複数年に共通する好走パターン（=今年に転用できる示唆）のリスト")
     caveats: list[str] = Field(description="注意点・例外（データが少ない等）")
 
 
@@ -133,9 +134,11 @@ def build_application_prompt(ctx: RaceContext) -> str:
 
 _INSIGHT_SYSTEM = (
     "あなたは競馬データ分析の専門家です。日本ダービー(東京・芝2400m・3歳GI)の"
-    "過去結果を、各馬のレース前時点の指標とともに分析し、"
-    "「どんな指標を持つ馬が好走しやすいか」という転用可能な示唆を導きます。"
-    "データに基づき、断定しすぎず、根拠を明示してください。"
+    "複数年の過去結果を、各馬のレース前時点の指標とともに分析します。"
+    "個々の年の勝ち馬を当てることが目的ではなく、"
+    "『複数年に共通して好走馬に見られる特徴』を抽出するのが目的です。"
+    "1年だけの偶然ではなく、年をまたいで繰り返し現れるパターンを重視し、"
+    "それを今年の予想に転用できる示唆として、根拠(どの年のどの結果か)つきで導いてください。"
 )
 
 _APPLY_SYSTEM = (
