@@ -117,22 +117,26 @@ def index():
 
     def _genai_btn(rid):
         if genai_on:
-            return f'<button onclick="run(\'genai-predict\',\'{rid}\',this)">🤖 生成AI予想</button>'
+            return f'<button onclick="predict(\'{rid}\',\'genai-predict\',this)">🤖 生成AI予想</button>'
         return '<button disabled title="ANTHROPIC_API_KEY 未設定">🤖 生成AI予想(無効)</button>'
 
-    # 主役: 予想対象レース（カード形式で大きく）
+    # 主役: 予想対象レース（馬柱を主体に、予想ボタンで複勝率列＋コメントを追記）
     if upcoming:
         cards = []
         for u in upcoming:
+            rid = u["id"]
             cards.append(
-                f'<div class="target">'
+                f'<div class="target" data-race="{rid}">'
                 f'<h3>🎯 {u["name"]} <span class="note">{u["date"]}</span></h3>'
-                f'<p>過去ダービーの見解をもとに予想します。予想の根拠と結果を表示します。</p>'
-                f'<button onclick="run(\'predict\',\'{u["id"]}\',this)">📊 ML予想</button> '
-                f'{_genai_btn(u["id"])} '
-                f'<button class="secondary" onclick="charts(\'{u["id"]}\',this)">📈 データ可視化</button>'
-                f'<div class="result" id="res-{u["id"]}"></div>'
-                f'<div class="charts" id="chart-{u["id"]}"></div>'
+                f'<div class="actions">'
+                f'<button onclick="predict(\'{rid}\',\'predict\',this)">📊 ML予想</button> '
+                f'{_genai_btn(rid)} '
+                f'<button class="secondary" onclick="charts(\'{rid}\',this)">📈 データ可視化</button>'
+                f'</div>'
+                f'<div class="comment" id="cm-{rid}"></div>'
+                f'<div class="umabashira" id="uma-{rid}">'
+                f'<span class="note">馬柱を読み込み中…</span></div>'
+                f'<div class="charts" id="chart-{rid}"></div>'
                 f'</div>'
             )
         target_section = "".join(cards)
@@ -195,6 +199,13 @@ def index():
   code {{ background:#eef; padding:1px 4px; border-radius:3px; }}
   .charts {{ margin:8px 0; }}
   .charts .card > div {{ margin:10px 0; }}
+  .actions {{ margin:8px 0; }}
+  .umabashira {{ overflow-x:auto; margin-top:8px; }}
+  table.uma {{ font-size:0.88rem; white-space:nowrap; }}
+  table.uma th, table.uma td {{ padding:5px 8px; }}
+  table.uma tr.hi {{ background:#fff5e6; }}
+  .pcol {{ background:#eef4ff; }}
+  .comment {{ margin:6px 0; }}
   .target {{ background:#fff; border:2px solid #3b7dd8; border-radius:8px;
             padding:14px 18px; margin:12px 0; max-width:900px; }}
   .target h3 {{ margin:0 0 6px; }}
@@ -211,19 +222,103 @@ def index():
 {past_section}
 
 <script>
-async function run(kind, raceId, btn) {{
-  const box = document.getElementById('res-' + raceId);
-  box.innerHTML = '<span class="spinner">⏳ 予想中…' +
-    (kind === 'genai-predict' ? '（生成AIは数十秒かかります）' : '') + '</span>';
+const MARKS = ['◎','○','▲','△','△'];
+const fmtPct = v => (v == null ? '-' : (v <= 1 ? (v*100).toFixed(0) : v.toFixed(0)) + '%');
+
+// ページ読み込み時に各レースの馬柱を取得して表示
+document.addEventListener('DOMContentLoaded', () => {{
+  document.querySelectorAll('.target[data-race]').forEach(el =>
+    loadUmabashira(el.dataset.race));
+}});
+
+async function loadUmabashira(raceId) {{
+  const box = document.getElementById('uma-' + raceId);
+  try {{
+    const r = await fetch('/entrants/' + raceId);
+    const d = await r.json();
+    if (!r.ok) {{ box.innerHTML = '<span class="note">馬柱を取得できません: ' + (d.error||'') + '</span>'; return; }}
+    box.dataset.rows = JSON.stringify(d.rows);
+    box.innerHTML = renderUma(d.rows, null);
+  }} catch (e) {{ box.innerHTML = '<span class="note">通信エラー: ' + e + '</span>'; }}
+}}
+
+// 馬柱を描画。pred があれば「印」「予想複勝率」列を追加してハイライト
+function renderUma(rows, pred) {{
+  // pred: {{ byNo: {{horse_no: {{rank, prob, mark}}}} }}
+  const head =
+    '<tr><th>枠</th><th>馬番</th><th>馬名</th><th>性齢</th><th>騎手</th>' +
+    '<th>勝率</th><th>複勝率(実績)</th><th>近3走</th><th>脚質</th><th>賞金(万)</th>' +
+    (pred ? '<th class="pcol">印</th><th class="pcol">予想複勝率</th>' : '') + '</tr>';
+  const body = rows.map(x => {{
+    const p = pred && pred.byNo[x.horse_no];
+    const cls = p && p.rank <= 3 ? ' class="hi"' : '';
+    return `<tr${{cls}}>` +
+      `<td>${{x.frame_no ?? '-'}}</td><td class="rank">${{x.horse_no ?? '-'}}</td>` +
+      `<td>${{x.horse_name ?? ''}}</td>` +
+      `<td>${{(x.sex||'')}}${{x.age ?? ''}}</td><td>${{x.jockey || ''}}</td>` +
+      `<td class="rank">${{fmtPct(x.pit_win_rate)}}</td>` +
+      `<td class="rank">${{fmtPct(x.pit_show_rate)}}</td>` +
+      `<td class="rank">${{x.pit_avg_finish_last3 != null ? x.pit_avg_finish_last3.toFixed(1) : '-'}}</td>` +
+      `<td>${{x.pit_running_style || ''}}</td>` +
+      `<td class="rank">${{x.pit_total_prize != null ? Math.round(x.pit_total_prize) : '-'}}</td>` +
+      (pred ? `<td class="pcol mark">${{p ? p.mark : ''}}</td>` +
+              `<td class="pcol rank">${{p ? fmtPct(p.prob) : '-'}}</td>` : '') +
+      '</tr>';
+  }}).join('');
+  return '<table class="uma"><thead>' + head + '</thead><tbody>' + body + '</tbody></table>';
+}}
+
+// 予想を実行し、コメントを上に、馬柱に印＋予想複勝率を追記
+async function predict(raceId, kind, btn) {{
+  const cm = document.getElementById('cm-' + raceId);
+  const uma = document.getElementById('uma-' + raceId);
+  cm.innerHTML = '<div class="card spinner">⏳ 予想中…' +
+    (kind === 'genai-predict' ? '（生成AIは数十秒かかります）' : '') + '</div>';
   btn.disabled = true;
   try {{
-    const resp = await fetch('/' + kind + '/' + raceId);
-    const data = await resp.json();
-    if (!resp.ok) {{ box.innerHTML = '<div class="card">⚠ ' + (data.error || resp.status) + '</div>'; return; }}
-    box.innerHTML = (kind === 'predict') ? renderML(data) : renderGenAI(data);
+    const r = await fetch('/' + kind + '/' + raceId);
+    const d = await r.json();
+    if (!r.ok) {{ cm.innerHTML = '<div class="card">⚠ ' + (d.error || r.status) + '</div>'; return; }}
+    const pred = (kind === 'predict') ? mlToPred(d) : genaiToPred(d);
+    cm.innerHTML = pred.comment;
+    const rows = JSON.parse(uma.dataset.rows || '[]');
+    uma.innerHTML = renderUma(rows, pred);
   }} catch (e) {{
-    box.innerHTML = '<div class="card">⚠ 通信エラー: ' + e + '</div>';
+    cm.innerHTML = '<div class="card">⚠ 通信エラー: ' + e + '</div>';
   }} finally {{ btn.disabled = false; }}
+}}
+
+// ML予想 → 印/複勝率マップ + コメント
+function mlToPred(d) {{
+  const byNo = {{}};
+  d.ranking.forEach((r, i) => byNo[r.horse_no] = {{
+    rank: r.pred_rank ?? (i+1), prob: r.show_prob, mark: MARKS[i] || ''
+  }});
+  const top = d.ranking.slice(0,3).map((r,i) =>
+    `${{MARKS[i]}} ${{r.horse_name}}（${{fmtPct(r.show_prob)}}）`).join('　');
+  return {{ byNo, comment:
+    '<div class="card"><b>📊 ML予想（過去ダービーで学習）</b>' +
+    `<div class="note">学習: ${{d.trained_on.join(', ')}}</div>` +
+    '<p>' + top + '</p></div>' }};
+}}
+
+// 生成AI予想 → 印/期待度マップ + コメント（①傾向→②共通点→③本命）
+function genaiToPred(d) {{
+  const byNo = {{}};
+  (d.prediction.ranking || []).forEach((p, i) => byNo[p.horse_no] = {{
+    rank: i+1, prob: p.score, mark: MARKS[i] || ''
+  }});
+  const ins = (d.insights.insights || []).map(x =>
+    `<li>${{x.pattern}}<br><span class="note">根拠: ${{x.rationale||''}}</span></li>`).join('');
+  const reasons = (d.prediction.ranking || []).slice(0,3).map((p,i) =>
+    `<li>${{MARKS[i]}} ${{p.horse_name}}: ${{p.reason||''}}</li>`).join('');
+  return {{ byNo, comment:
+    '<div class="card"><b>🤖 生成AI予想</b>' +
+    `<div class="note">参考にした過去ダービー: ${{d.trained_on.join(', ')}}</div>` +
+    '<p><b>① 過去の傾向:</b> ' + (d.insights.summary || '') + '</p>' +
+    '<p><b>② 共通するポイント:</b></p><ul>' + ins + '</ul>' +
+    '<p><b>③ 予想（本命 馬番' + d.prediction.honmei_horse_no + '）:</b></p><ul>' + reasons + '</ul>' +
+    '<p class="note">' + (d.prediction.commentary || '') + '</p></div>' }};
 }}
 
 function charts(raceId, btn) {{
@@ -264,38 +359,6 @@ function renderInsights(d) {{
     '</div>';
 }}
 
-function renderML(d) {{
-  const marks = ['◎','○','▲','△','△'];
-  let rows = d.ranking.slice(0, 8).map((r, i) =>
-    `<tr><td class="mark">${{marks[i] || (i+1)}}</td>` +
-    `<td class="rank">${{r.horse_no}}</td><td>${{r.horse_name}}</td>` +
-    `<td class="rank">${{(r.show_prob*100).toFixed(0)}}%</td>` +
-    `<td>${{r.pit_running_style || ''}}</td></tr>`).join('');
-  return '<div class="card"><b>📊 ML予想（複勝確率）</b>' +
-    `<div class="note">学習: ${{d.trained_on.join(', ')}}</div>` +
-    '<table><thead><tr><th>印</th><th>馬番</th><th>馬名</th><th>複勝率</th><th>脚質</th></tr></thead>' +
-    '<tbody>' + rows + '</tbody></table></div>';
-}}
-
-function renderGenAI(d) {{
-  const ins = (d.insights.insights || []).map(x =>
-    `<li>[重要度 ${{x.weight}}] <b>${{x.pattern}}</b><br>` +
-    `<span class="note">根拠: ${{x.rationale || ''}}</span></li>`).join('');
-  const marks = ['◎','○','▲','△','△'];
-  const rows = (d.prediction.ranking || []).map((p, i) =>
-    `<tr><td class="mark">${{marks[i] || (i+1)}}</td>` +
-    `<td class="rank">${{p.horse_no}}</td><td>${{p.horse_name}}</td>` +
-    `<td class="rank">${{(p.score*100).toFixed(0)}}%</td>` +
-    `<td>${{p.reason || ''}}</td></tr>`).join('');
-  return '<div class="card"><b>🤖 生成AI予想</b>' +
-    `<div class="note">参考にした過去ダービー: ${{d.trained_on.join(', ')}}</div>` +
-    '<p><b>① 過去の傾向:</b> ' + (d.insights.summary || '') + '</p>' +
-    '<p><b>② 複数年に共通するポイント（示唆）:</b></p><ul>' + ins + '</ul>' +
-    '<p><b>③ よって今年の予想 — 本命: 馬番' + d.prediction.honmei_horse_no + '</b></p>' +
-    '<table><thead><tr><th>印</th><th>馬番</th><th>馬名</th><th>期待度</th><th>理由</th></tr></thead>' +
-    '<tbody>' + rows + '</tbody></table>' +
-    '<p class="note">' + (d.prediction.commentary || '') + '</p></div>';
-}}
 </script>
 </body></html>"""
     return Response(html, mimetype="text/html")
@@ -353,6 +416,35 @@ def race_csv(race_id: str, name: str):
     if text is None:
         return jsonify(error="not found", race_id=race_id, csv=name), 404
     return Response(text, mimetype="text/csv; charset=utf-8")
+
+
+@app.get("/entrants/<race_id>")
+def entrants(race_id: str):
+    """馬柱データ（出馬表 + レース前分析指標）を JSON で返す。
+
+    1 頭 = 1 行。枠番・馬番・馬名・騎手・斤量に、勝率/複勝率/近走/脚質/賞金などを添える。
+    """
+    import numpy as np
+    import pandas as pd
+    from ..analyze import analyze_entrants
+    from ..service import load_context
+    try:
+        ctx = load_context(race_id, _store())
+    except Exception as e:
+        return jsonify(error=str(e), race_id=race_id), 404
+
+    feat = analyze_entrants(ctx)  # horse_no, horse_name, pit_* 指標
+    ent = ctx.entries.copy()
+    keep = [c for c in ["horse_no", "frame_no", "horse_name", "sex", "age",
+                        "impost", "jockey", "odds", "popularity"] if c in ent.columns]
+    base = ent[keep]
+    merged = base.merge(feat.drop(columns=["horse_name"], errors="ignore"),
+                        on="horse_no", how="left")
+    merged = merged.sort_values("horse_no")
+    # NaN を None に（JSON で null）
+    rows = merged.replace({np.nan: None}).to_dict(orient="records")
+    return jsonify(race_id=race_id, race_name=ctx.race_name,
+                   date=str(ctx.race.get("date", "")), rows=rows)
 
 
 @app.get("/chart/<race_id>/<kind>.png")
