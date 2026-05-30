@@ -100,6 +100,42 @@ def cmd_demo_dataset(args):
     print("   → 出馬表の出走馬を起点にキャリアを辿ると、1レースが数百〜数千行の学習データになる。")
 
 
+def cmd_analyze(args):
+    """保存済みデータを読み戻し、健全性診断と出走馬の成績分析を表示する。"""
+    from . import analyze as A
+
+    store = Storage.from_uri(args.store)
+    try:
+        ctx = service.load_context(args.race_id, store)
+    except Exception as e:
+        sys.exit(f"[analyze] データ読み込み失敗: {e}")
+
+    # 1) データ健全性の診断（「関連レースが少ない？」への回答）
+    summary = A.diagnose_coverage(ctx)
+    print(A.format_coverage(summary))
+
+    # 2) 出走馬の成績分析（レース時点の実力、リーク無し）
+    print()
+    view = A.analyze_entrants(ctx)
+    print(f"=== 出走馬の成績分析: {ctx.race_name} ===")
+    print(A.format_entrants(view))
+
+    # 3) 特定馬の戦績深掘り（任意）
+    if args.horse:
+        print()
+        form = A.horse_form(ctx, args.horse)
+        if form.empty:
+            print(f"[analyze] horse_id={args.horse} の戦績が見つかりません。")
+        else:
+            print(f"=== 戦績: horse_id={args.horse} ===")
+            print(form.to_string(index=False))
+
+    # 4) CSV 書き出し（任意）
+    if args.out_csv:
+        view.to_csv(args.out_csv, index=False)
+        print(f"\n出走馬分析を保存しました -> {args.out_csv}")
+
+
 def cmd_fetch(args):
     """手元の回線で netkeiba から取得し、ローカル or GCS に保存する。
 
@@ -165,6 +201,15 @@ def build_parser() -> argparse.ArgumentParser:
     pf.add_argument("--no-cache", action="store_true",
                     help="HTML キャッシュを使わず必ず再取得")
     pf.set_defaults(func=cmd_fetch)
+
+    pa = sub.add_parser("analyze",
+                        help="保存済みデータを診断・分析（オフライン。--store に gs:// 可）")
+    pa.add_argument("--race-id", required=True)
+    pa.add_argument("--store", default="data/fetched",
+                    help="参照先。fetch の --out と同じ場所（ローカル or gs://）")
+    pa.add_argument("--horse", default=None, help="深掘りする horse_id（任意）")
+    pa.add_argument("--out-csv", default=None, help="出走馬分析を CSV 保存（任意）")
+    pa.set_defaults(func=cmd_analyze)
 
     return p
 

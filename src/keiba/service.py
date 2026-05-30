@@ -103,6 +103,41 @@ def read_csv_text(race_id: str, name: str, store: Storage) -> str | None:
     return store.read_text(f"{_race_prefix(race_id)}/{name}.csv")
 
 
+def load_context(race_id: str, store: Storage):
+    """保存済みの CSV/JSON を読み戻して RaceContext を再構築する。
+
+    fetch_and_store で保存したデータを、分析・予想で使える形にロードする。
+    取得（ネットワーク）は一切しないので、Cloud Run でもオフラインでも動く。
+    """
+    import io
+    import pandas as pd
+    from .schema import RaceContext
+
+    def _csv(name):
+        text = read_csv_text(race_id, name, store)
+        if text is None:
+            return pd.DataFrame()
+        # race_id / horse_id 等は文字列として扱う（先頭ゼロや桁落ちを防ぐ）
+        return pd.read_csv(io.StringIO(text),
+                           dtype={"race_id": str, "horse_id": str,
+                                  "jockey_id": str, "trainer_id": str})
+
+    meta = load_meta(race_id, store)
+    if meta is None:
+        raise FileNotFoundError(
+            f"race_id={race_id} の保存データが見つかりません（store={store.uri()}）。"
+            f" 先に `keiba.cli fetch` で取得してください。")
+    race_meta = meta.get("race_meta", {"race_id": race_id})
+
+    return RaceContext(
+        race=race_meta,
+        entries=_csv("entries"),
+        history=_csv("results"),
+        races=_csv("races"),
+        horses=_csv("horses") if read_csv_text(race_id, "horses", store) else None,
+    )
+
+
 def _subprefix(store: Storage, sub: str) -> Storage:
     """同じバックエンドで prefix を1段掘った Storage を作る。"""
     base = store.uri(sub)
