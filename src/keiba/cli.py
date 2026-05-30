@@ -146,31 +146,78 @@ def cmd_analyze(args):
         print(f"\n出走馬分析を保存しました -> {args.out_csv}")
 
 
+def _resolve_race_ids(args) -> list[str]:
+    """fetch の対象 race_id 群を決める。
+
+    優先順:
+      --derby-years 2021-2025  : ダービー(東京・2回・12日目・11R)を年で展開
+      --race-ids a,b,c         : カンマ区切りで複数指定
+      --race-id  x             : 単一
+    """
+    if getattr(args, "derby_years", None):
+        years = _parse_years(args.derby_years)
+        # ダービーの既定パラメータ。年により開催日目がずれる場合は --race-ids で個別指定。
+        return [build_race_id(y, "東京", 2, 12, 11) for y in years]
+    if getattr(args, "race_ids", None):
+        return [r.strip() for r in args.race_ids.split(",") if r.strip()]
+    if args.race_id:
+        return [args.race_id]
+    sys.exit("--race-id / --race-ids / --derby-years のいずれかを指定してください。")
+
+
+def _parse_years(spec: str) -> list[int]:
+    """'2021-2025' or '2021,2022,2025' を年のリストに。"""
+    spec = spec.strip()
+    if "-" in spec and "," not in spec:
+        a, b = spec.split("-")
+        return list(range(int(a), int(b) + 1))
+    return [int(x) for x in spec.replace(" ", "").split(",") if x]
+
+
 def cmd_fetch(args):
     """手元の回線で netkeiba から取得し、ローカル or GCS に保存する。
 
-    保存レイアウトは Cloud Run の参照 API と同一（races/<race_id>/*.csv + meta.json）
-    なので、--out に gs://<bucket>/keiba を渡せば、そのまま Cloud Run が読める。
+    単一でも複数（過去5年分など）でも取得できる。保存レイアウトは Cloud Run の
+    参照 API と同一（races/<race_id>/*.csv + meta.json）なので、--out に
+    gs://<bucket>/keiba を渡せば、そのまま Cloud Run が読める。
     """
     store = Storage.from_uri(args.out)
-    print(f"[fetch] race_id={args.race_id} を取得します（保存先: {store.uri()}）")
+    race_ids = _resolve_race_ids(args)
+    print(f"[fetch] {len(race_ids)} レースを取得します（保存先: {store.uri()}）")
     print("        ※ netkeiba は GCP/DC IP を 403 で弾くため、手元回線で実行してください。")
     if args.past:
         print("        （過去レースモード: 結果ページから出走馬を作り、レース前時点で分析）")
-    try:
-        summary = service.fetch_and_store(
-            args.race_id, store, wait=args.wait,
-            max_history_per_horse=args.max_history,
-            use_cache=not args.no_cache, proxy=args.proxy, past_race=args.past)
-    except Exception as e:
-        sys.exit(f"[fetch] 失敗: {e}")
 
-    c = summary["counts"]
-    print(f"  出走 {c['entries']} 頭 / 過去レース {c['races']} 件 / "
-          f"成績 {c['results']} 行 / 血統 {c['horses']} 頭")
-    print(f"  -> {summary['storage']}/ に entries/results/races/horses.csv + meta.json")
-    if str(args.out).startswith("gs://"):
-        print(f"  Cloud Run（参照専用）からは /races/{args.race_id} で参照できます。")
+    ok, empty, failed = [], [], []
+    for rid in race_ids:
+        try:
+            summary = service.fetch_and_store(
+                rid, store, wait=args.wait,
+                max_history_per_horse=args.max_history,
+                use_cache=not args.no_cache, proxy=args.proxy, past_race=args.past)
+        except Exception as e:
+            print(f"  ✗ {rid}: 失敗 ({e})")
+            failed.append(rid)
+            continue
+
+        c = summary["counts"]
+        if c["entries"] == 0:
+            # race_id が間違っている（その年は開催日目がずれている等）と空になる
+            print(f"  ⚠ {rid}: 出走0頭。race_id が間違っている可能性"
+                  "（その年のダービーは開催日目が違うかも）。")
+            empty.append(rid)
+        else:
+            print(f"  ✓ {rid}: 出走{c['entries']}頭 / 過去レース{c['races']}件 / "
+                  f"成績{c['results']}行")
+            ok.append(rid)
+
+    print(f"\n[fetch] 完了: 成功 {len(ok)} / 空 {len(empty)} / 失敗 {len(failed)}")
+    if empty:
+        print(f"  空だった race_id: {', '.join(empty)}")
+        print("  → 正しい race_id は netkeiba のレースページ URL の数字で確認できます。"
+              "判明したら --race-ids で個別指定してください。")
+    if ok and str(args.out).startswith("gs://"):
+        print(f"  Cloud Run / analyze からは race_id で参照できます: {', '.join(ok)}")
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -202,7 +249,12 @@ def build_parser() -> argparse.ArgumentParser:
 
     pf = sub.add_parser("fetch",
                         help="netkeiba から取得し保存（手元回線で実行。--out に gs:// 可）")
-    pf.add_argument("--race-id", required=True)
+    pf.add_argument("--race-id", default=None, help="単一レースID")
+    pf.add_argument("--race-ids", default=None,
+                    help="複数レースID（カンマ区切り）。例: 202105021211,202205021211")
+    pf.add_argument("--derby-years", default=None,
+                    help="ダービーを年で一括指定。例: 2021-2025 / 2021,2022,2025 "
+                         "（東京・2回・12日目・11R を仮定。開催日目がずれる年は空になる）")
     pf.add_argument("--out", default="data/fetched",
                     help="保存先。ローカルパス or gs://<bucket>/keiba")
     pf.add_argument("--wait", type=float, default=1.5, help="リクエスト間ウェイト秒")
