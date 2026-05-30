@@ -105,14 +105,18 @@ def _make_context(n_entrants=8, career=5, seed=0, pool_size=60):
 
 
 def _res_row(rid, hid, rank, field, dist, rng):
+    # 通過順は着順の近傍にして脚質をそれらしく（先行〜差し）
+    corner = int(np.clip(rank + rng.integers(-1, 2), 1, field))
     return {
         "race_id": rid, "horse_id": hid, "horse_name": f"馬{hid}",
         "finish_pos": rank, "frame_no": int(rng.integers(1, 9)),
         "horse_no": int(rng.integers(1, field + 1)), "sex": "牡", "age": 3,
         "impost": 56.0, "jockey": "J", "jockey_id": "J01",
-        "time_sec": dist / 16 + rank * 0.15, "margin": "", "passing": "",
+        "time_sec": dist / 16 + rank * 0.15, "margin": "",
+        "passing": f"{corner}-{corner}-{rank}",
         "last_3f": 34.0 + rank * 0.1, "odds": float(rank), "popularity": rank,
         "horse_weight": 480, "weight_diff": 0, "trainer": "T", "trainer_id": "T01",
+        "prize": max(0.0, (field - rank) * 100.0),  # 上位ほど賞金が多い
     }
 
 

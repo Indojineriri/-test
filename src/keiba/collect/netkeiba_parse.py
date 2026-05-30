@@ -124,6 +124,7 @@ _RESULT_HEADER_MAP = {
     "人気": "popularity",
     "馬体重": "horse_weight",
     "調教師": "trainer", "厩舎": "trainer",
+    "賞金(万円)": "prize", "賞金": "prize",
 }
 
 
@@ -192,7 +193,16 @@ def _result_row(cmap: dict, race_id: str) -> dict:
         "weight_diff": wd,
         "trainer": _text(cmap.get("trainer")),
         "trainer_id": _first_link_id(cmap.get("trainer"), "trainer"),
+        "prize": _parse_prize(_text(cmap.get("prize"))),
     }
+
+
+def _parse_prize(text: str):
+    """'5,200.0' のような賞金表記（万円）を float に。空欄は NaN。"""
+    text = (text or "").strip().replace(",", "")
+    if not text:
+        return np.nan
+    return _to_float(text)
 
 
 def _parse_result_meta(soup: BeautifulSoup, race_id: str) -> dict:

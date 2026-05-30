@@ -31,6 +31,42 @@ def _grade_to_rank(g) -> float:
     return 1.0
 
 
+def first_corner_pos(passing) -> float:
+    """通過順 '5-5-3-2' の最初の数字（1コーナーの位置取り）を返す。"""
+    if not isinstance(passing, str) or not passing.strip():
+        return np.nan
+    head = passing.replace(" ", "").split("-")[0]
+    try:
+        return float(head)
+    except ValueError:
+        return np.nan
+
+
+def position_ratio(passing, n_horses) -> float:
+    """1コーナー位置を頭数で割った相対位置（0=先頭〜1=最後方）。
+
+    頭数が違うレースを比較できるよう正規化する。脚質の指標になる。
+    """
+    p = first_corner_pos(passing)
+    if np.isnan(p) or not n_horses or pd.isna(n_horses) or float(n_horses) <= 1:
+        return np.nan
+    return (p - 1.0) / (float(n_horses) - 1.0)
+
+
+# 脚質ラベル（相対位置の平均から分類）
+def running_style_label(avg_ratio) -> str:
+    """平均相対位置から脚質を日本語ラベルにする。"""
+    if avg_ratio is None or (isinstance(avg_ratio, float) and np.isnan(avg_ratio)):
+        return "不明"
+    if avg_ratio <= 0.20:
+        return "逃げ"
+    if avg_ratio <= 0.45:
+        return "先行"
+    if avg_ratio <= 0.70:
+        return "差し"
+    return "追込"
+
+
 # ---------------------------------------------------------------------------
 # 1) runs テーブルの構築（results + entries を縦持ち）
 # ---------------------------------------------------------------------------
@@ -115,7 +151,13 @@ PIT_FEATURES = [
     "pit_dist_avg_finish",
     "pit_max_grade_win",
     "pit_avg_field_ratio",
+    "pit_total_prize",        # 累計獲得賞金（万円）
+    "pit_avg_corner_pos",     # 平均1コーナー位置（生の順位）
+    "pit_avg_position_ratio", # 平均相対位置（0=前〜1=後。脚質の数値）
 ]
+
+# 脚質ラベルは数値特徴とは別に付与する補助列（学習には position_ratio を使う）
+RUNNING_STYLE_COL = "pit_running_style"
 
 
 def add_pointwise_features(runs: pd.DataFrame, target_distance: int | None = None,
@@ -140,6 +182,9 @@ def add_pointwise_features(runs: pd.DataFrame, target_distance: int | None = Non
         prior_dist = []      # 過去の距離
         prior_field_ratio = []
         prior_grade_wins = []  # 勝ったレースの格ランク
+        prior_prize = []       # 過去の獲得賞金
+        prior_corner = []      # 過去の1コーナー位置（生）
+        prior_pos_ratio = []   # 過去の相対位置（脚質）
         for pos, ridx in enumerate(idx):
             row = runs.loc[ridx]
             base_dist = target_distance if target_distance is not None else row["distance"]
@@ -178,6 +223,15 @@ def add_pointwise_features(runs: pd.DataFrame, target_distance: int | None = Non
                     feats["pit_max_grade_win"][ridx] = float(max(prior_grade_wins))
                 if prior_field_ratio:
                     feats["pit_avg_field_ratio"][ridx] = float(np.nanmean(prior_field_ratio))
+                # 累計賞金（実績の総量。NaN を 0 扱いで合算）
+                feats["pit_total_prize"][ridx] = float(np.nansum(prior_prize))
+                # 脚質（1コーナー位置・相対位置の平均）
+                corner_arr = np.array(prior_corner, dtype=float)
+                if np.any(~np.isnan(corner_arr)):
+                    feats["pit_avg_corner_pos"][ridx] = float(np.nanmean(corner_arr))
+                ratio_arr = np.array(prior_pos_ratio, dtype=float)
+                if np.any(~np.isnan(ratio_arr)):
+                    feats["pit_avg_position_ratio"][ridx] = float(np.nanmean(ratio_arr))
 
             # この run を「過去」に追加して次へ（＝自分自身は含めない）
             fp_i = row["finish_pos"]
@@ -192,6 +246,9 @@ def add_pointwise_features(runs: pd.DataFrame, target_distance: int | None = Non
                 prior_field_ratio.append(np.nan)
             if pd.notna(fp_i) and float(fp_i) == 1.0:
                 prior_grade_wins.append(_grade_to_rank(row["grade"]))
+            prior_prize.append(row["prize"] if "prize" in row else np.nan)
+            prior_corner.append(first_corner_pos(row.get("passing")))
+            prior_pos_ratio.append(position_ratio(row.get("passing"), nh))
 
     out = runs.copy()
     for col in PIT_FEATURES:
@@ -199,6 +256,8 @@ def add_pointwise_features(runs: pd.DataFrame, target_distance: int | None = Non
     # pit_starts は欠損ではなく 0 が自然
     out["pit_starts"] = out["pit_starts"].fillna(0).astype(int)
     out["pit_dist_starts"] = out["pit_dist_starts"].fillna(0).astype(int)
+    # 脚質ラベル（相対位置の平均から分類）。学習には数値の position_ratio を使う。
+    out[RUNNING_STYLE_COL] = out["pit_avg_position_ratio"].map(running_style_label)
     return out
 
 

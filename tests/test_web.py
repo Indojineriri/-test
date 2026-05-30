@@ -62,7 +62,7 @@ def test_fetch_and_store_via_fake(tmp, monkeypatch):
     store = LocalStorage(tmp / "out")
     import keiba.service as svc
 
-    def fake_ds(race_id, client=None, max_history_per_horse=None):
+    def fake_ds(race_id, client=None, max_history_per_horse=None, past_race=False):
         return NetkeibaDataSource(race_id, client=FakeClient(),
                                   max_history_per_horse=max_history_per_horse)
 
@@ -88,7 +88,7 @@ def test_reference_endpoints(tmp, monkeypatch):
     import keiba.service as svc
     from keiba.web import app as webmod
 
-    def fake_ds(race_id, client=None, max_history_per_horse=None):
+    def fake_ds(race_id, client=None, max_history_per_horse=None, past_race=False):
         return NetkeibaDataSource(race_id, client=FakeClient(),
                                   max_history_per_horse=max_history_per_horse)
 
@@ -131,7 +131,7 @@ def test_web_endpoints_when_fetch_enabled(tmp, monkeypatch):
     import keiba.service as svc
     from keiba.web import app as webmod
 
-    def fake_ds(race_id, client=None, max_history_per_horse=None):
+    def fake_ds(race_id, client=None, max_history_per_horse=None, past_race=False):
         return NetkeibaDataSource(race_id, client=FakeClient(),
                                   max_history_per_horse=max_history_per_horse)
 

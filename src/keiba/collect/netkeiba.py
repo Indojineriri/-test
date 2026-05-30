@@ -28,16 +28,20 @@ from . import netkeiba_parse as P
 
 class NetkeibaDataSource(DataSource):
     def __init__(self, target_race_id: str, client: NetkeibaClient | None = None,
-                 max_history_per_horse: int | None = None):
+                 max_history_per_horse: int | None = None, past_race: bool = False):
         """
         Args:
             target_race_id: 予想対象のレースID（例: 出馬表のある未来/当該レース）
             client: NetkeibaClient（DI 可能。テストではフェイクを差し込める）
             max_history_per_horse: 1 頭あたり遡る過去レース数の上限（None で全件）
+            past_race: 過去の（既に施行済みの）レースを分析対象にする場合 True。
+                出馬表(shutuba)の代わりに結果ページから出走馬を取り出し、各馬の履歴から
+                その対象レース自身を除外する（＝レース前時点の状態で分析できる）。
         """
         self._target = str(target_race_id)
         self.client = client or NetkeibaClient()
         self.max_history_per_horse = max_history_per_horse
+        self.past_race = past_race
 
     # --- DataSource インターフェース ----------------------------------------
 
@@ -45,6 +49,13 @@ class NetkeibaDataSource(DataSource):
         return self._target
 
     def get_race_entries(self, race_id: str):
+        if self.past_race:
+            # 過去レースは出馬表が無いことが多いので、結果ページから出走馬を作る。
+            # 着順等は付くが、entries としては identity（馬・枠・馬番）だけ使う。
+            html = self.client.race_result_html(race_id)
+            meta, res = P.parse_race_result(html, str(race_id))
+            entries = _result_to_entries(res)
+            return meta, entries
         html = self.client.shutuba_html(race_id)
         return P.parse_shutuba(html, str(race_id))
 
@@ -60,6 +71,12 @@ class NetkeibaDataSource(DataSource):
             if self.max_history_per_horse:
                 ids = ids[: self.max_history_per_horse]
             race_ids.update(ids)
+
+        # 過去レース分析では、対象レース自身は「履歴」に含めない。
+        # （point-in-time 特徴量がレース当日の結果を使わないようにするため。
+        #   対象レースの着順は別途 entries 側＝予想の答え合わせに使う）
+        if self.past_race:
+            race_ids.discard(self._target)
 
         races_rows, results_frames = [], []
         for rid in sorted(race_ids):
@@ -96,6 +113,21 @@ class NetkeibaDataSource(DataSource):
                 seen.add(m.group(1))
                 ids.append(m.group(1))
         return ids
+
+
+def _result_to_entries(res: pd.DataFrame) -> pd.DataFrame:
+    """結果 DataFrame から entries 相当（identity 列）を作る。
+
+    過去レース分析で、結果ページの出走馬を「出馬表」として扱うためのもの。
+    着順などの結果系は entries には載せない（予想の答え合わせは別途行う）。
+    """
+    from ..schema import ENTRY_COLUMNS
+    if res.empty:
+        return pd.DataFrame(columns=ENTRY_COLUMNS)
+    ent = pd.DataFrame()
+    for col in ENTRY_COLUMNS:
+        ent[col] = res[col] if col in res.columns else pd.NA
+    return ent.reset_index(drop=True)
 
 
 # --- race_id 組み立てヘルパ --------------------------------------------------

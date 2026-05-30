@@ -120,7 +120,17 @@ def cmd_analyze(args):
     print(f"=== 出走馬の成績分析: {ctx.race_name} ===")
     print(A.format_entrants(view))
 
-    # 3) 特定馬の戦績深掘り（任意）
+    # 3) 過去レースなら答え合わせ（actual.csv があれば）
+    actual_text = store.read_text(f"races/{args.race_id}/actual.csv")
+    if actual_text:
+        import io
+        import pandas as pd
+        actual = pd.read_csv(io.StringIO(actual_text), dtype={"horse_id": str})
+        print()
+        ev = A.evaluate_past_race(ctx, actual, rank_by=args.rank_by)
+        print(A.format_evaluation(ev))
+
+    # 4) 特定馬の戦績深掘り（任意）
     if args.horse:
         print()
         form = A.horse_form(ctx, args.horse)
@@ -130,7 +140,7 @@ def cmd_analyze(args):
             print(f"=== 戦績: horse_id={args.horse} ===")
             print(form.to_string(index=False))
 
-    # 4) CSV 書き出し（任意）
+    # 5) CSV 書き出し（任意）
     if args.out_csv:
         view.to_csv(args.out_csv, index=False)
         print(f"\n出走馬分析を保存しました -> {args.out_csv}")
@@ -145,11 +155,13 @@ def cmd_fetch(args):
     store = Storage.from_uri(args.out)
     print(f"[fetch] race_id={args.race_id} を取得します（保存先: {store.uri()}）")
     print("        ※ netkeiba は GCP/DC IP を 403 で弾くため、手元回線で実行してください。")
+    if args.past:
+        print("        （過去レースモード: 結果ページから出走馬を作り、レース前時点で分析）")
     try:
         summary = service.fetch_and_store(
             args.race_id, store, wait=args.wait,
             max_history_per_horse=args.max_history,
-            use_cache=not args.no_cache, proxy=args.proxy)
+            use_cache=not args.no_cache, proxy=args.proxy, past_race=args.past)
     except Exception as e:
         sys.exit(f"[fetch] 失敗: {e}")
 
@@ -200,6 +212,9 @@ def build_parser() -> argparse.ArgumentParser:
                     help="外向きプロキシ URL（通常は手元回線なので不要）")
     pf.add_argument("--no-cache", action="store_true",
                     help="HTML キャッシュを使わず必ず再取得")
+    pf.add_argument("--past", action="store_true",
+                    help="過去（施行済み）レースを分析対象にする（出馬表でなく結果"
+                         "ページから出走馬を作り、答え合わせ用に actual.csv も保存）")
     pf.set_defaults(func=cmd_fetch)
 
     pa = sub.add_parser("analyze",
@@ -208,6 +223,8 @@ def build_parser() -> argparse.ArgumentParser:
     pa.add_argument("--store", default="data/fetched",
                     help="参照先。fetch の --out と同じ場所（ローカル or gs://）")
     pa.add_argument("--horse", default=None, help="深掘りする horse_id（任意）")
+    pa.add_argument("--rank-by", default="pit_show_rate",
+                    help="過去レース答え合わせの並べ替え指標（既定: pit_show_rate）")
     pa.add_argument("--out-csv", default=None, help="出走馬分析を CSV 保存（任意）")
     pa.set_defaults(func=cmd_analyze)
 

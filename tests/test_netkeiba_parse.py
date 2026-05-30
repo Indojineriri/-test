@@ -81,6 +81,7 @@ def test_parse_race_result():
     assert top["horse_weight"] == 480 and top["weight_diff"] == 2
     assert top["trainer_id"] == "01075"
     assert top["passing"] == "5-5-3-2"
+    assert top["prize"] == 20000.0
 
 
 # --- 出馬表ページ ------------------------------------------------------------

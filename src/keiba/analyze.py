@@ -135,6 +135,7 @@ _ENTRANT_VIEW = [
     "horse_no", "horse_name", "pit_starts", "pit_win_rate", "pit_show_rate",
     "pit_avg_finish", "pit_avg_finish_last3", "pit_best_last3f",
     "pit_dist_starts", "pit_dist_avg_finish", "pit_max_grade_win",
+    "pit_total_prize", "pit_running_style", "pit_avg_corner_pos",
     "pit_days_since_last",
 ]
 
@@ -162,9 +163,11 @@ def analyze_entrants(ctx: RaceContext) -> pd.DataFrame:
         if c in view:
             view[c] = (view[c] * 100).round(1)
     for c in ["pit_avg_finish", "pit_avg_finish_last3", "pit_dist_avg_finish",
-              "pit_best_last3f", "pit_days_since_last"]:
+              "pit_best_last3f", "pit_days_since_last", "pit_avg_corner_pos"]:
         if c in view:
             view[c] = view[c].round(1)
+    if "pit_total_prize" in view:
+        view["pit_total_prize"] = view["pit_total_prize"].round(0)
     return view
 
 
@@ -181,6 +184,9 @@ COLUMN_LABELS = {
     "pit_dist_starts": "同距離数",
     "pit_dist_avg_finish": "同距離平均着",
     "pit_max_grade_win": "最高勝鞍格",
+    "pit_total_prize": "総賞金(万)",
+    "pit_running_style": "脚質",
+    "pit_avg_corner_pos": "平均1角",
     "pit_days_since_last": "間隔(日)",
 }
 
@@ -206,9 +212,80 @@ def horse_form(ctx: RaceContext, horse_id: str) -> pd.DataFrame:
     if "date" in h:
         h = h.sort_values("date")
     view_cols = [c for c in ["date", "race_name", "grade", "distance", "going",
-                             "finish_pos", "horse_no", "popularity", "last_3f",
-                             "time_sec"] if c in h.columns]
+                             "finish_pos", "horse_no", "popularity", "passing",
+                             "last_3f", "time_sec", "prize"] if c in h.columns]
     return h[view_cols].reset_index(drop=True)
+
+
+def evaluate_past_race(ctx: RaceContext, actual: pd.DataFrame,
+                       rank_by: str = "pit_show_rate") -> dict:
+    """過去レースで、分析指標が実際の結果をどれだけ当てたかを評価する。
+
+    レース前時点の point-in-time 指標で出走馬を並べ、実際の着順と突き合わせる。
+    バックテスト（予想ロジックの妥当性確認）の最小版。
+
+    Args:
+        ctx: 過去レースの RaceContext（履歴に対象レース自身は含まない＝レース前状態）
+        actual: 対象レースの実結果（actual.csv 由来。horse_id と finish_pos を使う）
+        rank_by: 並べ替えに使う指標（既定: 複勝率。pit_total_prize 等も可）
+
+    Returns:
+        dict: 突き合わせ表(merged) と的中サマリ（◎の着順、上位3頭の的中数 など）
+    """
+    view = analyze_entrants(ctx)
+    feat = view.copy()
+    # 実着順を結合
+    act = actual[["horse_id", "finish_pos"]].copy()
+    act["horse_id"] = act["horse_id"].astype(str)
+    # analyze_entrants は horse_id を落としているので runs から取り直す
+    runs = build_runs_table(ctx)
+    f2 = add_pointwise_features(runs, target_distance=_safe_int(ctx.race.get("distance")))
+    tgt = f2[f2["is_target"]][["horse_id", "horse_name", "horse_no", rank_by]].copy()
+    tgt["horse_id"] = tgt["horse_id"].astype(str)
+    merged = tgt.merge(act, on="horse_id", how="left")
+
+    # 指標で予想順位をつける（大きいほど上位。着順系なら別途反転が要るが
+    # 既定の show_rate / prize は「大きいほど良い」のでそのまま降順）
+    merged = merged.sort_values(rank_by, ascending=False).reset_index(drop=True)
+    merged["pred_rank"] = np.arange(1, len(merged) + 1)
+
+    actual_top3 = set(merged[merged["finish_pos"] <= 3]["horse_id"])
+    pred_top3 = set(merged[merged["pred_rank"] <= 3]["horse_id"])
+    honmei = merged.iloc[0] if len(merged) else None
+
+    return {
+        "merged": merged,
+        "rank_by": rank_by,
+        "honmei_horse": (honmei["horse_name"] if honmei is not None else None),
+        "honmei_actual_finish": (_safe_int(honmei["finish_pos"]) if honmei is not None
+                                 else None),
+        "top3_hits": len(actual_top3 & pred_top3),
+        "winner_predicted_rank": _winner_pred_rank(merged),
+    }
+
+
+def _winner_pred_rank(merged: pd.DataFrame):
+    w = merged[merged["finish_pos"] == 1]
+    return int(w["pred_rank"].iloc[0]) if len(w) else None
+
+
+def format_evaluation(ev: dict) -> str:
+    lines = []
+    lines.append("=== 過去レースの答え合わせ（バックテスト最小版） ===")
+    lines.append(f"並べ替え指標: {ev['rank_by']}")
+    lines.append(f"◎（指標1位）: {ev['honmei_horse']} → 実際の着順 "
+                 f"{ev['honmei_actual_finish']}")
+    if ev["winner_predicted_rank"]:
+        lines.append(f"実勝ち馬の指標順位: {ev['winner_predicted_rank']} 位")
+    lines.append(f"予想上位3頭のうち実際に3着内: {ev['top3_hits']} / 3")
+    lines.append("")
+    m = ev["merged"]
+    disp = m[["pred_rank", "horse_no", "horse_name", ev["rank_by"], "finish_pos"]].copy()
+    disp = disp.rename(columns={"pred_rank": "予想順", "horse_no": "馬番",
+                                "horse_name": "馬名", ev["rank_by"]: "指標",
+                                "finish_pos": "実着順"}).fillna("-")
+    lines.append(disp.to_string(index=False))
+    return "\n".join(lines)
 
 
 def _safe_int(v, default=None):

@@ -48,6 +48,7 @@ RESULT_COLUMNS = [
     "weight_diff",   # 馬体重増減 (kg)
     "trainer",       # 調教師
     "trainer_id",    # 調教師ID
+    "prize",         # 獲得賞金 (万円)
 ]
 
 # --- entries : 1 行 = 対象（未来）レース × 出走馬（着順なし） ----------------
@@ -115,6 +116,7 @@ RUN_COLUMNS = [
     "popularity",
     "horse_weight",
     "weight_diff",
+    "prize",
 ]
 
 

@@ -20,6 +20,7 @@ from datetime import datetime, timezone
 
 from .collect.netkeiba import NetkeibaDataSource
 from .collect.netkeiba_client import NetkeibaClient
+from .collect import netkeiba_parse as P
 from .storage import Storage
 
 
@@ -29,7 +30,8 @@ def _race_prefix(race_id: str) -> str:
 
 def fetch_and_store(race_id: str, store: Storage, *, cache: Storage | None = None,
                     wait: float = 1.5, max_history_per_horse: int | None = None,
-                    use_cache: bool = True, proxy: str | None = None) -> dict:
+                    use_cache: bool = True, proxy: str | None = None,
+                    past_race: bool = False) -> dict:
     """netkeiba から1レース分を取得し、CSV/JSON を store に保存してサマリを返す。
 
     Args:
@@ -38,13 +40,16 @@ def fetch_and_store(race_id: str, store: Storage, *, cache: Storage | None = Non
         cache: HTML キャッシュの保存先（既定: store の cache/ prefix を流用）
         max_history_per_horse: 1頭あたり遡る過去レース数の上限（負荷/時間の調整）
         proxy: 外向きプロキシ URL（GCP IP ブロック回避）。未指定なら環境変数を参照。
+        past_race: 過去（施行済み）レースを分析対象にする。出馬表でなく結果ページから
+            出走馬を作り、各馬の履歴から当該レース自身を除外する（レース前の状態で分析）。
     """
     # HTML キャッシュ先。未指定なら出力 store と同じバケットの cache/ に置く。
     cache_storage = cache or _subprefix(store, "cache")
     client = NetkeibaClient(wait=wait, use_cache=use_cache, cache=cache_storage,
                             proxy=proxy)
     src = NetkeibaDataSource(race_id, client=client,
-                             max_history_per_horse=max_history_per_horse)
+                             max_history_per_horse=max_history_per_horse,
+                             past_race=past_race)
 
     ctx = src.build_context()
 
@@ -55,9 +60,15 @@ def fetch_and_store(race_id: str, store: Storage, *, cache: Storage | None = Non
     if ctx.horses is not None:
         store.write_text(f"{prefix}/horses.csv", ctx.horses.to_csv(index=False))
 
+    # 過去レース分析では、対象レース自身の結果（着順）を答え合わせ用に保存する。
+    if past_race:
+        _, actual = P.parse_race_result(client.race_result_html(race_id), race_id)
+        store.write_text(f"{prefix}/actual.csv", actual.to_csv(index=False))
+
     summary = {
         "race_id": race_id,
         "race_meta": ctx.race,
+        "past_race": bool(past_race),
         "counts": {
             "entries": int(len(ctx.entries)),
             "results": int(len(ctx.history)),

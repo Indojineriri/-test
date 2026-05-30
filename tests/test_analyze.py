@@ -94,6 +94,36 @@ def test_analyze_entrants_via_save_load(tmp=None):
     assert len(view) == 6
 
 
+def test_prize_and_running_style_present():
+    """賞金・脚質の特徴量が分析結果に出ること。"""
+    ctx, _, _ = _make_context(n_entrants=8, career=6, seed=6)
+    view = A.analyze_entrants(ctx)
+    assert "pit_total_prize" in view.columns
+    assert "pit_running_style" in view.columns
+    # 脚質ラベルは想定の語彙
+    styles = set(view["pit_running_style"].unique())
+    assert styles <= {"逃げ", "先行", "差し", "追込", "不明"}
+    # 賞金は非負
+    assert (view["pit_total_prize"].fillna(0) >= 0).all()
+
+
+def test_evaluate_past_race():
+    """過去レースの答え合わせ: 強い馬を上位に予想できるか。"""
+    ctx, strength, target = _make_context(n_entrants=10, career=6, seed=8)
+    # 対象レースの「実結果」を強さ順で合成（強い馬ほど上位着順）
+    ent = ctx.entries.copy()
+    order = sorted(ent["horse_id"], key=lambda h: -strength[h])
+    actual = pd.DataFrame({
+        "horse_id": order,
+        "finish_pos": list(range(1, len(order) + 1)),
+    })
+    ev = A.evaluate_past_race(ctx, actual, rank_by="pit_show_rate")
+    # 予想上位3頭のうち、実3着内をある程度当てられる（リーク無しでも信号は出る）
+    assert ev["top3_hits"] >= 1
+    txt = A.format_evaluation(ev)
+    assert "答え合わせ" in txt and "実着順" in txt
+
+
 def test_horse_form():
     ctx, _, _ = _make_context(n_entrants=5, career=5, seed=5)
     hid = ctx.entries["horse_id"].iloc[0]
