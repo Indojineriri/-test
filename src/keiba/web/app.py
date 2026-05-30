@@ -379,19 +379,18 @@ def _page_head(title):
             '</style></head><body>')
 
 
-@app.get("/chart-trend.png")
-def chart_trend():
-    """過去ダービー全年をまとめて、指標 × 好走(3着内) の傾向を1枚で返す。"""
+@app.get("/chart-trend/<kind>.png")
+def chart_trend(kind: str):
+    """過去ダービー全年をまとめた傾向グラフを種類別に返す（対象レースと同じ8種）。"""
     from .. import viz
     from ..service import load_derby_items, default_derby_train_ids
     items, _ = load_derby_items(_store(), default_derby_train_ids())
     if not items:
         return Response(viz._placeholder("過去ダービーのデータがありません"),
                         mimetype="image/png")
-    indicator = request.args.get("indicator", "pit_total_prize")
-    if indicator not in viz.PAST_INDICATORS:
-        indicator = "pit_total_prize"
-    return Response(viz.render_past_trend_all(items, indicator=indicator),
+    if kind not in viz.PAST_TREND_KINDS:
+        kind = "prize"
+    return Response(viz.render_past_trend(items, kind=kind),
                     mimetype="image/png")
 
 
@@ -436,40 +435,31 @@ def visualize(race_id: str):
         f'<img loading="lazy" src="/chart/{race_id}/{k}.png" alt="{k}"></div>'
         for k in viz.CHART_KINDS)
 
-    # 過去ダービー（actual.csv あり）を「指標 × 好走(3着内)」でプロット。
-    # 指標をラジオで切替え、橙＝複勝圏。どんな指標の馬が来たかの傾向が見える。
+    # 過去ダービー（actual.csv あり）を、対象レースと同じ8種のグラフで一覧表示。
+    # 年では分けず全年まとめ。橙＝複勝圏(3着以内)で、どんな馬が好走したかが見える。
     past_ids = [r for r in default_derby_train_ids() if load_actual(r, store) is not None]
     if past_ids:
-        ind_labels = {"pit_total_prize": "賞金", "pit_show_rate": "複勝率",
-                      "pit_best_last3f": "上がり3F", "pit_avg_corner_pos": "脚質(通過順)",
-                      "pit_max_grade_win": "最高勝鞍格"}
-        radios = "".join(
-            f'<label><input type="radio" name="ind" value="{k}"'
-            f'{" checked" if k == "pit_total_prize" else ""} '
-            f'onchange="switchInd(this.value)"> {lbl}</label> '
-            for k, lbl in ind_labels.items())
+        past_imgs = "".join(
+            f'<div class="card"><b>{viz.PAST_TREND_LABELS.get(k, k)}</b><br>'
+            f'<img loading="lazy" src="/chart-trend/{k}.png" alt="{k}"></div>'
+            for k in viz.PAST_TREND_KINDS)
         past_block = (
             f'<h2>📚 過去ダービー（{len(past_ids)}年）の好走傾向（橙＝複勝圏 3着以内）</h2>'
-            f'<p class="note">過去全年をまとめて、横軸=実着順・縦軸=選んだ指標でプロットします。'
+            f'<p class="note">過去全年をまとめて、対象レースと同じ8種の尺度でプロットします。'
             f'橙＝実際に3着以内に来た馬。橙がどのあたりに集まるかで、'
-            f'複数年に共通する傾向が分かります（対象レースの可視化と同じ尺度）。</p>'
-            f'<p>指標: {radios}</p>'
-            f'<div class="card" style="max-width:760px"><img id="trendimg" loading="lazy" '
-            f'src="/chart-trend.png?indicator=pit_total_prize" alt="trend"></div>'
+            f'複数年に共通する傾向が分かります。</p>'
+            f'<div class="grid">{past_imgs}</div>'
         )
     else:
         past_block = ('<p class="note">過去ダービーの結果データがありません'
                       '（fetch --past で取得すると表示されます）。</p>')
 
-    script = ('<script>function switchInd(v){'
-              'var im=document.getElementById("trendimg");'
-              'if(im){im.src="/chart-trend.png?indicator="+v;}}</script>')
     html = (_page_head(f"可視化 - {name}") +
             f'<a class="back" href="/">← 予想ページに戻る</a>'
             f'<h1>📈 {name} のデータ可視化</h1>'
             f'<p class="note">いろいろな尺度で出走馬を比較します。</p>'
             f'<div class="grid">{imgs}</div>'
-            f'{past_block}{script}</body></html>')
+            f'{past_block}</body></html>')
     return Response(html, mimetype="text/html")
 
 

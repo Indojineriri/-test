@@ -58,9 +58,10 @@ def test_no_history_still_returns_png():
     assert png.startswith(_PNG_SIG)
 
 
-def test_past_trend_all_overlay():
-    """全年まとめ：render_past_result と同じ尺度(横=着順,縦=指標)で全年を重ねて描く。"""
+def test_past_trend_grid_eight_kinds():
+    """過去傾向は対象レースと同じ8種を全年まとめで描く（年別に分けない）。"""
     import pandas as pd
+    assert len(viz.PAST_TREND_KINDS) == 8
     items = []
     for seed in (4, 5):
         ctx, strength, _ = _make_context(n_entrants=10, career=6, seed=seed)
@@ -70,11 +71,11 @@ def test_past_trend_all_overlay():
                                "horse_name": [f"馬{h}" for h in order],
                                "finish_pos": range(1, len(order) + 1)})
         items.append((ctx, actual))
-    for ind in viz.PAST_INDICATORS:
-        png = viz.render_past_trend_all(items, indicator=ind)
-        assert png.startswith(_PNG_SIG), f"{ind} が PNG でない"
+    for kind in viz.PAST_TREND_KINDS:
+        png = viz.render_past_trend(items, kind=kind)
+        assert png.startswith(_PNG_SIG), f"{kind} が PNG でない"
     # 空入力でも placeholder PNG
-    assert viz.render_past_trend_all([], "pit_total_prize").startswith(_PNG_SIG)
+    assert viz.render_past_trend([], "prize").startswith(_PNG_SIG)
 
 
 if __name__ == "__main__":

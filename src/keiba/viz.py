@@ -271,18 +271,28 @@ def _to_png(fig) -> bytes:
     return buf.getvalue()
 
 
-def render_past_trend_all(items, indicator="pit_total_prize"):
-    """過去全年を1枚に集約して、指標 × 好走(3着内) の傾向を見る。
+# 過去傾向グリッド：対象レースの可視化(CHART_KINDS)と同じく8枚出す。
+# 年では分けず、全年の出走馬をまとめて描き、3着以内(複勝圏)を橙で色分けする。
+PAST_TREND_KINDS = ["prize", "show_rate", "last3f", "corner",
+                    "starts", "grade", "style", "style_last3f"]
+PAST_TREND_LABELS = {
+    "prize": "総賞金",
+    "show_rate": "複勝率",
+    "last3f": "決め手（上がり3F）",
+    "corner": "脚質（平均通過順位）",
+    "starts": "キャリア数",
+    "grade": "最高勝鞍格",
+    "style": "脚質別の複勝圏率",
+    "style_last3f": "脚質 × 上がり3F（2軸）",
+}
 
-    年ごとに分けないだけで、見せ方は render_past_result と同じ。
-    横軸=実着順(左=上位)、縦軸=指標。実際に3着以内に来た馬を橙(複勝圏)、
-    着外を灰で示す。全年の馬を重ねて描くので、複数年に共通する傾向が見える。
-    """
-    import numpy as np
+
+def _pool_past(items):
+    """過去全年の出走馬を1つの DataFrame にまとめ、実着順と複勝圏フラグを付ける。"""
     import pandas as pd
     from .ml import build_features_for_context
 
-    recs = []
+    frames = []
     for ctx, actual in items:
         if actual is None or len(actual) == 0:
             continue
@@ -290,43 +300,140 @@ def render_past_trend_all(items, indicator="pit_total_prize"):
         tgt = feat[feat["is_target"].fillna(False).astype(bool)].copy()
         tgt["horse_id"] = tgt["horse_id"].astype(str)
         tgt = tgt.drop(columns=["finish_pos"], errors="ignore")
-        if indicator not in tgt.columns:
-            continue
         a = actual.copy()
         a["horse_id"] = a["horse_id"].astype(str)
         d = tgt.merge(a[["horse_id", "finish_pos"]], on="horse_id", how="inner")
-        d = d.dropna(subset=["finish_pos", indicator])
-        for _, r in d.iterrows():
-            recs.append({"pos": float(r["finish_pos"]),
-                         "val": float(r[indicator])})
-    if not recs:
+        frames.append(d)
+    if not frames:
+        return None
+    df = pd.concat(frames, ignore_index=True)
+    df = df.dropna(subset=["finish_pos"])
+    if df.empty:
+        return None
+    df["finish_pos"] = df["finish_pos"].astype(float)
+    df["in3"] = df["finish_pos"] <= 3
+    return df
+
+
+def render_past_trend(items, kind="prize"):
+    """過去全年をまとめた『傾向グラフ』を種類別に描く（対象レース可視化と同尺度）。
+
+    年ごとに分けず、全年の出走馬を重ねて描画。3着以内(複勝圏)を橙、着外を灰にして、
+    好走馬がどのあたりに集まるかで複数年に共通する傾向を見る。
+    """
+    df = _pool_past(items)
+    if df is None:
         return _placeholder("過去レースのデータがありません")
+    n = sum(1 for _, a in items if a is not None and len(a) > 0)
+    if kind == "prize":
+        return _past_scatter(df, "pit_total_prize", "総獲得賞金 [万円]", n)
+    if kind == "show_rate":
+        return _past_scatter(df, "pit_show_rate", "複勝率 [%]", n)
+    if kind == "last3f":
+        return _past_scatter(df, "pit_best_last3f", "最速上がり3F [秒]（上=速い）",
+                             n, ylim=(30, 37), invert=True)
+    if kind == "corner":
+        return _past_scatter(df, "pit_avg_corner_pos", "平均通過順位（上=前）",
+                             n, invert=True)
+    if kind == "starts":
+        return _past_scatter(df, "pit_starts", "キャリア（出走数）", n)
+    if kind == "grade":
+        return _past_scatter(df, "pit_max_grade_win", "最高勝鞍格（5=G1）", n)
+    if kind == "style":
+        return _past_style_bar(df, n)
+    if kind == "style_last3f":
+        return _past_style_last3f(df, n)
+    raise ValueError(f"未知の過去傾向種類: {kind}")
 
-    df = pd.DataFrame(recs)
-    if indicator in ("pit_show_rate", "pit_win_rate"):
-        df["val"] = df["val"] * 100.0
-    label = CHART_LABELS_INDICATOR.get(indicator, indicator)
-    in3 = df["pos"] <= 3
-    # 年が重なって同じ着順が並ぶので、横にわずかに散らして潰れを防ぐ
+
+def _past_scatter(df, col, label, n, ylim=None, invert=False) -> bytes:
+    """横軸=実着順, 縦軸=指標 の散布図。3着以内を橙(複勝圏)・着外を灰で色分け。"""
+    import numpy as np
+    d = df.dropna(subset=[col]).copy()
+    if d.empty:
+        return _placeholder(f"{label} のデータがありません")
+    if col in ("pit_show_rate", "pit_win_rate"):
+        d[col] = d[col] * 100.0
+    in3 = d["in3"].values.astype(bool)
     rng = np.random.default_rng(0)
-    jx = df["pos"].values + rng.uniform(-0.18, 0.18, len(df))
-
-    fig, ax = plt.subplots(figsize=(8, 5.5))
-    ax.scatter(jx[~in3.values], df["val"].values[~in3.values],
-               s=70, color="#c9d2e0", edgecolor="#999", label="着外", zorder=2)
-    ax.scatter(jx[in3.values], df["val"].values[in3.values],
-               s=140, color="#d8703b", edgecolor="#7a3a16",
+    jx = d["finish_pos"].values + rng.uniform(-0.18, 0.18, len(d))
+    yv = d[col].values
+    fig, ax = plt.subplots(figsize=(7, 4.6))
+    ax.scatter(jx[~in3], yv[~in3], s=55, color="#c9d2e0", edgecolor="#999",
+               label="着外", zorder=2)
+    ax.scatter(jx[in3], yv[in3], s=120, color="#d8703b", edgecolor="#7a3a16",
                label="3着以内（複勝圏）", zorder=3)
     ax.axvline(3.5, color="#888", ls="--", lw=1)  # 3着と4着の境
     ax.set_xlabel("実際の着順（左=上位）")
     ax.set_ylabel(label)
-    ax.set_title("過去" + str(len(items)) + "年まとめ：" + label + " と好走の傾向（橙＝複勝圏）")
+    ax.set_title(f"過去{n}年まとめ：{label}")
     ax.legend(fontsize=8)
     ax.grid(True, alpha=0.3)
-    # 縦軸はダービーのデータ可視化と同じ尺度に揃える
-    if indicator == "pit_best_last3f":
-        ax.set_ylim(37, 30)  # 上がり3F は 30〜37秒・下ほど速い
-    elif indicator in _LOWER_BETTER:
-        ax.invert_yaxis()    # 通過順位など：下ほど良い（前）
+    if ylim is not None:
+        lo, hi = ylim
+        ax.set_ylim(hi, lo) if invert else ax.set_ylim(lo, hi)
+    elif invert:
+        ax.invert_yaxis()
+    fig.tight_layout()
+    return _to_png(fig)
+
+
+def _past_style_last3f(df, n) -> bytes:
+    """脚質(平均通過順位) × 決め手(上がり3F) の2軸散布図。3着以内を橙で色分け。"""
+    import numpy as np
+    import pandas as pd
+    d = df.dropna(subset=["pit_avg_corner_pos", "pit_best_last3f"]).copy()
+    if d.empty:
+        return _placeholder("脚質×上がりのデータがありません")
+    in3 = d["in3"].values.astype(bool)
+    x = d["pit_avg_corner_pos"].values
+    y = d["pit_best_last3f"].values
+    fig, ax = plt.subplots(figsize=(7, 5))
+    ax.scatter(x[~in3], y[~in3], s=55, color="#c9d2e0", edgecolor="#999",
+               label="着外", zorder=2)
+    ax.scatter(x[in3], y[in3], s=120, color="#d8703b", edgecolor="#7a3a16",
+               label="3着以内（複勝圏）", zorder=3)
+    ax.set_xlabel("平均通過順位（左=前／逃げ・先行）")
+    ax.set_ylabel("最速上がり3F [秒]（下=速い）")
+    ax.set_title(f"過去{n}年まとめ：脚質 × 決め手")
+    if pd.Series(y).between(29, 38).all():
+        ax.set_ylim(37, 30)
+    else:
+        ax.invert_yaxis()
+    ax.legend(fontsize=8)
+    ax.grid(True, alpha=0.3)
+    fig.tight_layout()
+    return _to_png(fig)
+
+
+def _past_style_bar(df, n) -> bytes:
+    """脚質ごとの複勝圏率（3着以内に来た割合）を棒で示す。どの脚質が好走したか。"""
+    col = "pit_running_style"
+    if col not in df:
+        return _placeholder("脚質データがありません")
+    d = df.dropna(subset=[col]).copy()
+    if d.empty:
+        return _placeholder("脚質データがありません")
+    order = ["逃げ", "先行", "差し", "追込"]
+    cats = [c for c in order if c in set(d[col])] or sorted(set(d[col]))
+    rates, labels = [], []
+    for c in cats:
+        sub = d[d[col] == c]
+        k, tot = int(sub["in3"].sum()), len(sub)
+        rates.append(100.0 * k / tot if tot else 0.0)
+        labels.append(f"{c}\n({k}/{tot})")
+    colors = {"逃げ": "#d85b5b", "先行": "#d8a13b", "差し": "#3b7dd8",
+              "追込": "#6b46a0"}
+    fig, ax = plt.subplots(figsize=(7, 4.6))
+    ax.bar(range(len(cats)), rates,
+           color=[colors.get(c, "#999") for c in cats])
+    ax.set_xticks(range(len(cats)))
+    ax.set_xticklabels(labels)
+    ax.set_ylabel("複勝圏率 [%]（3着以内/出走）")
+    ax.set_title(f"過去{n}年まとめ：脚質別の複勝圏率")
+    for i, r in enumerate(rates):
+        ax.text(i, r + 1, f"{r:.0f}%", ha="center", fontsize=9)
+    ax.set_ylim(0, max(rates + [10]) * 1.25)
+    ax.grid(True, axis="y", alpha=0.3)
     fig.tight_layout()
     return _to_png(fig)
