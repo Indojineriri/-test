@@ -58,6 +58,25 @@ def test_no_history_still_returns_png():
     assert png.startswith(_PNG_SIG)
 
 
+def test_past_trend_all_single_strip():
+    """全年まとめ：縦軸で3着内/着外を分けず、色だけで区別する1本帯になっている。"""
+    import pandas as pd
+    items = []
+    for seed in (4, 5):
+        ctx, strength, _ = _make_context(n_entrants=10, career=6, seed=seed)
+        order = sorted(ctx.entries["horse_id"].astype(str),
+                       key=lambda h: -strength[h])
+        actual = pd.DataFrame({"horse_id": order,
+                               "horse_name": [f"馬{h}" for h in order],
+                               "finish_pos": range(1, len(order) + 1)})
+        items.append((ctx, actual))
+    for ind in viz.PAST_INDICATORS:
+        png = viz.render_past_trend_all(items, indicator=ind)
+        assert png.startswith(_PNG_SIG), f"{ind} が PNG でない"
+    # 空入力でも placeholder PNG
+    assert viz.render_past_trend_all([], "pit_total_prize").startswith(_PNG_SIG)
+
+
 if __name__ == "__main__":
     fns = [(k, v) for k, v in sorted(globals().items())
            if k.startswith("test_") and callable(v)]

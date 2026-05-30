@@ -272,11 +272,12 @@ def _to_png(fig) -> bytes:
 
 
 def render_past_trend_all(items, indicator="pit_total_prize"):
-    """過去全年を1枚に集約して、指標 × 好走(3着内) の傾向を見る。
+    """過去全年を1枚に集約して、指標の傾向を見る（ダービー可視化と同じ尺度）。
 
-    年ごとに分けず、全年の出走馬をまとめてプロットする。3着内(橙)と着外(灰)を
-    指標値の横軸で2群に散らし、各群の中央値を縦線で示す。好走馬が指標のどこに
-    集まるかで、複数年に共通する傾向が分かる。
+    年ごとに分けず、全年の出走馬をまとめて1本の帯にプロットする。縦軸では分けず、
+    色だけで 3着内(橙＝複勝圏) と着外(灰) を区別する。横軸はダービーのデータ可視化と
+    同じ尺度（上がり3F は 30〜37秒・小さいほど左、平均通過順位は小さいほど左 など）。
+    好走馬(橙)が指標のどこに集まるかで、複数年に共通する傾向が分かる。
     """
     import numpy as np
     import pandas as pd
@@ -309,24 +310,28 @@ def render_past_trend_all(items, indicator="pit_total_prize"):
     win = df[df["in3"]]["val"].values
     lose = df[~df["in3"]]["val"].values
 
-    fig, ax = plt.subplots(figsize=(8, 5))
+    # 縦軸では分けない：全馬を 1 本の帯に置き、色だけで複勝圏/着外を表す。
+    fig, ax = plt.subplots(figsize=(8, 3.6))
     rng = np.random.default_rng(0)
     if len(lose):
-        ax.scatter(lose, 0.0 + rng.uniform(-0.12, 0.12, len(lose)),
-                   s=45, color="#c9d2e0", edgecolor="#aaa", alpha=0.8,
+        ax.scatter(lose, rng.uniform(-0.18, 0.18, len(lose)),
+                   s=55, color="#c9d2e0", edgecolor="#999", alpha=0.85,
                    label="着外", zorder=2)
     if len(win):
-        ax.scatter(win, 1.0 + rng.uniform(-0.12, 0.12, len(win)),
-                   s=75, color="#d8703b", edgecolor="#7a3a16", alpha=0.9,
+        ax.scatter(win, rng.uniform(-0.18, 0.18, len(win)),
+                   s=110, color="#d8703b", edgecolor="#7a3a16", alpha=0.9,
                    label="3着以内（複勝圏）", zorder=3)
-        ax.axvline(float(np.median(win)), color="#d8703b", ls="--", lw=1.5)
-    if len(lose):
-        ax.axvline(float(np.median(lose)), color="#9aa0a6", ls=":", lw=1.2)
-    ax.set_yticks([0, 1])
-    ax.set_yticklabels(["着外", "3着内"])
-    ax.set_ylim(-0.5, 1.5)
-    ax.set_xlabel(label + "（破線=複勝圏の中央値, 点線=着外の中央値）")
+        ax.axvline(float(np.median(win)), color="#d8703b", ls="--", lw=1.5,
+                   label="複勝圏の中央値")
+    ax.set_yticks([])
+    ax.set_ylim(-0.6, 0.6)
+    ax.set_xlabel(label)
     ax.set_title("過去" + str(len(items)) + "年まとめ：" + label + " と好走の傾向")
+    # 横軸はダービーのデータ可視化と同じ尺度に揃える。
+    if indicator == "pit_best_last3f":
+        ax.set_xlim(37, 30)  # 上がり3F は 30〜37秒・左ほど速い（Derby可視化と同じ）
+    elif indicator in _LOWER_BETTER:
+        ax.invert_xaxis()    # 通過順位など：左ほど良い（前）
     ax.legend(fontsize=8, loc="best")
     ax.grid(True, axis="x", alpha=0.3)
     fig.tight_layout()
