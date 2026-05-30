@@ -1,0 +1,17 @@
+# keiba（競馬予想・可視化ツール）専用の依存。
+# ルートの requirements.txt は別アプリ(PPT生成)用なので分けている。
+#
+#   python3 -m pip install -r requirements-keiba.txt
+
+# データ整形・収集の中核
+pandas>=2.0
+numpy>=1.24
+
+# netkeiba スクレイピング
+requests>=2.28
+beautifulsoup4>=4.11
+lxml>=4.9
+
+# ③可視化・⑤予想（後続フェーズで使用）
+matplotlib>=3.7
+scikit-learn>=1.3

@@ -1,0 +1,41 @@
+<!--
+  netkeiba 競走馬ページ (db.netkeiba.com/horse/{id}/) を模したフィクスチャ。
+  実在データではなく、パーサ検証用に構造だけ再現したもの。
+-->
+<html>
+<head><meta charset="utf-8"></head>
+<body>
+<div class="horse_title"><h1>テストランナー</h1></div>
+
+<table class="db_prof_table">
+  <tr><th>生年月日</th><td>2021年4月10日</td></tr>
+  <tr><th>調教師</th><td><a href="/trainer/01075/">鈴木一郎 (美浦)</a></td></tr>
+  <tr><th>馬主</th><td>テスト牧場</td></tr>
+</table>
+
+<table class="blood_table">
+  <tr>
+    <td rowspan="2"><a href="/horse/ped/000a/">父サンプルサイアー</a></td>
+    <td><a href="/horse/ped/000b/">父父グランドサイアー</a></td>
+  </tr>
+  <tr>
+    <td><a href="/horse/ped/000c/">父母グランドダム</a></td>
+  </tr>
+  <tr>
+    <td rowspan="2"><a href="/horse/ped/000d/">母サンプルダム</a></td>
+    <td><a href="/horse/ped/000e/">母父ブルードメアサイアー</a></td>
+  </tr>
+  <tr>
+    <td><a href="/horse/ped/000f/">母母グランドダム2</a></td>
+  </tr>
+</table>
+
+<!-- 戦績表（過去出走レースへのリンク。race_id 抽出に使う） -->
+<table class="db_h_race_results">
+  <tr><th>日付</th><th>レース名</th></tr>
+  <tr><td>2024/04/14</td><td><a href="/race/202405020811/">皐月テスト</a></td></tr>
+  <tr><td>2024/02/18</td><td><a href="/race/202406010512/">共同テスト</a></td></tr>
+  <tr><td>2023/12/28</td><td><a href="/race/202306050810/">ホープテスト</a></td></tr>
+</table>
+</body>
+</html>
