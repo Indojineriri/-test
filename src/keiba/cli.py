@@ -157,6 +157,18 @@ def cmd_diagnose_horse(args):
 
         df = P.parse_horse_results(html, hid)
         print(f"  parse_horse_results → {len(df)} 行")
+        if len(df) and not args.all:
+            # 取れた値を確認（脚質・賞金・上りが NaN でないか）
+            cols = [c for c in ["finish_pos", "horse_no", "distance",
+                                "passing", "last_3f", "prize", "popularity"]
+                    if c in df.columns]
+            print("  --- パース結果（各列が埋まっているか確認）---")
+            with pd.option_context("display.max_columns", None, "display.width", 200):
+                print(df[cols].to_string(index=False))
+            na_cols = [c for c in cols if df[c].isna().all()]
+            if na_cols:
+                print(f"  ⚠ 全行 NaN の列: {na_cols} "
+                      "（この表に該当データが無い＝別の列/ページが必要かも）")
         if not args.all and len(df) == 0:
             print("\n  【対処】上の table 一覧で『戦績表っぽい』表の class とヘッダを確認し、")
             print("         その class/ヘッダに合わせて netkeiba_parse を調整します。")

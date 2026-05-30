@@ -399,10 +399,16 @@ def parse_horse_profile(html: str, horse_id: str) -> dict:
 # 1 行 1 レースで載っている。race_id を抽出して別ページに飛ぶのではなく、この表を
 # 直接パースすることで「取りこぼし」も「結果ページ取得の失敗」も避けられる。
 
-# 戦績表のヘッダ → 内部キー
+# 戦績表のヘッダ → 内部キー。
+# 実物の db.netkeiba.com/horse/result/{id}/ のヘッダ例:
+#   日付 開催 天気 R レース名 映像 頭数 枠番 馬番 オッズ 人気 着順 騎手 斤量
+#   距離 水分量 馬場 馬場指数 タイム 着差 ﾀｲﾑ指数 ... 通過 ペース 上り 馬体重 賞金
+# ヘッダ文字列で列対応するので、列順が違っても見出しが合えば正しく取れる。
 _HORSE_RESULT_HEADER_MAP = {
     "日付": "date",
     "開催": "venue",
+    "天気": "weather",
+    "R": "race_no",
     "レース名": "race_name",
     "映像": "_skip",
     "頭数": "n_horses",
@@ -414,7 +420,9 @@ _HORSE_RESULT_HEADER_MAP = {
     "騎手": "jockey",
     "斤量": "impost",
     "距離": "distance_raw",
+    "水分量": "moisture",
     "馬場": "going",
+    "馬場指数": "track_index",
     "タイム": "time",
     "着差": "margin",
     "通過": "passing",
