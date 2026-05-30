@@ -135,6 +135,45 @@ def test_race_ids_handles_both_url_forms():
     assert ids == ["202405020811", "202406010512", "202306050810"]
 
 
+def test_parse_horse_results_real_header_layout():
+    """実物の /horse/result/ のヘッダ並び（天気/R/水分量/馬場指数/タイム指数あり）でも
+    ヘッダ文字列対応により正しい列を拾えることを固定する（回帰テスト）。
+
+    実データのヘッダ:
+      日付 開催 天気 R レース名 映像 頭数 枠番 馬番 オッズ 人気 着順 騎手 斤量
+      距離 水分量 馬場 馬場指数 タイム 着差 ﾀｲﾑ指数 通過 ペース 上り 馬体重 賞金
+    """
+    html = """<html><body><h1>テスト馬</h1>
+    <table class="db_h_race_results nk_tb_common">
+      <tr>
+        <th>日付</th><th>開催</th><th>天気</th><th>R</th><th>レース名</th><th>映像</th>
+        <th>頭数</th><th>枠番</th><th>馬番</th><th>オッズ</th><th>人気</th><th>着順</th>
+        <th>騎手</th><th>斤量</th><th>距離</th><th>水分量</th><th>馬場</th><th>馬場指数</th>
+        <th>タイム</th><th>着差</th><th>ﾀｲﾑ指数</th><th>通過</th><th>ペース</th>
+        <th>上り</th><th>馬体重</th><th>賞金</th>
+      </tr>
+      <tr>
+        <td>2025/12/28</td><td>6中山9</td><td>晴</td><td>11</td>
+        <td><a href="/race/202506050811/">ホープフルS(G1)</a></td><td>動画</td>
+        <td>16</td><td>5</td><td>9</td><td>20.1</td><td>9</td><td>3</td>
+        <td><a href="/jockey/result/recent/05339/">武豊</a></td><td>56</td>
+        <td>芝2000</td><td>0.8</td><td>良</td><td>-10</td><td>2:01.5</td><td>0.2</td>
+        <td>-5</td><td>10-9-9-8</td><td>36.5-12.0</td><td>33.8</td><td>480(+2)</td>
+        <td>5350.1</td>
+      </tr>
+    </table></body></html>"""
+    df = P.parse_horse_results(html, "9999")
+    assert len(df) == 1
+    r = df.iloc[0]
+    assert r["finish_pos"] == 3
+    assert r["horse_no"] == 9
+    assert r["popularity"] == 9
+    assert r["passing"] == "10-9-9-8"     # 脚質の元（通過順）
+    assert r["last_3f"] == 33.8           # 上がり（タイム指数の列に惑わされない）
+    assert r["prize"] == 5350.1           # 賞金
+    assert r["race_id"] == "202506050811"
+
+
 # --- race_id ビルダ ----------------------------------------------------------
 
 def test_build_race_id():
