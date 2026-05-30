@@ -56,27 +56,29 @@ class DataSource(ABC):
 
         手順:
           1. 対象レースの出走表（entries）を取得 …………………… ②の対象を確定
-          2. 出走各馬の過去成績（results / races）を取得 ………… ②本体
+          2. 出走各馬が走った過去レースを取得 ………………………… ②本体
           3. 出走馬の血統マスタ（horses）を取得
+
+        重要: history には取得した過去レースの **全出走馬（同走馬を含む）** を残す。
+        同走馬の行も「着順つきの run」であり、ML の学習サンプルになるため捨てない。
+        （出走馬18頭のキャリアを辿ると、同走馬込みで数千 run が貯まる。これが
+        「1レースを面のデータセットに広げる」収集の本質。詳細 docs/data-model.md）
+        対象18頭の特徴量はこの history の部分集合（各馬の自分のキャリア）から作られる。
         """
         race_id = race_id or self.target_race_id()
         race_meta, entries = self.get_race_entries(race_id)
 
         entrant_ids = entries["horse_id"].astype(str).tolist()
+        # get_past_races は「entrant が走ったレース」を集める。各レースには同走馬も
+        # 載っているので、results には entrant 以外の馬の行も含まれる（=学習データ）。
         races, results = self.get_past_races(horse_ids=entrant_ids)
-
-        # 念のため出走馬の成績だけに絞る（取得元が広めに返してきても安全に）
-        entrant_set = set(entrant_ids)
-        hist_results = results[results["horse_id"].astype(str).isin(entrant_set)].copy()
-        hist_race_ids = set(hist_results["race_id"].astype(str))
-        hist_races = races[races["race_id"].astype(str).isin(hist_race_ids)].copy()
 
         horses = self.get_horses(entrant_ids)
 
         return RaceContext(
             race=race_meta,
             entries=entries.reset_index(drop=True),
-            history=hist_results.reset_index(drop=True),
-            races=hist_races.reset_index(drop=True),
+            history=results.reset_index(drop=True),   # 全出走馬を保持（同走馬含む）
+            races=races.reset_index(drop=True),
             horses=horses.reset_index(drop=True) if horses is not None else None,
         )

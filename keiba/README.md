@@ -18,7 +18,8 @@
 
 ```
 src/keiba/
-  schema.py                  正規化スキーマ（列定義・RaceContext）★全層の共通語彙
+  schema.py                  正規化スキーマ（列定義・RaceContext・RUN_COLUMNS）★全層の共通語彙
+  dataset.py                 ★runs 統合 + point-in-time 特徴量（出馬表→学習データの橋渡し）
   collect/
     base.py                  DataSource 抽象インターフェース（取得元を差し替え可能に）
     netkeiba_client.py       HTTP 取得のみ（キャッシュ/レート制限/リトライ/文字コード）
@@ -28,6 +29,9 @@ src/keiba/
 tests/
   fixtures/                  netkeiba 構造を模した HTML（オフライン検証用）
   test_netkeiba_parse.py     パーサ & データソースの単体/結合テスト
+  test_dataset.py            runs 統合・特徴量・リーク無しの検証
+docs/
+  data-model.md              ★出馬表とは何か / 収集範囲 / 特徴量の作り方（設計の核）
 ```
 
 ### なぜこの分離なのか
@@ -39,6 +43,31 @@ tests/
   乗り換え可能。下流（可視化・予想）のコードは一切変えなくてよい。
 - **礼儀正しいスクレイピング**: `NetkeibaClient` がリクエスト間ウェイト・ディスク
   キャッシュ・指数バックオフ・正しい文字コード（db系は EUC-JP）を内蔵。
+
+### ★ 出馬表(entries)は予測の中で何なのか（設計の核）
+
+これは別文書 **[docs/data-model.md](docs/data-model.md)** に詳述。要点だけ:
+
+- **出馬表 = 「結果がまだ確定していないレース結果テーブル」**。粒度は results と同じ
+  「1行 = 1頭の1出走(run)」で、着順が未確定なだけ。よって両者は `runs` という
+  1本の縦長テーブルに統合する（`is_target` フラグで区別、`finish_pos` は entries で NaN）。
+- **出馬表の本当の役割は「18頭の horse_id を供給する起点」**。そこから
+  各馬のキャリア → 各レースの全出走馬（同走馬込み）と2ホップ辿ることで、
+  1レースの予想が数百〜数千 run の学習データに広がる。
+- **「1年分のダービー結果」だけでは学習も予想もできない**: 18行・条件1種で変動ゼロ、
+  しかも出走馬の“その時点の実力”が分からない。`tests/test_dataset.py::
+  test_one_race_only_is_not_trainable` がこれを対比で証明している。
+- **特徴量は point-in-time（リーク厳禁）**: 各 run の特徴量は「その馬の基準日より前の
+  run だけ」から作る。学習(results)と推論(entries)で同一の特徴量生成器を通すことで
+  train/serve skew を防ぐ。
+
+実際に作られる様子を見るには:
+
+```bash
+python3 -m keiba.cli demo-dataset --entrants 18 --career 7
+# 出馬表18頭 → 同走馬込み 300+ run の学習データ / 各馬 time line で pit_starts が
+# 0,1,2,... と増え、特徴量が必ず“その行より前”から作られる（リーク無し）様子を表示
+```
 
 ### netkeiba の race_id 体系
 
@@ -94,6 +123,7 @@ python3 -m keiba.cli fetch --race-id 202405021211 --out data/derby2024 --wait 1.
 | `results` | 完了レース×馬 | `race_id, horse_id, finish_pos, frame_no, horse_no, sex, age, impost, jockey, time_sec, passing, last_3f, odds, popularity, horse_weight, weight_diff, trainer` |
 | `entries` | 対象レース×馬 | `race_id, horse_id, frame_no, horse_no, sex, age, impost, jockey, odds, popularity, horse_weight` |
 | `horses` | 1頭 | `horse_id, horse_name, sex, birth_year, sire, dam, dam_sire, trainer` |
+| **`runs`** | **1出走(run)** | **results + entries を縦持ち統合。`is_target` で対象/過去を区別、`finish_pos` は entries で NaN。`dataset.py` が生成。これが ML の入力テーブル** |
 
 ## 法務・運用上の注意
 
@@ -105,7 +135,10 @@ python3 -m keiba.cli fetch --race-id 202405021211 --out data/derby2024 --wait 1.
 ## ロードマップ
 
 - [x] **フェーズ1: ①②データ取得**（netkeiba／HTTPとパースの分離／オフラインテスト）
+- [x] **フェーズ1.5: データモデル設計**（runs 統合 / point-in-time 特徴量 / リーク防止
+      ／「出馬表とは何か・1レースをデータセットに広げる収集範囲」を docs と動くコードで確定）
 - [ ] フェーズ2: ③可視化（matplotlib で成績グラフ）
 - [ ] フェーズ3: ④示唆出し（統計指標 + 生成AI による要約・コメント）
 - [ ] フェーズ4: ⑤予想（scikit-learn で複勝/着順予測、生成AIで根拠説明）
+      ← runs + point-in-time 特徴量を入力に、時系列分割でバックテスト
 - [ ] フェーズ5: バックテスト（的中率・回収率の検証）

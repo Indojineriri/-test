@@ -80,6 +80,43 @@ HORSE_COLUMNS = [
     "trainer",
 ]
 
+# --- runs : results と entries を縦に積んだ統合テーブル ----------------------
+# 粒度(grain) = 1 行 = 1 頭が 1 レースに出走する1回（= 1 つの run）。
+# results(過去) と entries(未来) は「同じ run のライフサイクル違い」なので統合する。
+# 詳細は keiba/docs/data-model.md を参照。
+RUN_COLUMNS = [
+    # --- 識別・時間 ---
+    "race_id",
+    "date",          # races から結合。point-in-time の時間基準
+    "horse_id",
+    "horse_name",
+    "is_target",     # この run が予想対象レースか（entries 由来なら True）
+    # --- レース条件（races から結合） ---
+    "track",
+    "surface",
+    "distance",
+    "going",
+    "grade",
+    "n_horses",
+    # --- 出走条件（run 時点で既知＝特徴量に使ってよい） ---
+    "frame_no",
+    "horse_no",
+    "sex",
+    "age",
+    "impost",
+    "jockey",
+    "jockey_id",
+    # --- 結果系（entries では未確定＝NaN。ラベルや実績特徴量の元） ---
+    "finish_pos",
+    "time_sec",
+    "last_3f",
+    "passing",
+    "odds",
+    "popularity",
+    "horse_weight",
+    "weight_diff",
+]
+
 
 @dataclass
 class RaceContext:

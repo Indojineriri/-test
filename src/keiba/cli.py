@@ -7,6 +7,9 @@
   python3 -m keiba.cli parse-file --kind result --race-id 202405021211 \
       --file tests/fixtures/race_result.html
 
+  # 合成データで runs テーブル/特徴量の作られ方を見る（オフラインで動く）
+  python3 -m keiba.cli demo-dataset --entrants 18 --career 7
+
   # netkeiba から取得して CSV 化（※ネットワークのある環境で実行）
   python3 -m keiba.cli fetch --race-id 202405021211 --out data/derby2024
 """
@@ -16,6 +19,8 @@ from __future__ import annotations
 import argparse
 import sys
 from pathlib import Path
+
+import pandas as pd
 
 from .collect import netkeiba_parse as P
 from .collect.netkeiba import NetkeibaDataSource, build_race_id
@@ -48,6 +53,44 @@ def cmd_parse_file(args):
     with_cols = [c for c in ["finish_pos", "horse_no", "horse_name", "horse_id",
                              "jockey", "odds", "popularity"] if c in df.columns]
     print(df[with_cols].to_string(index=False))
+
+
+def cmd_demo_dataset(args):
+    """合成データで runs テーブルと point-in-time 特徴量を実体化して見せる（オフライン）。
+
+    「出馬表(entries)が過去結果(results)と統合され、各馬のキャリアから
+    リーク無しの特徴量が作られる」流れを、この環境でも確認できる。
+    """
+    sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "tests"))
+    from test_dataset import _make_context  # 合成 RaceContext を再利用
+    from .dataset import (build_runs_table, add_pointwise_features,
+                          make_training_frame)
+
+    ctx, strength, target_id = _make_context(n_entrants=args.entrants,
+                                             career=args.career, seed=args.seed)
+    print(f"■ 出馬表(entries): {len(ctx.entries)} 頭 / 対象レース={target_id}")
+    print(f"■ 収集した過去結果(results): {len(ctx.history)} 行 "
+          f"(出走馬のキャリアを辿って集めた全出走馬=同走馬込み)")
+    print(f"   ユニーク馬: {ctx.history['horse_id'].nunique()} 頭 / "
+          f"ユニークレース: {ctx.history['race_id'].nunique()} 件")
+
+    runs = build_runs_table(ctx)
+    print(f"\n■ runs テーブル(results+entries 統合): {len(runs)} 行")
+    print(f"   - 過去の run(is_target=False): {(~runs['is_target']).sum()} 行（着順あり=ラベル）")
+    print(f"   - 対象の run(is_target=True) : {runs['is_target'].sum()} 行（着順なし=予想対象）")
+
+    feat = add_pointwise_features(runs, target_distance=int(ctx.race["distance"]))
+    cols = ["horse_id", "date", "is_target", "finish_pos", "pit_starts",
+            "pit_show_rate", "pit_avg_finish_last3", "pit_dist_starts"]
+    one = feat[feat["horse_id"] == ctx.entries["horse_id"].iloc[0]][cols]
+    print("\n■ ある1頭の time line（特徴量は必ず“その行より前”だけから算出 = リーク無し）")
+    with pd.option_context("display.max_columns", None, "display.width", 200):
+        print(one.to_string(index=False))
+
+    parts = make_training_frame(feat, label="show")
+    print(f"\n■ 学習用 X_train: {parts['X_train'].shape}  / 推論用 X_infer: {parts['X_infer'].shape}")
+    print(f"   複勝(3着内)ラベルの正例率: {parts['y_train'].mean():.1%}")
+    print("   → 出馬表の出走馬を起点にキャリアを辿ると、1レースが数百〜数千行の学習データになる。")
 
 
 def cmd_fetch(args):
@@ -93,6 +136,13 @@ def build_parser() -> argparse.ArgumentParser:
     pp.add_argument("--encoding", default="utf-8",
                     help="db系の生HTMLは euc-jp の場合あり")
     pp.set_defaults(func=cmd_parse_file)
+
+    pd_ = sub.add_parser("demo-dataset",
+                         help="合成データで runs/特徴量の作られ方を見る（オフライン）")
+    pd_.add_argument("--entrants", type=int, default=18, help="対象レースの出走頭数")
+    pd_.add_argument("--career", type=int, default=7, help="各出走馬のキャリア(過去走数)")
+    pd_.add_argument("--seed", type=int, default=2)
+    pd_.set_defaults(func=cmd_demo_dataset)
 
     pf = sub.add_parser("fetch", help="netkeiba から取得し CSV 化（要ネットワーク）")
     pf.add_argument("--race-id", required=True)
