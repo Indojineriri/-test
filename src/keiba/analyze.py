@@ -217,6 +217,29 @@ def horse_form(ctx: RaceContext, horse_id: str) -> pd.DataFrame:
     return h[view_cols].reset_index(drop=True)
 
 
+def verify_known_winner(race_id: str, actual: pd.DataFrame) -> dict | None:
+    """取得した実結果の勝ち馬が、既知のダービー正解表と一致するか検証する。
+
+    「正しいレースを取れているか」を機械的にチェックする。未知レースは None。
+
+    Returns:
+        {"known_winner", "fetched_winner", "match": bool} or None
+    """
+    from .data.derby import is_known_derby, derby_winner
+    if not is_known_derby(race_id):
+        return None
+    known = derby_winner(race_id)
+    win_row = actual[actual["finish_pos"] == 1]
+    fetched = (str(win_row["horse_name"].iloc[0])
+               if len(win_row) and "horse_name" in win_row else None)
+    return {
+        "known_winner": known,
+        "fetched_winner": fetched,
+        # known が None(要確認)のときは判定保留 → match=None
+        "match": (None if known is None else (fetched == known)),
+    }
+
+
 def evaluate_past_race(ctx: RaceContext, actual: pd.DataFrame,
                        rank_by: str = "pit_show_rate") -> dict:
     """過去レースで、分析指標が実際の結果をどれだけ当てたかを評価する。

@@ -126,6 +126,18 @@ def cmd_analyze(args):
         import io
         import pandas as pd
         actual = pd.read_csv(io.StringIO(actual_text), dtype={"horse_id": str})
+
+        # 正しいレースを取れているか（既知の勝ち馬と照合）
+        vw = A.verify_known_winner(args.race_id, actual)
+        if vw is not None:
+            if vw["match"] is True:
+                print(f"\n✅ 勝ち馬照合OK: {vw['fetched_winner']}（既知の正解と一致）")
+            elif vw["match"] is False:
+                print(f"\n⚠ 勝ち馬不一致: 取得={vw['fetched_winner']} / "
+                      f"既知={vw['known_winner']} → race_id かパースを確認してください。")
+            else:
+                print(f"\nℹ 勝ち馬: {vw['fetched_winner']}（既知表は要確認）")
+
         print()
         ev = A.evaluate_past_race(ctx, actual, rank_by=args.rank_by)
         print(A.format_evaluation(ev))
@@ -155,9 +167,10 @@ def _resolve_race_ids(args) -> list[str]:
       --race-id  x             : 単一
     """
     if getattr(args, "derby_years", None):
+        from .data.derby import derby_race_id
         years = _parse_years(args.derby_years)
-        # ダービーの既定パラメータ。年により開催日目がずれる場合は --race-ids で個別指定。
-        return [build_race_id(y, "東京", 2, 12, 11) for y in years]
+        # 既知表があればそれを使い、無い年は規則(東京・2回・12日目・11R)で生成。
+        return [derby_race_id(y) for y in years]
     if getattr(args, "race_ids", None):
         return [r.strip() for r in args.race_ids.split(",") if r.strip()]
     if args.race_id:
