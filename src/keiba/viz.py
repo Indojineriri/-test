@@ -61,7 +61,7 @@ def render_chart(ctx: RaceContext, kind: str = "show_rate") -> bytes:
     if kind == "last3f":
         return _barh(view, "pit_best_last3f", "最速上がり3F [秒]（小さいほど良）",
                      f"{ctx.race_name}：決め手（最速上がり）", color="#46a06b",
-                     ascending=False, invert=True)
+                     ascending=False, invert=True, xlim=(30, 37))
     if kind == "style":
         return _style_pie(view, ctx.race_name)
     if kind == "corner":
@@ -94,7 +94,12 @@ def _scatter_style_last3f(view, race_name) -> bytes:
     ax.set_xlabel("平均通過順位（左=前に行く／逃げ・先行）")
     ax.set_ylabel("最速上がり3F [秒]（下=速い＝決め手あり）")
     ax.set_title(f"{race_name}：脚質 × 決め手")
-    ax.invert_yaxis()  # 上がりは小さいほど良いので下が優秀
+    # 上がり3F は 33〜35秒台に集中するので、軸を 30〜37 に固定して差を見やすく。
+    # データが範囲外なら自動調整にフォールバック。
+    if y.between(29, 38).all():
+        ax.set_ylim(37, 30)  # 反転（下=速い）
+    else:
+        ax.invert_yaxis()
     ax.grid(True, alpha=0.3)
     fig.tight_layout()
     return _to_png(fig)
@@ -163,7 +168,8 @@ def _label(view):
     return view.get("horse_no", view.index).astype(str)
 
 
-def _barh(view, col, xlabel, title, color, ascending, invert=False) -> bytes:
+def _barh(view, col, xlabel, title, color, ascending, invert=False,
+          xlim=None) -> bytes:
     d = view.dropna(subset=[col]).copy()
     if d.empty:
         return _placeholder(f"{xlabel} のデータがありません")
@@ -173,7 +179,11 @@ def _barh(view, col, xlabel, title, color, ascending, invert=False) -> bytes:
     ax.barh(labels, d[col], color=color)
     ax.set_xlabel(xlabel)
     ax.set_title(title)
-    if invert:
+    if xlim is not None:
+        # 軸範囲を固定して差を見やすく（上がり3F などゼロ始まりだと潰れる値向け）
+        lo, hi = xlim
+        ax.set_xlim(hi, lo) if invert else ax.set_xlim(lo, hi)
+    elif invert:
         ax.invert_xaxis()
     fig.tight_layout()
     return _to_png(fig)
