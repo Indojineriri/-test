@@ -160,9 +160,23 @@ python3 -m keiba.cli fetch --race-id 202405021211 --out data/derby2024 --wait 1.
 - [x] **フェーズ2: ④分析**（健全性診断・出走馬成績・脚質・賞金・グレード・間隔）
 - [x] **フェーズ3: ⑤予想（ML）**（`keiba predict`：過去ダービーで学習→複勝確率ランキング
       ＋◎○▲印。`keiba backtest`：leave-one-out で的中率集計。リーク防止済み）
-- [ ] フェーズ4: ③可視化（matplotlib で脚質分布・賞金順などのグラフ PNG）
-- [ ] フェーズ5: 生成AI による予想根拠の自然言語説明（Anthropic API）
+- [x] **フェーズ4: ④⑤ 生成AI（2段エージェント）**（`keiba genai-predict`：過去ダービーから
+      Claude が示唆を導出→その示唆で今年の出走馬を評価。Opus 4.8 / 構造化出力 / プロンプトキャッシュ）
+- [ ] フェーズ5: ③可視化（matplotlib で脚質分布・賞金順などのグラフ PNG）
 - [ ] フェーズ6: 回収率ベースの評価（オッズと結びつけた期待値）
+
+### ④⑤ 生成AI予想の使い方
+
+過去ダービーから Claude が「好走馬の傾向」を導き、その示唆を今年の出走馬に当てはめて予想します。
+
+```bash
+export ANTHROPIC_API_KEY=sk-ant-...   # 必須
+python3 -m keiba.cli genai-predict --race-id 202605021211 --store gs://keiba_shohei/keiba
+```
+
+- 2段構成: ①過去ダービー(各馬のレース前指標→実着順)から示唆を導出 → ②示唆を今年の出走馬に適用。
+- モデルは `claude-opus-4-8`、adaptive thinking、構造化出力(pydantic)、過去データはプロンプトキャッシュ。
+- ML(`predict`)が数値スコア、生成AI(`genai-predict`)が言語化された根拠つき予想。併用すると解釈しやすい。
 
 ### ⑤予想（ML）の使い方
 

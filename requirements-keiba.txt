@@ -17,6 +17,9 @@ flask>=3.0
 gunicorn>=21.0
 google-cloud-storage>=2.16
 
-# ③可視化・⑤予想（後続フェーズで使用）
+# ③可視化・⑤予想（ML）
 matplotlib>=3.7
 scikit-learn>=1.3
+
+# ④⑤ 生成AIによる示唆出し・予想（Claude API）
+anthropic>=0.69

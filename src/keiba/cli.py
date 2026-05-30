@@ -341,6 +341,42 @@ def _default_derby_train_ids(exclude=None):
     return [rid for rid in DERBY_RACES if rid != str(exclude)]
 
 
+def cmd_genai_predict(args):
+    """過去ダービーから生成AIで示唆を出し、その示唆で今年の出走馬を予想する。"""
+    import os
+    from . import genai
+
+    if not os.environ.get("ANTHROPIC_API_KEY"):
+        sys.exit("[genai] ANTHROPIC_API_KEY が未設定です（環境変数に設定してください）。")
+
+    store = Storage.from_uri(args.store)
+    train_ids = [r.strip() for r in args.train.split(",") if r.strip()] if args.train \
+        else _default_derby_train_ids(exclude=args.race_id)
+    print(f"[genai] 学習候補 {len(train_ids)} 件 / 対象 {args.race_id} / モデル {args.model}")
+    past_items = _load_derby_train_items(store, train_ids)
+    if not past_items:
+        sys.exit("[genai] 過去ダービーがありません。fetch --past で取得してください。")
+
+    try:
+        ctx = service.load_context(args.race_id, store)
+    except Exception as e:
+        sys.exit(f"[genai] 対象レース読み込み失敗: {e}")
+
+    import anthropic
+    client = anthropic.Anthropic()
+
+    # ① 示唆出し
+    print(f"\n[genai] ①過去{len(past_items)}年から示唆を導出中…")
+    insights = genai.derive_insights(client, past_items, model=args.model)
+    print(genai.format_insights(insights))
+
+    # ② 予想
+    print(f"\n[genai] ②示唆を今年の出走馬に適用中…")
+    pred = genai.apply_insights(client, insights, ctx, model=args.model)
+    print()
+    print(genai.format_prediction(pred, race_name=ctx.race_name))
+
+
 def _resolve_race_ids(args) -> list[str]:
     """fetch の対象 race_id 群を決める。
 
@@ -502,6 +538,16 @@ def build_parser() -> argparse.ArgumentParser:
                     help="対象年。例 2016-2024 / 2018,2020,2022（既定 2016-2024）")
     pb.add_argument("--label", default="show", choices=["show", "win"])
     pb.set_defaults(func=cmd_backtest)
+
+    pg = sub.add_parser("genai-predict",
+                        help="過去ダービーから生成AIで示唆→今年の出走馬を予想（要 ANTHROPIC_API_KEY）")
+    pg.add_argument("--race-id", required=True, help="予想対象レースID")
+    pg.add_argument("--store", default="data/fetched",
+                    help="参照先（ローカル or gs://）")
+    pg.add_argument("--train", default=None,
+                    help="学習レースID(カンマ区切り)。未指定なら既知ダービー全年(対象除外)")
+    pg.add_argument("--model", default="claude-opus-4-8", help="Claude モデルID")
+    pg.set_defaults(func=cmd_genai_predict)
 
     pdh = sub.add_parser("diagnose-horse",
                          help="競走馬ページHTMLの中身を点検（戦績パース不能の原因特定）")
