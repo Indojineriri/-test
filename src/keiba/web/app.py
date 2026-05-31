@@ -145,8 +145,8 @@ def index():
             )
         target_section = "".join(cards)
     else:
-        target_section = ('<p><em>予想対象レース（未施行）がまだありません。'
-                          '今年のレースを <code>fetch --race-id ...</code>（--past 無し）で取得してください。</em></p>')
+        target_section = ('<p class="note">予想対象のレースがまだ登録されていません。'
+                          'データを取り込むと、ここに馬柱と予想ボタンが表示されます。</p>')
 
     # 脇役: 過去レース = 示唆を得る道具。「実際の結果」と「見解(示唆)」だけを見せる。
     if past:
@@ -177,8 +177,8 @@ def index():
             f'<p>{insight_btn}</p><div class="result" id="res-insights"></div>'
         )
     else:
-        past_section = ('<p class="note">⚠ 学習用の過去ダービーがありません。'
-                        '<code>fetch --derby-years 2019-2024 --past</code> で取得すると予想精度が上がります。</p>')
+        past_section = ('<p class="note">過去ダービーのデータがまだありません。'
+                        '取り込むと予想の精度が上がります。</p>')
 
     html = f"""<!doctype html><html lang="ja"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -221,8 +221,8 @@ def index():
   details {{ margin:16px 0; max-width:900px; }}
   summary {{ cursor:pointer; font-weight:bold; }}
 </style></head><body>
-<h1>keiba — 競馬予想サービス</h1>
-<p class="note">参照先: <code>{store.uri()}</code>　生成AI予想: <b>{'有効' if genai_on else '無効(キー未設定)'}</b></p>
+<h1>🏇 日本ダービー予想</h1>
+<p class="note">過去のダービーの傾向をもとに、今年の有力馬を予想します。</p>
 
 <h2>🏇 予想する</h2>
 <p>「過去ダービーの傾向 → 共通するポイント → だから今年はこう」という流れで予想します。</p>
@@ -451,8 +451,8 @@ def visualize(race_id: str):
             f'<div class="grid">{past_imgs}</div>'
         )
     else:
-        past_block = ('<p class="note">過去ダービーの結果データがありません'
-                      '（fetch --past で取得すると表示されます）。</p>')
+        past_block = ('<p class="note">過去ダービーの結果データがまだありません。'
+                      'データを取り込むと、ここに傾向グラフが表示されます。</p>')
 
     html = (_page_head(f"可視化 - {name}") +
             f'<a class="back" href="/">← 予想ページに戻る</a>'
