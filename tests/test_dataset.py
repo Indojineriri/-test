@@ -266,6 +266,25 @@ def test_distance_and_time_features():
     assert (tgt["pit_dist_delta_last"].dropna() <= 0).any()
 
 
+def test_best_time_uses_exact_distance_only():
+    """持ちタイムは対象距離ぴったりの最速のみ。別距離(例1400/1800)は混ぜない。"""
+    ctx, _, _ = _make_context(n_entrants=8, career=8, seed=7)  # 距離は1800/2000/2400
+    runs = build_runs_table(ctx)
+    # 対象距離に存在する2400m → その馬の2400m実タイムの最小と一致
+    feat = add_pointwise_features(runs, target_distance=2400)
+    tgt = feat[feat["is_target"]]
+    bt = tgt[tgt["pit_best_time_dist"].notna()]
+    assert len(bt) > 0
+    for _, r in bt.iterrows():
+        own = runs[(runs["horse_id"] == r["horse_id"])
+                   & (runs["distance"] == 2400)
+                   & (runs["time_sec"].notna())]
+        assert abs(r["pit_best_time_dist"] - own["time_sec"].min()) < 1e-6
+    # 過去に一度も無い距離(1600m)を対象にすると持ちタイムは付かない（別距離の流用なし）
+    feat16 = add_pointwise_features(runs, target_distance=1600)
+    assert feat16[feat16["is_target"]]["pit_best_time_dist"].notna().sum() == 0
+
+
 def test_time_series_split_no_future_in_train():
     ctx, _, _ = _make_context(seed=5)
     runs = build_runs_table(ctx)

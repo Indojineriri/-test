@@ -150,7 +150,7 @@ PIT_FEATURES = [
     "pit_dist_starts",
     "pit_dist_avg_finish",
     "pit_dist_show_rate",      # 同距離帯での複勝率（距離適性）
-    "pit_best_time_dist",      # 持ちタイム＝同距離帯での最速タイム(秒, 小=速)
+    "pit_best_time_dist",      # 持ちタイム＝対象距離ぴったりの最速タイム(秒, 小=速)
     "pit_best_speed",          # 全過去走の最高平均速度(m/s, 大=速。距離をまたいで比較)
     "pit_dist_delta_last",     # 目標距離−前走距離(+延長/−短縮)
     "pit_ext_avg_finish",      # 過去に距離延長した時の平均着順
@@ -230,11 +230,13 @@ def add_pointwise_features(runs: pd.DataFrame, target_distance: int | None = Non
                             feats["pit_dist_avg_finish"][ridx] = float(nfv.mean())
                             # 同距離帯での複勝率（距離適性）
                             feats["pit_dist_show_rate"][ridx] = float((nfv <= 3).mean())
-                        # 持ちタイム＝同距離帯での最速タイム（小さいほど速い）
-                        tnear = time_arr[near]
-                        tnear = tnear[(~np.isnan(tnear)) & (tnear > 0)]
-                        if len(tnear):
-                            feats["pit_best_time_dist"][ridx] = float(tnear.min())
+                    # 持ちタイム＝同一距離(ぴったり)での最速タイム。距離が違うタイムは
+                    # 比較できないため距離帯ではなく厳密一致のみ採用（小さいほど速い）。
+                    exact = dist_arr == float(base_dist)
+                    texact = time_arr[exact]
+                    texact = texact[(~np.isnan(texact)) & (texact > 0)]
+                    if len(texact):
+                        feats["pit_best_time_dist"][ridx] = float(texact.min())
                     # 距離増減（直近過去走との差）。+延長／−短縮。
                     last_d = dist_arr[-1]
                     if not np.isnan(last_d):

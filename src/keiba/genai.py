@@ -40,7 +40,7 @@ _PROMPT_FEATURES = [
     ("pit_best_last3f", "最速上り3F"),
     ("pit_dist_starts", "同距離出走数"),
     ("pit_dist_show_rate", "同距離複勝率"),
-    ("pit_best_time_dist", "持ちタイム(秒,同距離帯の最速)"),
+    ("pit_best_time_dist", "持ちタイム(秒,同一距離の最速)"),
     ("pit_dist_delta_last", "距離増減(m,+延長/−短縮)"),
     ("pit_max_grade_win", "最高勝鞍格(5=G1..1=条件)"),
     ("pit_total_prize", "総賞金(万)"),
