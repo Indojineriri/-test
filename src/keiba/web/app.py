@@ -101,8 +101,8 @@ def index():
     races = list_races(store)
     genai_on = bool(os.environ.get("ANTHROPIC_API_KEY"))
 
-    # 予想対象（actual.csv が無い＝未施行）と、学習用の過去データ（actual.csv あり）に分ける。
-    # 過去側はダービー(優駿/ダービー)のみ採用。2016-2018 は別レース(薫風S)なので名前で除外される。
+    # 予想対象（actual.csv が無い＝未施行）と、過去データ（actual.csv あり）に分ける。
+    # レースは固定せず、保存されているものをそのまま扱う（ダービー・安田記念など何でも）。
     upcoming, past = [], []
     for r in races:
         meta = load_meta(r, store) or {}
@@ -110,8 +110,7 @@ def index():
         date = (meta.get("race_meta") or {}).get("date") or ""
         info = {"id": r, "name": name, "date": date}
         if load_actual(r, store) is not None:
-            if "優駿" in name or "ダービー" in name:  # 別レースは過去一覧に出さない
-                past.append(info)
+            past.append(info)
         else:
             upcoming.append(info)
 
@@ -164,20 +163,23 @@ def index():
             result_rows.append(
                 f'<tr><td>{p["name"]}<br><span class="note">{p["date"]}</span></td>'
                 f'<td>{top}</td></tr>')
+        # 示唆ボタンは予想対象レースの「同じレースの過去開催」から見解を出す。
+        insight_race = upcoming[0]["id"] if upcoming else ""
         insight_btn = (
-            '<button onclick="runInsights(this)">🤖 過去全体から示唆（見解）を出す</button>'
+            f'<button onclick="runInsights(this,\'{insight_race}\')">'
+            f'🤖 過去から示唆（見解）を出す</button>'
             if genai_on else
             '<button disabled title="ANTHROPIC_API_KEY 未設定">🤖 示唆を出す(無効)</button>'
         )
         past_section = (
-            f'<h2>📚 過去ダービーの結果と見解</h2>'
+            f'<h2>📚 過去レースの結果と見解</h2>'
             f'<p class="note">これらは予想の根拠（示唆）を得るための材料です。</p>'
             f'<table><thead><tr><th>レース</th><th>実際の結果（上位3頭）</th></tr></thead>'
             f'<tbody>{"".join(result_rows)}</tbody></table>'
             f'<p>{insight_btn}</p><div class="result" id="res-insights"></div>'
         )
     else:
-        past_section = ('<p class="note">過去ダービーのデータがまだありません。'
+        past_section = ('<p class="note">過去レースのデータがまだありません。'
                         '取り込むと予想の精度が上がります。</p>')
 
     html = f"""<!doctype html><html lang="ja"><head><meta charset="utf-8">
@@ -221,11 +223,11 @@ def index():
   details {{ margin:16px 0; max-width:900px; }}
   summary {{ cursor:pointer; font-weight:bold; }}
 </style></head><body>
-<h1>🏇 日本ダービー予想</h1>
-<p class="note">過去のダービーの傾向をもとに、今年の有力馬を予想します。</p>
+<h1>🏇 競馬予想</h1>
+<p class="note">同じレースの過去開催の傾向をもとに、今年の有力馬を予想します。</p>
 
 <h2>🏇 予想する</h2>
-<p>「過去ダービーの傾向 → 共通するポイント → だから今年はこう」という流れで予想します。</p>
+<p>「過去の同レースの傾向 → 共通するポイント → だから今年はこう」という流れで予想します。</p>
 {target_section}
 
 {past_section}
@@ -233,6 +235,14 @@ def index():
 <script>
 const MARKS = ['◎','○','▲','△','△'];
 const fmtPct = v => (v == null ? '-' : (v <= 1 ? (v*100).toFixed(0) : v.toFixed(0)) + '%');
+// 持ちタイム: 秒 → 分:秒.s（例 91.5 → 1:31.5）
+const fmtTime = v => {{
+  if (v == null) return '-';
+  const m = Math.floor(v / 60), s = (v - m*60);
+  return m > 0 ? m + ':' + s.toFixed(1).padStart(4,'0') : s.toFixed(1);
+}};
+// 距離増減: +延長 / −短縮（0は同距離）
+const fmtSigned = v => (v == null ? '-' : (v > 0 ? '+'+Math.round(v) : ''+Math.round(v)));
 
 // ページ読み込み時に各レースの馬柱を取得して表示
 document.addEventListener('DOMContentLoaded', () => {{
@@ -256,7 +266,8 @@ function renderUma(rows, pred) {{
   // pred: {{ byNo: {{horse_no: {{rank, prob, mark}}}} }}
   const head =
     '<tr><th>枠</th><th>馬番</th><th>馬名</th><th>性齢</th><th>騎手</th>' +
-    '<th>勝率</th><th>複勝率(実績)</th><th>近3走</th><th>脚質</th><th>賞金(万)</th>' +
+    '<th>勝率</th><th>複勝率(実績)</th><th>近3走</th><th>脚質</th>' +
+    '<th>持ちタイム</th><th>同距離複勝率</th><th>距離増減</th><th>賞金(万)</th>' +
     (pred ? '<th class="pcol">印</th><th class="pcol">予想複勝率</th>' : '') + '</tr>';
   const body = rows.map(x => {{
     const p = pred && pred.byNo[x.horse_no];
@@ -269,6 +280,9 @@ function renderUma(rows, pred) {{
       `<td class="rank">${{fmtPct(x.pit_show_rate)}}</td>` +
       `<td class="rank">${{x.pit_avg_finish_last3 != null ? x.pit_avg_finish_last3.toFixed(1) : '-'}}</td>` +
       `<td>${{x.pit_running_style || ''}}</td>` +
+      `<td class="rank">${{fmtTime(x.pit_best_time_dist)}}</td>` +
+      `<td class="rank">${{fmtPct(x.pit_dist_show_rate)}}</td>` +
+      `<td class="rank">${{fmtSigned(x.pit_dist_delta_last)}}</td>` +
       `<td class="rank">${{x.pit_total_prize != null ? Math.round(x.pit_total_prize) : '-'}}</td>` +
       (pred ? `<td class="pcol mark">${{p ? p.mark : ''}}</td>` +
               `<td class="pcol rank">${{p ? fmtPct(p.prob) : '-'}}</td>` : '') +
@@ -333,12 +347,12 @@ function genaiToPred(d) {{
     '<p class="note">' + (d.prediction.commentary || '') + '</p></div>' }};
 }}
 
-async function runInsights(btn) {{
+async function runInsights(btn, raceId) {{
   const box = document.getElementById('res-insights');
-  box.innerHTML = '<span class="spinner">⏳ 過去全体から示唆を導出中…（数十秒かかります）</span>';
+  box.innerHTML = '<span class="spinner">⏳ 過去から示唆を導出中…（数十秒かかります）</span>';
   btn.disabled = true;
   try {{
-    const resp = await fetch('/insights');
+    const resp = await fetch('/insights' + (raceId ? '?race=' + raceId : ''));
     const data = await resp.json();
     if (!resp.ok) {{ box.innerHTML = '<div class="card">⚠ ' + (data.error || resp.status) + '</div>'; return; }}
     box.innerHTML = renderInsights(data);
@@ -611,30 +625,31 @@ def chart(race_id: str, kind: str):
     return Response(png, mimetype="image/png")
 
 
-def _train_ids_from_request(default_exclude):
-    """?train=a,b,c があればそれを、無ければ既知ダービー全年(対象除外)を返す。"""
-    from ..service import default_derby_train_ids
+def _train_ids_from_request(target_race_id):
+    """?train=a,b,c があればそれを、無ければ対象と同じレースの過去開催を返す。"""
+    from ..service import default_train_ids_for
     raw = request.args.get("train")
     if raw:
         return [r.strip() for r in raw.split(",") if r.strip()]
-    return default_derby_train_ids(exclude=default_exclude)
+    return default_train_ids_for(target_race_id, _store())
 
 
 @app.get("/predict/<race_id>")
 def predict(race_id: str):
-    """⑤ML予想: 過去ダービーで学習し、対象レースの複勝確率ランキングを JSON で返す。"""
+    """⑤ML予想: 同じレースの過去開催で学習し、複勝確率ランキングを JSON で返す。"""
     from .. import ml
-    from ..service import load_context, load_derby_items
+    from ..service import load_context, load_race_items
 
     store = _store()
-    train_items, skipped = load_derby_items(store, _train_ids_from_request(race_id))
-    if not train_items:
-        return jsonify(error="学習データがありません（fetch --past で過去ダービーを保存）",
-                       skipped=skipped), 422
     try:
         ctx = load_context(race_id, store)
     except Exception as e:
         return jsonify(error=str(e), race_id=race_id), 404
+    train_items, skipped = load_race_items(
+        store, _train_ids_from_request(race_id), match_name=ctx.race_name)
+    if not train_items:
+        return jsonify(error="学習データがありません（同じレースの過去開催を --past で保存してください）",
+                       skipped=skipped), 422
 
     label = request.args.get("label", "show")
     try:
@@ -688,17 +703,18 @@ def genai_predict(race_id: str):
         return jsonify(error="ANTHROPIC_API_KEY 未設定。生成AI予想は無効です。"), 503
 
     from .. import genai
-    from ..service import load_context, load_derby_items
+    from ..service import load_context, load_race_items
 
     store = _store()
-    past_items, skipped = load_derby_items(store, _train_ids_from_request(race_id))
-    if not past_items:
-        return jsonify(error="過去ダービーがありません（fetch --past で保存）",
-                       skipped=skipped), 422
     try:
         ctx = load_context(race_id, store)
     except Exception as e:
         return jsonify(error=str(e), race_id=race_id), 404
+    past_items, skipped = load_race_items(
+        store, _train_ids_from_request(race_id), match_name=ctx.race_name)
+    if not past_items:
+        return jsonify(error="同じレースの過去開催がありません（--past で保存してください）",
+                       skipped=skipped), 422
 
     import anthropic
     client = anthropic.Anthropic()
@@ -750,15 +766,24 @@ def insights():
         return jsonify(error="ANTHROPIC_API_KEY 未設定。示唆出しは無効です。"), 503
 
     from .. import genai
-    from ..service import load_derby_items, default_derby_train_ids
+    from ..service import (load_race_items, default_train_ids_for,
+                           default_derby_train_ids, load_meta)
 
     store = _store()
     raw = request.args.get("train")
-    ids = ([r.strip() for r in raw.split(",") if r.strip()] if raw
-           else default_derby_train_ids())
-    past_items, skipped = load_derby_items(store, ids)
+    target = request.args.get("race")
+    match_name = None
+    if raw:
+        ids = [r.strip() for r in raw.split(",") if r.strip()]
+    elif target:
+        ids = default_train_ids_for(target, store)
+        match_name = ((load_meta(target, store) or {}).get("race_meta")
+                      or {}).get("race_name")
+    else:
+        ids = default_derby_train_ids()
+    past_items, skipped = load_race_items(store, ids, match_name=match_name)
     if not past_items:
-        return jsonify(error="過去ダービーがありません（fetch --past で保存）",
+        return jsonify(error="同じレースの過去開催がありません（--past で保存してください）",
                        skipped=skipped), 422
 
     import anthropic

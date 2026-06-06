@@ -249,6 +249,23 @@ def test_one_race_only_is_not_trainable():
     assert len(parts["X_train"]) == 18
 
 
+def test_distance_and_time_features():
+    """距離適性(延長/短縮)と持ちタイムの特徴量が計算される。"""
+    ctx, _, _ = _make_context(n_entrants=8, career=6, seed=7)
+    # 対象を芝1600m に見立てて距離増減を見る
+    ctx.race["distance"] = 1600
+    runs = build_runs_table(ctx)
+    feat = add_pointwise_features(runs, target_distance=1600)
+    for c in ["pit_dist_show_rate", "pit_best_time_dist", "pit_best_speed",
+              "pit_dist_delta_last", "pit_ext_avg_finish", "pit_short_avg_finish"]:
+        assert c in feat.columns, c
+    tgt = feat[feat["is_target"]]
+    # 履歴ありの対象馬は持ちタイム/速度が有限値になる
+    assert tgt["pit_best_speed"].notna().any()
+    # 過去走(1800/2000/2400)から1600へは短縮なので、距離増減は負になりやすい
+    assert (tgt["pit_dist_delta_last"].dropna() <= 0).any()
+
+
 def test_time_series_split_no_future_in_train():
     ctx, _, _ = _make_context(seed=5)
     runs = build_runs_table(ctx)

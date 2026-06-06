@@ -252,6 +252,38 @@ def test_predict_endpoint_no_training_data(tmp, monkeypatch):
     assert "skipped" in r.get_json()
 
 
+def test_default_train_ids_for_same_race(tmp, monkeypatch):
+    """同じレース(安田記念)の過去開催だけを自動選択し、別レース(ダービー)は混ぜない。"""
+    store = LocalStorage(tmp / "fam")
+    _seed_derby(store, "202405030211", seed=11, race_name="第74回安田記念(GI)")
+    _seed_derby(store, "202305030211", seed=12, race_name="第73回安田記念(GI)")
+    _seed_derby(store, "202405021211", seed=13, race_name="第91回東京優駿(GI)")  # 別レース
+    _seed_derby(store, "202605030211", seed=14, race_name="第76回安田記念(GI)")  # 対象
+
+    ids = service.default_train_ids_for("202605030211", store)
+    assert set(ids) == {"202305030211", "202405030211"}, ids  # ダービー混入なし・対象除外
+
+    items, skipped = service.load_race_items(store, ids, match_name="安田記念")
+    assert len(items) == 2
+    # 別レースを混ぜても match_name で弾ける
+    items2, _ = service.load_race_items(
+        store, ids + ["202405021211"], match_name="安田記念")
+    assert len(items2) == 2
+
+
+def test_entrants_has_distance_and_time_features(tmp, monkeypatch):
+    """馬柱(entrants) JSON に持ちタイム・同距離複勝率・距離増減が含まれる。"""
+    monkeypatch.setenv("KEIBA_STORAGE_URI", str(tmp / "ent"))
+    store = LocalStorage(tmp / "ent")
+    _seed_derby(store, "202605030211", seed=7, race_name="第76回安田記念(GI)")
+    from keiba.web import app as webmod
+    r = webmod.app.test_client().get("/entrants/202605030211")
+    assert r.status_code == 200
+    row = r.get_json()["rows"][0]
+    for k in ("pit_best_time_dist", "pit_dist_show_rate", "pit_dist_delta_last"):
+        assert k in row, k
+
+
 def test_genai_predict_disabled_without_key(tmp, monkeypatch):
     monkeypatch.setenv("KEIBA_STORAGE_URI", str(tmp / "g"))
     monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)

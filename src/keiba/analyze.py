@@ -139,7 +139,9 @@ def format_coverage(summary: dict) -> str:
 _ENTRANT_VIEW = [
     "horse_no", "horse_name", "pit_starts", "pit_win_rate", "pit_show_rate",
     "pit_avg_finish", "pit_avg_finish_last3", "pit_best_last3f",
-    "pit_dist_starts", "pit_dist_avg_finish", "pit_max_grade_win",
+    "pit_dist_starts", "pit_dist_avg_finish", "pit_dist_show_rate",
+    "pit_best_time_dist", "pit_dist_delta_last",
+    "pit_max_grade_win",
     "pit_total_prize", "pit_running_style", "pit_avg_corner_pos",
     "pit_days_since_last",
 ]
@@ -167,12 +169,17 @@ def analyze_entrants(ctx: RaceContext) -> pd.DataFrame:
     for c in ["pit_win_rate", "pit_show_rate"]:
         if c in view:
             view[c] = (view[c] * 100).round(1)
+    for c in ["pit_dist_show_rate"]:
+        if c in view:
+            view[c] = (view[c] * 100).round(1)
     for c in ["pit_avg_finish", "pit_avg_finish_last3", "pit_dist_avg_finish",
-              "pit_best_last3f", "pit_days_since_last", "pit_avg_corner_pos"]:
+              "pit_best_last3f", "pit_days_since_last", "pit_avg_corner_pos",
+              "pit_best_time_dist"]:
         if c in view:
             view[c] = view[c].round(1)
-    if "pit_total_prize" in view:
-        view["pit_total_prize"] = view["pit_total_prize"].round(0)
+    for c in ["pit_total_prize", "pit_dist_delta_last"]:
+        if c in view:
+            view[c] = view[c].round(0)
     return view
 
 
@@ -188,6 +195,9 @@ COLUMN_LABELS = {
     "pit_best_last3f": "最速上り",
     "pit_dist_starts": "同距離数",
     "pit_dist_avg_finish": "同距離平均着",
+    "pit_dist_show_rate": "同距離複勝率%",
+    "pit_best_time_dist": "持ちタイム(秒)",
+    "pit_dist_delta_last": "距離増減(m)",
     "pit_max_grade_win": "最高勝鞍格",
     "pit_total_prize": "総賞金(万)",
     "pit_running_style": "脚質",

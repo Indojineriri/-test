@@ -54,10 +54,10 @@ def fetch_and_store(race_id: str, store: Storage, *, cache: Storage | None = Non
     ctx = src.build_context()
 
     # 対象レースの施行日を補完（出馬表ページには日付が無いことが多い）。
-    # 間隔(日) などの計算に必要。明示指定 > 既知ダービー表 の順で補う。
+    # 間隔(日) などの計算に必要。明示指定 > 既知レース表(ダービー/安田記念等) の順で補う。
     if not ctx.race.get("date"):
-        from .data.derby import derby_date
-        ctx.race["date"] = race_date or derby_date(race_id)
+        from .data.races import known_race_date
+        ctx.race["date"] = race_date or known_race_date(race_id)
 
     prefix = _race_prefix(race_id)
     store.write_text(f"{prefix}/entries.csv", ctx.entries.to_csv(index=False))
@@ -188,6 +188,70 @@ def load_derby_items(store: Storage, race_ids, require_derby: bool = True):
             continue
         items.append((ctx, actual))
     return items, skipped
+
+
+def load_race_items(store: Storage, race_ids, match_name: str | None = None):
+    """学習/示唆用に (RaceContext, actual_df) のリストを読み込む（レース非依存）。
+
+    actual.csv が無い年は除外する。match_name を渡すと、レース名の“核”
+    （normalize_race_name）が一致する年だけを採用する（別レースを誤取得した年を弾く）。
+    load_derby_items のダービー固定版を一般化したもの。
+
+    Returns: (items, skipped)
+    """
+    from .data.races import normalize_race_name
+    want = normalize_race_name(match_name) if match_name else None
+    items, skipped = [], []
+    for rid in race_ids:
+        try:
+            ctx = load_context(rid, store)
+        except Exception:
+            skipped.append((rid, "読み込み不可"))
+            continue
+        name = str(ctx.race_name)
+        if want and normalize_race_name(name) != want:
+            skipped.append((rid, f"別レース({name})"))
+            continue
+        actual = load_actual(rid, store)
+        if actual is None:
+            skipped.append((rid, "actual.csv 無し"))
+            continue
+        items.append((ctx, actual))
+    return items, skipped
+
+
+def default_train_ids_for(target_race_id: str, store: Storage):
+    """対象レースと“同じレースの過去開催”の race_id を自動選択する（学習対象）。
+
+    手順:
+      1. 保存済みレースのうち actual.csv を持つものを走査し、対象とレース名の核が
+         一致する年（=同じレースの別年度）を集める。対象自身は除く。
+      2. まだ何も取れていない場合は、既知レース表(KNOWN_RACES)の同レース候補を返す。
+    これにより、安田記念でもダービーでも「自分の過去開催で学習」できる。
+    """
+    from .data.races import normalize_race_name, registry_family_ids
+    target_id = str(target_race_id)
+    # 対象レース名（メタ）を取得
+    meta = load_meta(target_id, store) or {}
+    target_name = (meta.get("race_meta") or {}).get("race_name")
+    want = normalize_race_name(target_name) if target_name else None
+
+    found = []
+    for rid in list_races(store):
+        if rid == target_id:
+            continue
+        if load_actual(rid, store) is None:
+            continue
+        if want:
+            m = load_meta(rid, store) or {}
+            nm = (m.get("race_meta") or {}).get("race_name")
+            if normalize_race_name(nm) != want:
+                continue
+        found.append(rid)
+    if found:
+        return sorted(found)
+    # フォールバック: 既知表の同レース候補（未取得年を含む）
+    return sorted(r for r in registry_family_ids(target_id) if r != target_id)
 
 
 def default_derby_train_ids(exclude=None):

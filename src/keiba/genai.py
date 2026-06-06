@@ -38,6 +38,10 @@ _PROMPT_FEATURES = [
     ("pit_avg_finish", "平均着順"),
     ("pit_avg_finish_last3", "近3走平均着順"),
     ("pit_best_last3f", "最速上り3F"),
+    ("pit_dist_starts", "同距離出走数"),
+    ("pit_dist_show_rate", "同距離複勝率"),
+    ("pit_best_time_dist", "持ちタイム(秒,同距離帯の最速)"),
+    ("pit_dist_delta_last", "距離増減(m,+延長/−短縮)"),
     ("pit_max_grade_win", "最高勝鞍格(5=G1..1=条件)"),
     ("pit_total_prize", "総賞金(万)"),
     ("pit_running_style", "脚質"),
@@ -45,16 +49,31 @@ _PROMPT_FEATURES = [
 ]
 
 
+def _race_conditions(ctx: RaceContext) -> str:
+    """『芝1600m / 東京 / GI』のようなレース条件の1行表記。"""
+    r = ctx.race
+    parts = []
+    surf = r.get("surface")
+    dist = r.get("distance")
+    if surf or dist:
+        parts.append(f"{surf or ''}{(str(int(float(dist)))+'m') if dist else ''}")
+    if r.get("track"):
+        parts.append(str(r.get("track")))
+    if r.get("grade"):
+        parts.append(str(r.get("grade")))
+    return " / ".join(p for p in parts if p)
+
+
 # --- 構造化出力スキーマ ------------------------------------------------------
 
 class Insight(BaseModel):
-    pattern: str = Field(description="複数年のダービーに共通して見られる好走馬の特徴（1文）")
+    pattern: str = Field(description="複数年に共通して見られる好走馬の特徴（1文）")
     rationale: str = Field(description="どの年のどんな結果からその共通点が言えるか（具体的に）")
     weight: float = Field(description="重要度 0.0〜1.0", ge=0.0, le=1.0)
 
 
 class DerbyInsights(BaseModel):
-    summary: str = Field(description="過去ダービー全体の傾向の要約（2〜3文）")
+    summary: str = Field(description="過去レース全体の傾向の要約（2〜3文）")
     insights: list[Insight] = Field(
         description="複数年に共通する好走パターン（=今年に転用できる示唆）のリスト")
     caveats: list[str] = Field(description="注意点・例外（データが少ない等）")
@@ -101,7 +120,7 @@ def _entrants_table(ctx: RaceContext, with_result: pd.DataFrame | None = None) -
             if isinstance(val, float):
                 if np.isnan(val):
                     val = "-"
-                elif col in ("pit_win_rate", "pit_show_rate"):
+                elif col in ("pit_win_rate", "pit_show_rate", "pit_dist_show_rate"):
                     val = f"{val*100:.0f}%"
                 else:
                     val = f"{val:.1f}"
@@ -115,28 +134,38 @@ def _entrants_table(ctx: RaceContext, with_result: pd.DataFrame | None = None) -
 
 
 def build_insight_prompt(past_items: list[tuple[RaceContext, pd.DataFrame]]) -> str:
-    """過去ダービー群を、示唆導出用のテキストにまとめる（安定プレフィックス）。"""
-    parts = ["# 過去の日本ダービー（各馬のレース前時点の指標 → 実際の着順）\n"]
+    """過去の同一レース群を、示唆導出用のテキストにまとめる（安定プレフィックス）。"""
+    race_name = past_items[0][0].race_name if past_items else "対象レース"
+    parts = [f"# 過去の{race_name}（各馬のレース前時点の指標 → 実際の着順）\n"]
     for ctx, actual in past_items:
-        parts.append(f"\n## {ctx.race_name}（{ctx.race.get('date','')}）")
+        cond = _race_conditions(ctx)
+        head = f"\n## {ctx.race_name}（{ctx.race.get('date','')}）"
+        if cond:
+            head += f" [{cond}]"
+        parts.append(head)
         parts.append(_entrants_table(ctx, with_result=actual))
     return "\n".join(parts)
 
 
 def build_application_prompt(ctx: RaceContext) -> str:
     """今年の出走馬の指標表を、予想適用用のテキストにまとめる。"""
-    return (f"# 予想対象: {ctx.race_name}（{ctx.race.get('date','')}）\n"
+    cond = _race_conditions(ctx)
+    cond_line = f"（条件: {cond}）" if cond else ""
+    return (f"# 予想対象: {ctx.race_name}{cond_line}（{ctx.race.get('date','')}）\n"
             f"## 出走馬のレース前指標（着順は未確定）\n"
-            + _entrants_table(ctx))
+            + _entrants_table(ctx)
+            + "\n\n※距離適性（距離延長・短縮への対応）と持ちタイムにも注目してください。")
 
 
 # --- 生成AI 呼び出し ---------------------------------------------------------
 
 _INSIGHT_SYSTEM = (
-    "あなたは競馬データ分析の専門家です。日本ダービー(東京・芝2400m・3歳GI)の"
-    "複数年の過去結果を、各馬のレース前時点の指標とともに分析します。"
+    "あなたは競馬データ分析の専門家です。あるレース（コース・距離・グレードは各データに"
+    "明記）の複数年の過去結果を、各馬のレース前時点の指標とともに分析します。"
     "個々の年の勝ち馬を当てることが目的ではなく、"
     "『複数年に共通して好走馬に見られる特徴』を抽出するのが目的です。"
+    "特に距離適性（同距離での成績や距離延長・短縮への対応）や、持ちタイム"
+    "（マイル戦などスピードが問われる条件で重要）にも注目してください。"
     "1年だけの偶然ではなく、年をまたいで繰り返し現れるパターンを重視し、"
     "それを今年の予想に転用できる示唆として、根拠(どの年のどの結果か)つきで導いてください。"
 )
@@ -144,13 +173,13 @@ _INSIGHT_SYSTEM = (
 _APPLY_SYSTEM = (
     "あなたは競馬予想の専門家です。与えられた『過去傾向の示唆』を、"
     "今年の出走馬のレース前指標に当てはめ、複勝圏(3着内)に入りそうな馬を"
-    "根拠つきで推定します。示唆と各馬の指標を照合し、なぜその馬かを説明してください。"
-)
+    "根拠つきで推定します。示唆と各馬の指標（距離適性・持ちタイムを含む）を照合し、"
+    "なぜその馬かを説明してください。")
 
 
 def derive_insights(client, past_items: list[tuple[RaceContext, pd.DataFrame]],
                     model: str = MODEL) -> DerbyInsights:
-    """Stage1: 過去ダービーから示唆を導出する（structured output）。"""
+    """Stage1: 過去の同一レース群から示唆を導出する（structured output）。"""
     context_text = build_insight_prompt(past_items)
     resp = client.messages.parse(
         model=model,
@@ -163,7 +192,7 @@ def derive_insights(client, past_items: list[tuple[RaceContext, pd.DataFrame]],
             {"type": "text", "text": context_text,
              "cache_control": {"type": "ephemeral"}},
             {"type": "text", "text":
-             "上記の過去ダービーを分析し、好走馬の傾向(示唆)を導いてください。"},
+             "上記の過去レースを分析し、好走馬の傾向(示唆)を導いてください。"},
         ]}],
         output_format=DerbyInsights,
     )
@@ -195,7 +224,7 @@ def apply_insights(client, insights: DerbyInsights, ctx: RaceContext,
 
 
 def _format_insights_for_prompt(insights: DerbyInsights) -> str:
-    lines = ["# 過去ダービーから導いた示唆", f"全体傾向: {insights.summary}", ""]
+    lines = ["# 過去レースから導いた示唆", f"全体傾向: {insights.summary}", ""]
     for i, ins in enumerate(insights.insights, 1):
         lines.append(f"{i}. [{ins.weight:.1f}] {ins.pattern} （根拠: {ins.rationale}）")
     if insights.caveats:
@@ -207,7 +236,7 @@ def _format_insights_for_prompt(insights: DerbyInsights) -> str:
 # --- 表示整形 ----------------------------------------------------------------
 
 def format_insights(insights: DerbyInsights) -> str:
-    lines = ["=== 【生成AI ①示唆出し】過去ダービーの傾向 ==="]
+    lines = ["=== 【生成AI ①示唆出し】過去の傾向 ==="]
     lines.append(f"全体傾向: {insights.summary}\n")
     lines.append("◆ 導かれた示唆（重要度順）")
     for ins in sorted(insights.insights, key=lambda x: -x.weight):

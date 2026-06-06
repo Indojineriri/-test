@@ -149,6 +149,12 @@ PIT_FEATURES = [
     "pit_days_since_last",
     "pit_dist_starts",
     "pit_dist_avg_finish",
+    "pit_dist_show_rate",      # 同距離帯での複勝率（距離適性）
+    "pit_best_time_dist",      # 持ちタイム＝同距離帯での最速タイム(秒, 小=速)
+    "pit_best_speed",          # 全過去走の最高平均速度(m/s, 大=速。距離をまたいで比較)
+    "pit_dist_delta_last",     # 目標距離−前走距離(+延長/−短縮)
+    "pit_ext_avg_finish",      # 過去に距離延長した時の平均着順
+    "pit_short_avg_finish",    # 過去に距離短縮した時の平均着順
     "pit_max_grade_win",
     "pit_avg_field_ratio",
     "pit_total_prize",        # 累計獲得賞金（万円）
@@ -180,6 +186,7 @@ def add_pointwise_features(runs: pd.DataFrame, target_distance: int | None = Non
         prior_last3f = []    # 過去の上がり3F
         prior_dates = []     # 過去のレース日
         prior_dist = []      # 過去の距離
+        prior_time = []      # 過去の走破タイム(秒)
         prior_field_ratio = []
         prior_grade_wins = []  # 勝ったレースの格ランク
         prior_prize = []       # 過去の獲得賞金
@@ -211,6 +218,7 @@ def add_pointwise_features(runs: pd.DataFrame, target_distance: int | None = Non
                         feats["pit_days_since_last"][ridx] = float(
                             (row["date"] - last_date).days)
                 # 距離適性（基準距離 ±tolerance の過去走）
+                time_arr = np.array(prior_time, dtype=float)
                 if pd.notna(base_dist):
                     dist_arr = np.array(prior_dist, dtype=float)
                     near = np.abs(dist_arr - float(base_dist)) <= dist_tolerance
@@ -218,7 +226,37 @@ def add_pointwise_features(runs: pd.DataFrame, target_distance: int | None = Non
                     if near.any():
                         nf = fp[near]
                         if (~np.isnan(nf)).any():
-                            feats["pit_dist_avg_finish"][ridx] = float(np.nanmean(nf))
+                            nfv = nf[~np.isnan(nf)]
+                            feats["pit_dist_avg_finish"][ridx] = float(nfv.mean())
+                            # 同距離帯での複勝率（距離適性）
+                            feats["pit_dist_show_rate"][ridx] = float((nfv <= 3).mean())
+                        # 持ちタイム＝同距離帯での最速タイム（小さいほど速い）
+                        tnear = time_arr[near]
+                        tnear = tnear[(~np.isnan(tnear)) & (tnear > 0)]
+                        if len(tnear):
+                            feats["pit_best_time_dist"][ridx] = float(tnear.min())
+                    # 距離増減（直近過去走との差）。+延長／−短縮。
+                    last_d = dist_arr[-1]
+                    if not np.isnan(last_d):
+                        feats["pit_dist_delta_last"][ridx] = float(base_dist) - float(last_d)
+                # 距離延長/短縮の歴史的成績（隣接する過去走の距離差で判定）
+                if len(prior_dist) >= 2:
+                    d_arr = np.array(prior_dist, dtype=float)
+                    deltas = np.diff(d_arr)          # runs[1:] に対応
+                    fp_next = fp[1:]
+                    ext = (deltas > 50) & (~np.isnan(fp_next))
+                    sht = (deltas < -50) & (~np.isnan(fp_next))
+                    if ext.any():
+                        feats["pit_ext_avg_finish"][ridx] = float(fp_next[ext].mean())
+                    if sht.any():
+                        feats["pit_short_avg_finish"][ridx] = float(fp_next[sht].mean())
+                # 最高平均速度(m/s)。距離をまたいで比較できる速度指標（持ちタイムの補完）
+                d_all = np.array(prior_dist, dtype=float)
+                spd_mask = ((~np.isnan(time_arr)) & (time_arr > 0)
+                            & (~np.isnan(d_all)) & (d_all > 0))
+                if spd_mask.any():
+                    feats["pit_best_speed"][ridx] = float(
+                        np.max(d_all[spd_mask] / time_arr[spd_mask]))
                 if prior_grade_wins:
                     feats["pit_max_grade_win"][ridx] = float(max(prior_grade_wins))
                 if prior_field_ratio and not np.isnan(prior_field_ratio).all():
@@ -239,6 +277,7 @@ def add_pointwise_features(runs: pd.DataFrame, target_distance: int | None = Non
             prior_last3f.append(row["last_3f"])
             prior_dates.append(row["date"])
             prior_dist.append(row["distance"])
+            prior_time.append(row.get("time_sec") if "time_sec" in row else np.nan)
             nh = row["n_horses"]
             if pd.notna(fp_i) and pd.notna(nh) and nh:
                 prior_field_ratio.append(float(fp_i) / float(nh))
