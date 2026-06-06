@@ -140,7 +140,7 @@ _ENTRANT_VIEW = [
     "horse_no", "horse_name", "pit_starts", "pit_win_rate", "pit_show_rate",
     "pit_avg_finish", "pit_avg_finish_last3", "pit_best_last3f",
     "pit_dist_starts", "pit_dist_avg_finish", "pit_dist_show_rate",
-    "pit_best_time_dist", "pit_dist_delta_last",
+    "pit_best_time_dist", "pit_main_distance", "pit_dist_delta_last",
     "pit_max_grade_win",
     "pit_total_prize", "pit_running_style", "pit_avg_corner_pos",
     "pit_days_since_last",
@@ -177,7 +177,7 @@ def analyze_entrants(ctx: RaceContext) -> pd.DataFrame:
               "pit_best_time_dist"]:
         if c in view:
             view[c] = view[c].round(1)
-    for c in ["pit_total_prize", "pit_dist_delta_last"]:
+    for c in ["pit_total_prize", "pit_dist_delta_last", "pit_main_distance"]:
         if c in view:
             view[c] = view[c].round(0)
     return view
@@ -197,6 +197,7 @@ COLUMN_LABELS = {
     "pit_dist_avg_finish": "同距離平均着",
     "pit_dist_show_rate": "同距離複勝率%",
     "pit_best_time_dist": "持ちタイム(秒)",
+    "pit_main_distance": "主戦距離(m)",
     "pit_dist_delta_last": "距離増減(m)",
     "pit_max_grade_win": "最高勝鞍格",
     "pit_total_prize": "総賞金(万)",

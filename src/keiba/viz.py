@@ -31,12 +31,14 @@ matplotlib.rcParams["axes.unicode_minus"] = False
 
 
 # 描けるチャートの種類（ラベルは UI 表示用）
-CHART_KINDS = ["show_rate", "prize", "last3f", "style", "corner",
-               "starts", "style_last3f", "h2h"]
+CHART_KINDS = ["show_rate", "prize", "last3f", "best_time", "main_dist",
+               "style", "corner", "starts", "style_last3f", "h2h"]
 CHART_LABELS = {
     "show_rate": "複勝率",
     "prize": "総賞金",
     "last3f": "決め手（最速上がり3F）",
+    "best_time": "持ちタイム（対象距離）",
+    "main_dist": "主戦距離（今回との比較）",
     "style": "脚質の分布",
     "corner": "脚質（平均通過順位）",
     "starts": "キャリア数（出走数）",
@@ -62,6 +64,14 @@ def render_chart(ctx: RaceContext, kind: str = "show_rate") -> bytes:
         return _barh(view, "pit_best_last3f", "最速上がり3F [秒]（小さいほど良）",
                      f"{ctx.race_name}：決め手（最速上がり）", color="#46a06b",
                      ascending=False, invert=True, xlim=(30, 37))
+    if kind == "best_time":
+        return _barh(view, "pit_best_time_dist",
+                     "持ちタイム [秒]（同一距離・小さいほど速い）",
+                     f"{ctx.race_name}：持ちタイム", color="#c0552b",
+                     ascending=False, invert=True)
+    if kind == "main_dist":
+        return _main_distance_chart(view, ctx.race_name,
+                                    _safe_int(ctx.race.get("distance")))
     if kind == "style":
         return _style_pie(view, ctx.race_name)
     if kind == "corner":
@@ -239,6 +249,45 @@ def _barh(view, col, xlabel, title, color, ascending, invert=False,
     return _to_png(fig)
 
 
+def _main_distance_chart(view, race_name, target_dist=None) -> bytes:
+    """各馬の主戦距離を横棒で示し、今回の距離(破線)と比べて延長型/短縮型を色分け。"""
+    from matplotlib.patches import Patch
+    col = "pit_main_distance"
+    d = view.dropna(subset=[col]).copy()
+    if d.empty:
+        return _placeholder("主戦距離のデータがありません")
+    d = d.sort_values(col)
+    labels = _label(d)
+    vals = d[col].astype(float)
+    if target_dist is not None:
+        # 主戦<今回=今回の方が長い=延長型(橙)、主戦>今回=短縮型(青)、一致=適距離(緑)
+        colors = ["#46a06b" if v == target_dist else
+                  ("#d8a13b" if v < target_dist else "#3b7dd8") for v in vals]
+    else:
+        colors = "#9a6ad8"
+    fig, ax = plt.subplots(figsize=(8, max(3, 0.45 * len(d))))
+    ax.barh(labels, vals, color=colors)
+    ax.set_xlabel("主戦距離 [m]")
+    title = (f"{race_name}：主戦距離（今回 {target_dist}m と比較）"
+             if target_dist else f"{race_name}：主戦距離")
+    ax.set_title(title)
+    if target_dist is not None:
+        ax.axvline(target_dist, color="#d33", ls="--", lw=1.5)
+        ax.legend(handles=[
+            Patch(color="#46a06b", label="適距離（主戦＝今回）"),
+            Patch(color="#d8a13b", label="延長型（主戦＜今回）"),
+            Patch(color="#3b7dd8", label="短縮型（主戦＞今回）")], fontsize=8)
+    fig.tight_layout()
+    return _to_png(fig)
+
+
+def _safe_int(v):
+    try:
+        return int(float(v))
+    except (TypeError, ValueError):
+        return None
+
+
 def _style_pie(view, race_name) -> bytes:
     col = "pit_running_style"
     if col not in view:
@@ -273,12 +322,14 @@ def _to_png(fig) -> bytes:
 
 # 過去傾向グリッド：対象レースの可視化(CHART_KINDS)と同じく8枚出す。
 # 年では分けず、全年の出走馬をまとめて描き、3着以内(複勝圏)を橙で色分けする。
-PAST_TREND_KINDS = ["prize", "show_rate", "last3f", "corner",
-                    "starts", "grade", "style", "style_last3f"]
+PAST_TREND_KINDS = ["prize", "show_rate", "last3f", "best_time", "main_dist",
+                    "corner", "starts", "grade", "style", "style_last3f"]
 PAST_TREND_LABELS = {
     "prize": "総賞金",
     "show_rate": "複勝率",
     "last3f": "決め手（上がり3F）",
+    "best_time": "持ちタイム（対象距離）",
+    "main_dist": "主戦距離",
     "corner": "脚質（平均通過順位）",
     "starts": "キャリア数",
     "grade": "最高勝鞍格",
@@ -332,6 +383,11 @@ def render_past_trend(items, kind="prize"):
     if kind == "last3f":
         return _past_scatter(df, "pit_best_last3f", "最速上がり3F [秒]（上=速い）",
                              n, ylim=(30, 37), invert=True)
+    if kind == "best_time":
+        return _past_scatter(df, "pit_best_time_dist",
+                             "持ちタイム [秒]（同一距離・上=速い）", n, invert=True)
+    if kind == "main_dist":
+        return _past_scatter(df, "pit_main_distance", "主戦距離 [m]", n)
     if kind == "corner":
         return _past_scatter(df, "pit_avg_corner_pos", "平均通過順位（上=前）",
                              n, invert=True)

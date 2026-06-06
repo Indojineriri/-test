@@ -150,6 +150,8 @@ PIT_FEATURES = [
     "pit_dist_starts",
     "pit_dist_avg_finish",
     "pit_dist_show_rate",      # 同距離帯での複勝率（距離適性）
+    "pit_main_distance",       # 主戦距離＝最も多く使った距離(m)
+    "pit_delta_from_main",     # 目標距離−主戦距離(+延長型/−短縮型)
     "pit_best_time_dist",      # 持ちタイム＝対象距離ぴったりの最速タイム(秒, 小=速)
     "pit_best_speed",          # 全過去走の最高平均速度(m/s, 大=速。距離をまたいで比較)
     "pit_dist_delta_last",     # 目標距離−前走距離(+延長/−短縮)
@@ -219,8 +221,16 @@ def add_pointwise_features(runs: pd.DataFrame, target_distance: int | None = Non
                             (row["date"] - last_date).days)
                 # 距離適性（基準距離 ±tolerance の過去走）
                 time_arr = np.array(prior_time, dtype=float)
+                dist_arr = np.array(prior_dist, dtype=float)
+                # 主戦距離＝最も多く使った距離（最頻）。延長/短縮型の基準になる。
+                d_valid = dist_arr[~np.isnan(dist_arr)]
+                if len(d_valid):
+                    vals, counts = np.unique(d_valid, return_counts=True)
+                    main_d = float(vals[int(np.argmax(counts))])
+                    feats["pit_main_distance"][ridx] = main_d
+                    if pd.notna(base_dist):
+                        feats["pit_delta_from_main"][ridx] = float(base_dist) - main_d
                 if pd.notna(base_dist):
-                    dist_arr = np.array(prior_dist, dtype=float)
                     near = np.abs(dist_arr - float(base_dist)) <= dist_tolerance
                     feats["pit_dist_starts"][ridx] = int(near.sum())
                     if near.any():

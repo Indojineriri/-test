@@ -59,9 +59,10 @@ def test_no_history_still_returns_png():
 
 
 def test_past_trend_grid_eight_kinds():
-    """過去傾向は対象レースと同じ8種を全年まとめで描く（年別に分けない）。"""
+    """過去傾向は対象レースと同じ種類を全年まとめで描く（持ちタイム・主戦距離含む）。"""
     import pandas as pd
-    assert len(viz.PAST_TREND_KINDS) == 8
+    assert "best_time" in viz.PAST_TREND_KINDS
+    assert "main_dist" in viz.PAST_TREND_KINDS
     items = []
     for seed in (4, 5):
         ctx, strength, _ = _make_context(n_entrants=10, career=6, seed=seed)

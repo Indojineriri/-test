@@ -267,7 +267,7 @@ function renderUma(rows, pred) {{
   const head =
     '<tr><th>枠</th><th>馬番</th><th>馬名</th><th>性齢</th><th>騎手</th>' +
     '<th>勝率</th><th>複勝率(実績)</th><th>近3走</th><th>脚質</th>' +
-    '<th>持ちタイム</th><th>同距離複勝率</th><th>距離増減</th><th>賞金(万)</th>' +
+    '<th>持ちタイム</th><th>主戦距離</th><th>同距離複勝率</th><th>距離増減</th><th>賞金(万)</th>' +
     (pred ? '<th class="pcol">印</th><th class="pcol">予想複勝率</th>' : '') + '</tr>';
   const body = rows.map(x => {{
     const p = pred && pred.byNo[x.horse_no];
@@ -281,6 +281,7 @@ function renderUma(rows, pred) {{
       `<td class="rank">${{x.pit_avg_finish_last3 != null ? x.pit_avg_finish_last3.toFixed(1) : '-'}}</td>` +
       `<td>${{x.pit_running_style || ''}}</td>` +
       `<td class="rank">${{fmtTime(x.pit_best_time_dist)}}</td>` +
+      `<td class="rank">${{x.pit_main_distance != null ? Math.round(x.pit_main_distance)+'m' : '-'}}</td>` +
       `<td class="rank">${{fmtPct(x.pit_dist_show_rate)}}</td>` +
       `<td class="rank">${{fmtSigned(x.pit_dist_delta_last)}}</td>` +
       `<td class="rank">${{x.pit_total_prize != null ? Math.round(x.pit_total_prize) : '-'}}</td>` +
@@ -393,14 +394,17 @@ def _page_head(title):
             '</style></head><body>')
 
 
-@app.get("/chart-trend/<kind>.png")
-def chart_trend(kind: str):
-    """過去ダービー全年をまとめた傾向グラフを種類別に返す（対象レースと同じ8種）。"""
+@app.get("/chart-trend/<race_id>/<kind>.png")
+def chart_trend(race_id: str, kind: str):
+    """対象レースと同じレースの過去開催をまとめた傾向グラフを種類別に返す。"""
     from .. import viz
-    from ..service import load_derby_items, default_derby_train_ids
-    items, _ = load_derby_items(_store(), default_derby_train_ids())
+    from ..service import (load_race_items, default_train_ids_for, load_meta)
+    store = _store()
+    name = ((load_meta(race_id, store) or {}).get("race_meta") or {}).get("race_name")
+    items, _ = load_race_items(store, default_train_ids_for(race_id, store),
+                               match_name=name)
     if not items:
-        return Response(viz._placeholder("過去ダービーのデータがありません"),
+        return Response(viz._placeholder("同じレースの過去開催データがありません"),
                         mimetype="image/png")
     if kind not in viz.PAST_TREND_KINDS:
         kind = "prize"
@@ -432,9 +436,9 @@ def chart_result(race_id: str):
 
 @app.get("/visualize/<race_id>")
 def visualize(race_id: str):
-    """③可視化ページ: 対象レースの各種グラフ + 過去ダービーの結果(3着内を色分け)。"""
+    """③可視化ページ: 対象レースの各種グラフ + 同じレースの過去開催(3着内を色分け)。"""
     from .. import viz
-    from ..service import load_meta, load_actual, list_races, default_derby_train_ids
+    from ..service import load_meta, load_actual, default_train_ids_for
     store = _store()
     meta = load_meta(race_id, store)
     if meta is None:
@@ -449,23 +453,24 @@ def visualize(race_id: str):
         f'<img loading="lazy" src="/chart/{race_id}/{k}.png" alt="{k}"></div>'
         for k in viz.CHART_KINDS)
 
-    # 過去ダービー（actual.csv あり）を、対象レースと同じ8種のグラフで一覧表示。
+    # 同じレースの過去開催（actual.csv あり）を、対象と同じ尺度で一覧表示。
     # 年では分けず全年まとめ。橙＝複勝圏(3着以内)で、どんな馬が好走したかが見える。
-    past_ids = [r for r in default_derby_train_ids() if load_actual(r, store) is not None]
+    past_ids = [r for r in default_train_ids_for(race_id, store)
+                if load_actual(r, store) is not None]
     if past_ids:
         past_imgs = "".join(
             f'<div class="card"><b>{viz.PAST_TREND_LABELS.get(k, k)}</b><br>'
-            f'<img loading="lazy" src="/chart-trend/{k}.png" alt="{k}"></div>'
+            f'<img loading="lazy" src="/chart-trend/{race_id}/{k}.png" alt="{k}"></div>'
             for k in viz.PAST_TREND_KINDS)
         past_block = (
-            f'<h2>📚 過去ダービー（{len(past_ids)}年）の好走傾向（橙＝複勝圏 3着以内）</h2>'
-            f'<p class="note">過去全年をまとめて、対象レースと同じ8種の尺度でプロットします。'
+            f'<h2>📚 過去の{name}（{len(past_ids)}年）の好走傾向（橙＝複勝圏 3着以内）</h2>'
+            f'<p class="note">同じレースの過去開催をまとめて、対象と同じ尺度でプロットします。'
             f'橙＝実際に3着以内に来た馬。橙がどのあたりに集まるかで、'
             f'複数年に共通する傾向が分かります。</p>'
             f'<div class="grid">{past_imgs}</div>'
         )
     else:
-        past_block = ('<p class="note">過去ダービーの結果データがまだありません。'
+        past_block = ('<p class="note">同じレースの過去開催データがまだありません。'
                       'データを取り込むと、ここに傾向グラフが表示されます。</p>')
 
     html = (_page_head(f"可視化 - {name}") +
