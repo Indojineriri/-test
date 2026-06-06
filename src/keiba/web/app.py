@@ -114,6 +114,13 @@ def index():
         else:
             upcoming.append(info)
 
+    # 結果一覧は「予想対象と同じレース」だけに絞る（例: 安田記念を予想中なら
+    # ダービー等の別レースは出さない）。予想対象が無いときは全件を出す。
+    from ..data.races import normalize_race_name
+    up_names = {normalize_race_name(u["name"]) for u in upcoming}
+    if up_names:
+        past = [p for p in past if normalize_race_name(p["name"]) in up_names]
+
     def _genai_btn(rid):
         if genai_on:
             return f'<button onclick="predict(\'{rid}\',\'genai-predict\',this)">🤖 生成AI予想</button>'
@@ -324,7 +331,7 @@ function mlToPred(d) {{
   const h2hNote = (d.h2h_weight > 0)
     ? `<div class="note">出走馬どうしの直接対決を ${{Math.round(d.h2h_weight*100)}}% 反映しています。</div>` : '';
   return {{ byNo, comment:
-    '<div class="card"><b>📊 ML予想（過去ダービーで学習）</b>' +
+    '<div class="card"><b>📊 ML予想（同じレースの過去開催で学習）</b>' +
     `<div class="note">学習: ${{d.trained_on.join(', ')}}</div>` + h2hNote +
     '<p>' + top + '</p></div>' }};
 }}
@@ -341,7 +348,7 @@ function genaiToPred(d) {{
     `<li>${{MARKS[i]}} ${{p.horse_name}}: ${{p.reason||''}}</li>`).join('');
   return {{ byNo, comment:
     '<div class="card"><b>🤖 生成AI予想</b>' +
-    `<div class="note">参考にした過去ダービー: ${{d.trained_on.join(', ')}}</div>` +
+    `<div class="note">参考にした過去開催: ${{d.trained_on.join(', ')}}</div>` +
     '<p><b>① 過去の傾向:</b> ' + (d.insights.summary || '') + '</p>' +
     '<p><b>② 共通するポイント:</b></p><ul>' + ins + '</ul>' +
     '<p><b>③ 予想（本命 馬番' + d.prediction.honmei_horse_no + '）:</b></p><ul>' + reasons + '</ul>' +
@@ -367,7 +374,7 @@ function renderInsights(d) {{
     `<li>[重要度 ${{x.weight}}] <b>${{x.pattern}}</b><br>` +
     `<span class="note">根拠: ${{x.rationale || ''}}</span></li>`).join('');
   const cav = (d.insights.caveats || []).map(c => `<li>${{c}}</li>`).join('');
-  return '<div class="card"><b>🤖 過去ダービーから得た見解（示唆）</b>' +
+  return '<div class="card"><b>🤖 過去開催から得た見解（示唆）</b>' +
     `<div class="note">参考: ${{(d.based_on||[]).join(', ')}}</div>` +
     '<p><b>全体傾向:</b> ' + (d.insights.summary || '') + '</p>' +
     '<p><b>複数年に共通するポイント:</b></p><ul>' + ins + '</ul>' +
@@ -496,7 +503,7 @@ def genai_page(race_id: str):
     html = (_page_head(f"生成AI予想 - {name}") +
             f'<a class="back" href="/">← 予想ページに戻る</a>'
             f'<h1>🤖 {name} の生成AI予想</h1>'
-            f'<p>過去ダービーから「①傾向 → ②共通するポイント → ③今年の予想」を導きます。'
+            f'<p>同じレースの過去開催から「①傾向 → ②共通するポイント → ③今年の予想」を導きます。'
             f'（数十秒かかります）</p>'
             f'<button id="go" onclick="runGenai()">🤖 生成AI予想を実行</button>'
             f'<div id="out" style="margin-top:1rem"></div>'

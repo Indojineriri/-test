@@ -65,10 +65,13 @@ def render_chart(ctx: RaceContext, kind: str = "show_rate") -> bytes:
                      f"{ctx.race_name}：決め手（最速上がり）", color="#46a06b",
                      ascending=False, invert=True, xlim=(30, 37))
     if kind == "best_time":
+        # 持ちタイムは 90 秒台などに密集するので、データ範囲に軸をズームする
+        tr = _padded_range(view["pit_best_time_dist"]) \
+            if "pit_best_time_dist" in view else None
         return _barh(view, "pit_best_time_dist",
                      "持ちタイム [秒]（同一距離・小さいほど速い）",
                      f"{ctx.race_name}：持ちタイム", color="#c0552b",
-                     ascending=False, invert=True)
+                     ascending=False, invert=True, xlim=tr)
     if kind == "main_dist":
         return _main_distance_chart(view, ctx.race_name,
                                     _safe_int(ctx.race.get("distance")))
@@ -288,6 +291,18 @@ def _safe_int(v):
         return None
 
 
+def _padded_range(series, pad_ratio=0.08, min_pad=0.5):
+    """値が集まる範囲に軸をズームするための (lo, hi)。持ちタイム等の 0 始まり回避に使う。"""
+    s = series.dropna()
+    if s.empty:
+        return None
+    lo, hi = float(s.min()), float(s.max())
+    if lo == hi:
+        return (lo - 1.0, hi + 1.0)
+    pad = max(min_pad, (hi - lo) * pad_ratio)
+    return (lo - pad, hi + pad)
+
+
 def _style_pie(view, race_name) -> bytes:
     col = "pit_running_style"
     if col not in view:
@@ -384,8 +399,11 @@ def render_past_trend(items, kind="prize"):
         return _past_scatter(df, "pit_best_last3f", "最速上がり3F [秒]（上=速い）",
                              n, ylim=(30, 37), invert=True)
     if kind == "best_time":
+        yr = _padded_range(df["pit_best_time_dist"]) \
+            if "pit_best_time_dist" in df else None
         return _past_scatter(df, "pit_best_time_dist",
-                             "持ちタイム [秒]（同一距離・上=速い）", n, invert=True)
+                             "持ちタイム [秒]（同一距離・上=速い）", n,
+                             ylim=yr, invert=True)
     if kind == "main_dist":
         return _past_scatter(df, "pit_main_distance", "主戦距離 [m]", n)
     if kind == "corner":
