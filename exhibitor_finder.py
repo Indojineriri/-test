@@ -9,6 +9,9 @@
 
 from __future__ import annotations
 
+import random
+import time
+
 import anthropic
 from pydantic import BaseModel, Field
 
@@ -70,6 +73,50 @@ class ExhibitorAssessment(BaseModel):
     theme_scores: list[ThemeScore]
 
 
+def _is_transient(e: Exception) -> bool:
+    """一時的（再試行で回復しうる）エラーかどうか。"""
+    if isinstance(
+        e,
+        (
+            anthropic.APIConnectionError,
+            anthropic.APITimeoutError,
+            anthropic.RateLimitError,
+            anthropic.InternalServerError,
+        ),
+    ):
+        return True
+    if isinstance(e, anthropic.APIStatusError):
+        return e.status_code in (408, 409, 425, 429, 500, 502, 503, 504, 529)
+    return False
+
+
+def _call_with_retries(fn, attempts: int = 5, base: float = 1.5, cap: float = 30.0):
+    """一時的エラーに対し指数バックオフで再試行。最終失敗時は例外を送出。"""
+    for i in range(attempts):
+        try:
+            return fn()
+        except Exception as e:  # noqa: BLE001
+            if i == attempts - 1 or not _is_transient(e):
+                raise
+            time.sleep(min(cap, base * (2 ** i)) + random.uniform(0, 0.5))
+
+
+def exhibitor_key(ex: dict) -> str:
+    """出展企業を一意に識別するキー（再開・キャッシュ照合用）。"""
+    if ex.get("charge_no") is not None:
+        return f"charge:{ex['charge_no']}"
+    return f"name:{ex.get('name', '')}"
+
+
+def assessment_to_record(key: str, a: ExhibitorAssessment) -> dict:
+    """キャッシュ行（JSON 1 行）に変換。"""
+    return {"key": key, "data": a.model_dump()}
+
+
+def assessment_from_record(rec: dict) -> tuple[str, "ExhibitorAssessment"]:
+    return rec["key"], ExhibitorAssessment.model_validate(rec["data"])
+
+
 def _themes_block(themes: list[dict[str, str]]) -> str:
     lines = ["# 評価対象テーマ"]
     for i, t in enumerate(themes, 1):
@@ -106,12 +153,14 @@ def assess_exhibitor(
         "theme_scores には入力した全テーマ分を必ず含め、theme 名は入力と一致させてください。"
         "max_score / top_theme は theme_scores の中で最大のものに合わせてください。"
     )
-    response = client.messages.parse(
-        model=model,
-        max_tokens=3000,
-        system=SYSTEM_PROMPT,
-        messages=[{"role": "user", "content": instruction}],
-        output_format=ExhibitorAssessment,
+    response = _call_with_retries(
+        lambda: client.messages.parse(
+            model=model,
+            max_tokens=3000,
+            system=SYSTEM_PROMPT,
+            messages=[{"role": "user", "content": instruction}],
+            output_format=ExhibitorAssessment,
+        )
     )
     return response.parsed_output, response.usage
 
@@ -121,12 +170,16 @@ def assess_many(
     exhibitors: list[dict],
     themes: list[dict[str, str]],
     model: str,
+    on_result=None,
+    on_error=None,
     progress=None,
 ):
-    """複数社を順に評価。progress(done, total, name) で進捗通知可能。
+    """複数社を順に評価。1 社完了ごとに on_result(key, exhibitor, assessment) を
+    呼ぶので、呼び出し側はそこで逐次保存できる（途中で中断されても完了分は残る）。
 
-    1 社の失敗で全体を止めないよう、例外は (exhibitor, error) として収集する。
-    戻り値: (results: list[ExhibitorAssessment], errors: list[tuple[dict, str]])
+    - on_error(exhibitor, error_str): 1 社失敗時。失敗しても全体は止めない。
+    - progress(done, total, name): 進捗通知。
+    戻り値: (results, errors)
     """
     results: list[ExhibitorAssessment] = []
     errors: list[tuple[dict, str]] = []
@@ -135,8 +188,12 @@ def assess_many(
         try:
             assessment, _ = assess_exhibitor(client, ex, themes, model)
             results.append(assessment)
+            if on_result:
+                on_result(exhibitor_key(ex), ex, assessment)
         except Exception as e:  # noqa: BLE001
             errors.append((ex, str(e)))
+            if on_error:
+                on_error(ex, str(e))
         if progress:
             progress(i, total, ex.get("name", "?"))
     results.sort(key=lambda a: a.max_score, reverse=True)

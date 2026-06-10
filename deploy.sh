@@ -62,7 +62,7 @@ gcloud run deploy "$SERVICE" \
   --allow-unauthenticated \
   --memory 2Gi \
   --cpu 2 \
-  --timeout 300 \
+  --timeout 3600 \
   --set-env-vars "GCS_BUCKET=${GCS_BUCKET},GCS_PREFIX=meeting-decks,ANTHROPIC_MODEL=${MODEL}" \
   --set-secrets "ANTHROPIC_API_KEY=${SECRET_NAME}:latest"
 

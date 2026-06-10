@@ -5,8 +5,9 @@
 （通信が許可された環境なら）この画面から直接取得もできる。
 """
 
-import io
+import hashlib
 import json
+import os
 
 import pandas as pd
 import streamlit as st
@@ -14,6 +15,42 @@ import streamlit as st
 import claude_client
 import config
 import exhibitor_finder as finder
+
+CACHE_DIR = os.environ.get("ASSESSMENT_CACHE_DIR", ".assessment_cache")
+
+
+def _dataset_id(exhibitors: list[dict]) -> str:
+    """データセット（取り込んだ出展企業集合）ごとに一意なキャッシュ ID。"""
+    keys = sorted(finder.exhibitor_key(e) for e in exhibitors)
+    return hashlib.sha1("|".join(keys).encode("utf-8")).hexdigest()[:12]
+
+
+def _cache_path(exhibitors: list[dict]) -> str:
+    os.makedirs(CACHE_DIR, exist_ok=True)
+    return os.path.join(CACHE_DIR, f"{_dataset_id(exhibitors)}.jsonl")
+
+
+def _load_cache(path: str) -> dict:
+    """key -> ExhibitorAssessment のマップを復元（無ければ空）。"""
+    done: dict = {}
+    if not os.path.exists(path):
+        return done
+    with open(path, encoding="utf-8") as f:
+        for line in f:
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                k, a = finder.assessment_from_record(json.loads(line))
+                done[k] = a  # 同一キーは後勝ち（再判定を反映）
+            except Exception:  # noqa: BLE001
+                continue
+    return done
+
+
+def _append_cache(path: str, key: str, assessment) -> None:
+    with open(path, "a", encoding="utf-8") as f:
+        f.write(json.dumps(finder.assessment_to_record(key, assessment), ensure_ascii=False) + "\n")
 
 st.set_page_config(page_title="出展企業ファインダー", page_icon="🔎", layout="wide")
 
@@ -130,33 +167,66 @@ can_run = bool(ss.exhibitors) and bool(ss.themes) and key_ready
 if not can_run:
     st.caption("データ取得・テーマ設定・API キーが揃うと実行できます。")
 
+# 判定済みキャッシュを読み込む（途中で中断していても完了分はここに残っている）。
+done_map: dict = {}
+if ss.exhibitors:
+    cache_path = _cache_path(ss.exhibitors)
+    done_map = _load_cache(cache_path)
+    pending = [ex for ex in ss.exhibitors if finder.exhibitor_key(ex) not in done_map]
+    c1, c2, c3 = st.columns([2, 2, 1])
+    c1.metric("判定済み", f"{len(done_map)} 社")
+    c2.metric("未判定", f"{len(pending)} 社")
+    if c3.button("キャッシュ削除", help="この判定結果を消して最初からやり直します"):
+        if os.path.exists(cache_path):
+            os.remove(cache_path)
+        ss.assessments = None
+        st.rerun()
+else:
+    pending = []
+
 limit = st.number_input(
-    "今回判定する社数（先頭から / コスト調整用）",
+    "今回判定する社数（未判定の先頭から / コスト・時間調整用）",
     min_value=1,
-    max_value=len(ss.exhibitors) if ss.exhibitors else 1,
-    value=min(50, len(ss.exhibitors)) if ss.exhibitors else 1,
+    max_value=max(len(pending), 1),
+    value=min(20, len(pending)) if pending else 1,
 )
 
-if st.button("関連度を判定する", type="primary", disabled=not can_run):
-    targets = ss.exhibitors[: int(limit)]
+btn_label = "未判定を続きから判定する" if done_map else "関連度を判定する"
+if st.button(btn_label, type="primary", disabled=not (can_run and pending)):
+    targets = pending[: int(limit)]
     bar = st.progress(0.0, text="判定中…")
+    live = st.empty()
+    cli = client()
 
     def _prog(done, total, name):
         bar.progress(min(done / total, 1.0), text=f"{done}/{total}  {name}")
 
-    with st.spinner("Claude が各社を評価中…"):
-        try:
-            results, errors = finder.assess_many(client(), targets, ss.themes, model, progress=_prog)
-            ss.assessments = results
-            bar.empty()
-            st.success(f"{len(results)} 社を判定しました。")
-            if errors:
-                st.warning(f"{len(errors)} 社でエラー（スキップ）。例: {errors[0][1]}")
-        except Exception as e:  # noqa: BLE001
-            bar.empty()
-            st.error(f"判定に失敗しました: {claude_client.format_api_error(e)}")
+    # 1 社完了ごとにキャッシュへ追記 → 途中で切れても完了分は失われない。
+    def _on_result(key, ex, assessment):
+        _append_cache(cache_path, key, assessment)
+        live.caption(f"✓ {assessment.company}（最高 {assessment.max_score}）まで保存済み")
+
+    err_count = {"n": 0}
+
+    def _on_error(ex, msg):
+        err_count["n"] += 1
+
+    try:
+        finder.assess_many(
+            cli, targets, ss.themes, model,
+            on_result=_on_result, on_error=_on_error, progress=_prog,
+        )
+    except Exception as e:  # noqa: BLE001
+        st.error(f"判定が中断しました（完了分は保存済み・再開できます）: {claude_client.format_api_error(e)}")
+    bar.empty()
+    if err_count["n"]:
+        st.warning(f"{err_count['n']} 社でエラー（スキップ）。再クリックで再試行されます。")
+    st.rerun()  # キャッシュを読み直して結果表示を最新化
 
 # --- Step 4: 結果 ------------------------------------------------------------
+# 表示は常にキャッシュ（=確定保存分）から組み立てる。中断していても残っている。
+ss.assessments = sorted(done_map.values(), key=lambda x: x.max_score, reverse=True) if done_map else None
+
 if ss.assessments:
     st.header("④ 結果（関連度ランキング）")
     theme_names = [t["name"] for t in ss.themes]
