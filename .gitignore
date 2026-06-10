@@ -6,3 +6,6 @@ venv/
 *.pptx
 !sample/*.pptx
 .DS_Store
+.assessment_cache/
+.exhibitor_data/
+exhibitors.json

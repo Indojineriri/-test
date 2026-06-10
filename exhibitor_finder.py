@@ -71,6 +71,14 @@ class ExhibitorAssessment(BaseModel):
     top_theme: str = Field(description="最も関連度の高いテーマ名")
     max_score: int = Field(description="全テーマ中の最高スコア")
     theme_scores: list[ThemeScore]
+    query_score: int | None = Field(
+        default=None,
+        description="ユーザーの自由記述クエリへの近さ 0-100。クエリ未指定なら null",
+    )
+    query_rationale: str | None = Field(
+        default=None,
+        description="クエリにどう近い/遠いかの根拠。クエリ未指定なら null",
+    )
 
 
 def _is_transient(e: Exception) -> bool:
@@ -130,11 +138,13 @@ def assess_exhibitor(
     exhibitor: dict,
     themes: list[dict[str, str]],
     model: str,
+    query: str | None = None,
     max_chars: int = 6000,
 ) -> tuple[ExhibitorAssessment, object]:
     """1 社を全テーマで評価して構造化結果を返す。
 
     exhibitor は scraper の出力 dict（name / raw_text / categories / website 等）。
+    query を渡すと、ユーザーの自由記述（探したいもの）への近さも併せて評価する。
     """
     name = exhibitor.get("name", "(社名不明)")
     cats = exhibitor.get("categories") or []
@@ -142,7 +152,24 @@ def assess_exhibitor(
     if len(body) > max_chars:
         body = body[:max_chars] + "\n…(以下省略)"
 
+    query = (query or "").strip()
+    query_block = (
+        "# ユーザーが探しているもの（自由記述）\n"
+        f"{query}\n\n"
+        "↑この自由記述に、この企業がどれだけ近いかも 0-100 で評価し、query_score と "
+        "query_rationale に入れてください。字面一致ではなく、ユーザーの意図（用途・技術・"
+        "応用領域）に意味的にどれだけ合致するかで判断してください。\n\n"
+        if query
+        else ""
+    )
+    query_tail = (
+        " また query_score / query_rationale も必ず埋めてください。"
+        if query
+        else " 今回クエリ指定はないので query_score / query_rationale は null のままにしてください。"
+    )
+
     instruction = (
+        f"{query_block}"
         f"{_themes_block(themes)}\n\n"
         "# 出展企業情報\n"
         f"企業名: {name}\n"
@@ -152,6 +179,7 @@ def assess_exhibitor(
         "上記企業について、各テーマへの関連度を 0-100 で評価してください。"
         "theme_scores には入力した全テーマ分を必ず含め、theme 名は入力と一致させてください。"
         "max_score / top_theme は theme_scores の中で最大のものに合わせてください。"
+        + query_tail
     )
     response = _call_with_retries(
         lambda: client.messages.parse(
@@ -170,6 +198,7 @@ def assess_many(
     exhibitors: list[dict],
     themes: list[dict[str, str]],
     model: str,
+    query: str | None = None,
     on_result=None,
     on_error=None,
     progress=None,
@@ -177,6 +206,7 @@ def assess_many(
     """複数社を順に評価。1 社完了ごとに on_result(key, exhibitor, assessment) を
     呼ぶので、呼び出し側はそこで逐次保存できる（途中で中断されても完了分は残る）。
 
+    - query: ユーザーの自由記述（探したいもの）。渡すと近さも評価する。
     - on_error(exhibitor, error_str): 1 社失敗時。失敗しても全体は止めない。
     - progress(done, total, name): 進捗通知。
     戻り値: (results, errors)
@@ -186,7 +216,7 @@ def assess_many(
     total = len(exhibitors)
     for i, ex in enumerate(exhibitors, 1):
         try:
-            assessment, _ = assess_exhibitor(client, ex, themes, model)
+            assessment, _ = assess_exhibitor(client, ex, themes, model, query=query)
             results.append(assessment)
             if on_result:
                 on_result(exhibitor_key(ex), ex, assessment)
