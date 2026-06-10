@@ -1,8 +1,8 @@
 """出展企業の関連抽出段（Claude による意味的スコアリング）。
 
-杓子定規なキーワード一致ではなく、技術的な隣接性・応用可能性まで踏まえて
-各社が指定テーマにどの程度関連するかを Claude に判定させる。各社×各テーマで
-0-100 のスコアと根拠・該当シグナルを返し、ランキング化できるようにする。
+ユーザーが自由記述で書いた「探しているもの」に、各出展企業がどれだけ近いかを
+Claude に判定させる。杓子定規なキーワード一致ではなく、ユーザーの意図（用途・
+技術・応用領域）への意味的・技術的な近さで 0-100 のスコアと根拠・手がかりを返す。
 
 クライアント生成・エラー整形は既存の claude_client を再利用する。
 """
@@ -15,69 +15,27 @@ import time
 import anthropic
 from pydantic import BaseModel, Field
 
-# 既定テーマ。name に加えて desc を与え、Claude が「意味的な隣接」を
-# 判断できるよう技術的な射程を明示する。UI 側で増減・自由入力できる。
-DEFAULT_THEMES: list[dict[str, str]] = [
-    {
-        "name": "製薬向けロボティクス",
-        "desc": "医薬・バイオ・ライフサイエンス分野でのロボット応用。無菌/アイソレータ、"
-        "ラボ自動化、分注・検体ハンドリング、GMP対応、クリーン環境での搬送・組立など。",
-    },
-    {
-        "name": "エンドエフェクタ",
-        "desc": "ロボットアーム先端のツール全般。ロボットハンド/グリッパ、吸着・把持機構、"
-        "ツールチェンジャ、ばら積みピッキング向けの把持ソリューションなど。",
-    },
-    {
-        "name": "力覚センサ",
-        "desc": "力/トルクセンサ、6軸力覚センサ、触覚センシング、力制御・"
-        "コンプライアンス制御、嵌合・研磨・組立での力フィードバック。",
-    },
-    {
-        "name": "VLA (Vision-Language-Action)",
-        "desc": "視覚・言語・行動を統合する基盤モデル、汎用ロボット学習、"
-        "マニピュレーション基盤モデル、自然言語指示でのロボット操作。",
-    },
-    {
-        "name": "Sim2Real",
-        "desc": "シミュレーション学習から実機への転移、強化学習、デジタルツイン、"
-        "Isaac Sim / Gazebo 等を用いたロボット動作の事前学習・検証。",
-    },
-]
-
 SYSTEM_PROMPT = (
     "あなたはロボティクス分野に精通したテクノロジースカウトです。展示会の出展企業情報を読み、"
-    "指定された技術テーマへの関連度を評価します。重要なのは、単なるキーワードの字面一致ではなく、"
-    "その企業の技術・製品が各テーマに技術的にどれだけ隣接し、応用・転用できるかという"
-    "『意味的な関連』を見抜くことです。たとえばテーマ語そのものを謳っていなくても、"
-    "基盤技術や顧客用途から実質的に関連すると判断できる場合は、その根拠を明示した上で評価します。"
+    "ユーザーが自由記述で書いた『探しているもの』に、その企業がどれだけ近いかを評価します。"
+    "重要なのは単なるキーワードの字面一致ではなく、ユーザーの意図（用途・技術・応用領域・狙い）に"
+    "意味的・技術的にどれだけ合致するか、隣接・応用できるかを見抜くことです。"
+    "ユーザーの記述語そのものを謳っていなくても、基盤技術や顧客用途から実質的に近いと"
+    "判断できる場合は、その根拠を明示した上で評価します。"
     "ただし関連の薄いものを過大評価せず、根拠は出展情報の記述に基づいて述べてください。"
 )
 
 
-class ThemeScore(BaseModel):
-    theme: str = Field(description="評価対象テーマ名（入力のテーマ名と一致させる）")
-    score: int = Field(description="関連度 0-100。字面一致だけでなく技術的隣接・応用可能性も加味")
-    rationale: str = Field(description="そのスコアにした根拠を日本語で簡潔に")
+class ExhibitorMatch(BaseModel):
+    company: str
+    summary: str = Field(description="この企業が何をしているかの1-2文要約")
+    score: int = Field(
+        description="ユーザーが探しているものへの近さ 0-100。字面一致ではなく意図への合致度"
+    )
+    rationale: str = Field(description="なぜ近い/遠いかの根拠を日本語で簡潔に")
     signals: list[str] = Field(
         default_factory=list,
         description="判断の手がかりになった出展情報中の具体的な語・記述（原文寄り）",
-    )
-
-
-class ExhibitorAssessment(BaseModel):
-    company: str
-    summary: str = Field(description="この企業が何をしているかの1-2文要約")
-    top_theme: str = Field(description="最も関連度の高いテーマ名")
-    max_score: int = Field(description="全テーマ中の最高スコア")
-    theme_scores: list[ThemeScore]
-    query_score: int | None = Field(
-        default=None,
-        description="ユーザーの自由記述クエリへの近さ 0-100。クエリ未指定なら null",
-    )
-    query_rationale: str | None = Field(
-        default=None,
-        description="クエリにどう近い/遠いかの根拠。クエリ未指定なら null",
     )
 
 
@@ -116,35 +74,25 @@ def exhibitor_key(ex: dict) -> str:
     return f"name:{ex.get('name', '')}"
 
 
-def assessment_to_record(key: str, a: ExhibitorAssessment) -> dict:
+def assessment_to_record(key: str, a: ExhibitorMatch) -> dict:
     """キャッシュ行（JSON 1 行）に変換。"""
     return {"key": key, "data": a.model_dump()}
 
 
-def assessment_from_record(rec: dict) -> tuple[str, "ExhibitorAssessment"]:
-    return rec["key"], ExhibitorAssessment.model_validate(rec["data"])
-
-
-def _themes_block(themes: list[dict[str, str]]) -> str:
-    lines = ["# 評価対象テーマ"]
-    for i, t in enumerate(themes, 1):
-        desc = t.get("desc", "")
-        lines.append(f"{i}. {t['name']}" + (f" — {desc}" if desc else ""))
-    return "\n".join(lines)
+def assessment_from_record(rec: dict) -> tuple[str, "ExhibitorMatch"]:
+    return rec["key"], ExhibitorMatch.model_validate(rec["data"])
 
 
 def assess_exhibitor(
     client: anthropic.Anthropic,
     exhibitor: dict,
-    themes: list[dict[str, str]],
+    query: str,
     model: str,
-    query: str | None = None,
     max_chars: int = 6000,
-) -> tuple[ExhibitorAssessment, object]:
-    """1 社を全テーマで評価して構造化結果を返す。
+) -> tuple[ExhibitorMatch, object]:
+    """1 社が、ユーザーの自由記述（探しているもの）にどれだけ近いかを評価する。
 
     exhibitor は scraper の出力 dict（name / raw_text / categories / website 等）。
-    query を渡すと、ユーザーの自由記述（探したいもの）への近さも併せて評価する。
     """
     name = exhibitor.get("name", "(社名不明)")
     cats = exhibitor.get("categories") or []
@@ -152,42 +100,25 @@ def assess_exhibitor(
     if len(body) > max_chars:
         body = body[:max_chars] + "\n…(以下省略)"
 
-    query = (query or "").strip()
-    query_block = (
-        "# ユーザーが探しているもの（自由記述）\n"
-        f"{query}\n\n"
-        "↑この自由記述に、この企業がどれだけ近いかも 0-100 で評価し、query_score と "
-        "query_rationale に入れてください。字面一致ではなく、ユーザーの意図（用途・技術・"
-        "応用領域）に意味的にどれだけ合致するかで判断してください。\n\n"
-        if query
-        else ""
-    )
-    query_tail = (
-        " また query_score / query_rationale も必ず埋めてください。"
-        if query
-        else " 今回クエリ指定はないので query_score / query_rationale は null のままにしてください。"
-    )
-
     instruction = (
-        f"{query_block}"
-        f"{_themes_block(themes)}\n\n"
+        "# ユーザーが探しているもの（自由記述）\n"
+        f"{query.strip()}\n\n"
         "# 出展企業情報\n"
         f"企業名: {name}\n"
         + (f"製品分類: {', '.join(cats)}\n" if cats else "")
         + (f"会社サイト: {exhibitor['website']}\n" if exhibitor.get("website") else "")
         + f"出展内容・説明:\n{body or '(説明テキストなし)'}\n\n"
-        "上記企業について、各テーマへの関連度を 0-100 で評価してください。"
-        "theme_scores には入力した全テーマ分を必ず含め、theme 名は入力と一致させてください。"
-        "max_score / top_theme は theme_scores の中で最大のものに合わせてください。"
-        + query_tail
+        "この企業が上記『探しているもの』にどれだけ近いかを score(0-100) で評価してください。"
+        "字面一致ではなく、ユーザーの意図（用途・技術・応用領域）への意味的な合致で判断し、"
+        "rationale に根拠、signals に出展情報中の手がかりとなった語・記述を入れてください。"
     )
     response = _call_with_retries(
         lambda: client.messages.parse(
             model=model,
-            max_tokens=3000,
+            max_tokens=2000,
             system=SYSTEM_PROMPT,
             messages=[{"role": "user", "content": instruction}],
-            output_format=ExhibitorAssessment,
+            output_format=ExhibitorMatch,
         )
     )
     return response.parsed_output, response.usage
@@ -196,35 +127,33 @@ def assess_exhibitor(
 def assess_many(
     client: anthropic.Anthropic,
     exhibitors: list[dict],
-    themes: list[dict[str, str]],
+    query: str,
     model: str,
-    query: str | None = None,
     on_result=None,
     on_error=None,
     progress=None,
 ):
-    """複数社を順に評価。1 社完了ごとに on_result(key, exhibitor, assessment) を
-    呼ぶので、呼び出し側はそこで逐次保存できる（途中で中断されても完了分は残る）。
+    """複数社を順に評価。1 社完了ごとに on_result(key, exhibitor, match) を呼ぶので、
+    呼び出し側はそこで逐次保存できる（途中で中断されても完了分は残る）。
 
-    - query: ユーザーの自由記述（探したいもの）。渡すと近さも評価する。
     - on_error(exhibitor, error_str): 1 社失敗時。失敗しても全体は止めない。
     - progress(done, total, name): 進捗通知。
     戻り値: (results, errors)
     """
-    results: list[ExhibitorAssessment] = []
+    results: list[ExhibitorMatch] = []
     errors: list[tuple[dict, str]] = []
     total = len(exhibitors)
     for i, ex in enumerate(exhibitors, 1):
         try:
-            assessment, _ = assess_exhibitor(client, ex, themes, model, query=query)
-            results.append(assessment)
+            match, _ = assess_exhibitor(client, ex, query, model)
+            results.append(match)
             if on_result:
-                on_result(exhibitor_key(ex), ex, assessment)
+                on_result(exhibitor_key(ex), ex, match)
         except Exception as e:  # noqa: BLE001
             errors.append((ex, str(e)))
             if on_error:
                 on_error(ex, str(e))
         if progress:
             progress(i, total, ex.get("name", "?"))
-    results.sort(key=lambda a: a.max_score, reverse=True)
+    results.sort(key=lambda a: a.score, reverse=True)
     return results, errors

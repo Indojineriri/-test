@@ -1,8 +1,8 @@
 """出展企業ファインダー（Streamlit ページ）。
 
-展示会の出展企業データに対し、Claude で指定テーマへの関連度を意味的に判定し、
-ランキング表示・CSV 出力する。データは scraper の JSON を取り込むか、
-（通信が許可された環境なら）この画面から直接取得もできる。
+出展企業データに対し、ユーザーが自由記述で書いた「探しているもの」に近い企業を
+Claude が意味的に探してランキング表示・CSV 出力する。データは scraper の JSON を
+取り込むか、（通信が許可された環境なら）この画面から直接取得もできる。
 """
 
 import hashlib
@@ -20,15 +20,14 @@ import exhibitor_finder as finder
 CACHE_DIR = os.environ.get("ASSESSMENT_CACHE_DIR", ".assessment_cache")
 
 
-def _run_id(exhibitors: list[dict], themes: list[dict], query: str) -> str:
-    """判定結果キャッシュの ID。出展企業集合・テーマ・クエリが変われば別キャッシュ。
+def _run_id(exhibitors: list[dict], query: str) -> str:
+    """判定結果キャッシュの ID。出展企業集合・クエリが変われば別キャッシュ。
 
-    テーマ説明やクエリを変えるとスコアの意味が変わるため、それらを ID に織り込み、
-    変更時は古い結果を再利用せず新たに評価する（古いキャッシュは別 ID で残る）。
+    クエリを変えると評価の意味が変わるため、それを ID に織り込み、変更時は
+    古い結果を再利用せず新たに評価する（古いキャッシュは別 ID で残る）。
     """
     keys = sorted(finder.exhibitor_key(e) for e in exhibitors)
-    theme_sig = "||".join(f"{t.get('name','')}::{t.get('desc','')}" for t in themes)
-    sig = "\n".join(keys) + "\n--themes--\n" + theme_sig + "\n--query--\n" + (query or "")
+    sig = "\n".join(keys) + "\n--query--\n" + (query or "")
     return hashlib.sha1(sig.encode("utf-8")).hexdigest()[:12]
 
 
@@ -38,7 +37,7 @@ def _cache_path(run_id: str) -> str:
 
 
 def _load_cache(path: str) -> dict:
-    """key -> ExhibitorAssessment のマップを復元（無ければ空）。"""
+    """key -> ExhibitorMatch のマップを復元（無ければ空）。"""
     done: dict = {}
     if not os.path.exists(path):
         return done
@@ -55,16 +54,15 @@ def _load_cache(path: str) -> dict:
     return done
 
 
-def _append_cache(path: str, key: str, assessment) -> None:
+def _append_cache(path: str, key: str, match) -> None:
     with open(path, "a", encoding="utf-8") as f:
-        f.write(json.dumps(finder.assessment_to_record(key, assessment), ensure_ascii=False) + "\n")
+        f.write(json.dumps(finder.assessment_to_record(key, match), ensure_ascii=False) + "\n")
+
 
 st.set_page_config(page_title="出展企業ファインダー", page_icon="🔎", layout="wide")
 
 ss = st.session_state
 ss.setdefault("exhibitors", None)  # list[dict]
-ss.setdefault("assessments", None)  # list[ExhibitorAssessment]
-ss.setdefault("themes", [dict(t) for t in finder.DEFAULT_THEMES])
 ss.setdefault("restored_note", None)
 
 # 保存済みのスクレイピングデータがあれば自動で復元（前回取得分を反映）。
@@ -76,8 +74,8 @@ if ss.exhibitors is None:
 
 st.title("🔎 出展企業ファインダー")
 st.caption(
-    "出展企業データに対し、キーワードの字面一致ではなく技術的な隣接性まで踏まえて "
-    "Claude が各テーマへの関連度を判定します。"
+    "あなたのコメント（探しているもの）に近い出展企業を、キーワードの字面一致ではなく "
+    "意図への意味的な近さで Claude が探し、近い順に並べます。"
 )
 
 # --- Sidebar: settings -------------------------------------------------------
@@ -89,7 +87,6 @@ with st.sidebar:
         help="未入力の場合は環境変数 ANTHROPIC_API_KEY を使用します。",
     )
     model = st.selectbox("モデル", config.AVAILABLE_MODELS, index=0)
-    import os
 
     key_ready = bool(api_key) or bool(os.getenv("ANTHROPIC_API_KEY"))
     if not key_ready:
@@ -116,7 +113,6 @@ with tab_upload:
             if not isinstance(data, list):
                 raise ValueError("JSON はオブジェクトの配列である必要があります。")
             ss.exhibitors = data
-            ss.assessments = None
             where = data_store.save_exhibitors(data)
             st.success(f"{len(data)} 社を読み込み、保存しました（{where}）。")
         except Exception as e:  # noqa: BLE001
@@ -143,7 +139,6 @@ with tab_scrape:
             with st.spinner("サイトを巡回中…"):
                 items = scraper.scrape(int(max_no), float(delay), progress=_prog)
             ss.exhibitors = [asdict(x) for x in items]
-            ss.assessments = None
             bar.empty()
             where = data_store.save_exhibitors(ss.exhibitors)
             st.success(f"{len(items)} 社を取得し、保存しました（{where}）。")
@@ -161,62 +156,39 @@ if ss.exhibitors:
             use_container_width=True,
         )
 
-# --- Step 2: テーマ設定 ------------------------------------------------------
-st.header("② 判定テーマ")
-st.caption("既定の5テーマに加え、自由に追加・編集できます。desc（説明）が意味的判定の精度を左右します。")
-theme_df = st.data_editor(
-    pd.DataFrame(ss.themes),
-    num_rows="dynamic",
-    use_container_width=True,
-    column_config={
-        "name": st.column_config.TextColumn("テーマ名", required=True),
-        "desc": st.column_config.TextColumn("説明（技術的な射程）", width="large"),
-    },
-    key="theme_editor",
-)
-ss.themes = [
-    {"name": str(r["name"]).strip(), "desc": str(r.get("desc", "") or "").strip()}
-    for _, r in theme_df.iterrows()
-    if str(r.get("name", "")).strip()
-]
-
-# --- Step 3: 判定 ------------------------------------------------------------
-st.header("③ Claude で関連度を判定")
-can_run = bool(ss.exhibitors) and bool(ss.themes) and key_ready
-if not can_run:
-    st.caption("データ取得・テーマ設定・API キーが揃うと実行できます。")
-
-# 自由記述クエリ: ユーザーが自分の言葉で書いた「探したいもの」に近い企業を取得する。
+# --- Step 2: 探したいもの（自由記述） ----------------------------------------
+st.header("② 探したいもの")
 query = st.text_area(
-    "探したいもの（自由記述・任意）",
-    height=90,
+    "あなたのコメント（自由記述）",
+    height=110,
     placeholder="例）製薬の無菌アイソレータ内で使える、力覚センサ付きの小型ロボットハンド。"
     "Sim2Realで動作学習しているところだと尚良い。",
-    help="記入すると、各社がこの記述にどれだけ近いかを 0-100 で評価し、近い順に並べます。"
-    "字面一致ではなく意図（用途・技術・応用領域）で判断します。",
+    help="ここに書いた内容に近い企業を、意図（用途・技術・応用領域）への意味的な近さで探します。",
 ).strip()
 
-# 判定済みキャッシュを読み込む（クエリ/テーマが変われば別キャッシュ＝再評価される）。
-# 手元に無ければ GCS から復元する（Cloud Run 再起動後も判定結果が残る）。
+# --- Step 3: 判定 ------------------------------------------------------------
+st.header("③ 近い企業を探す")
+can_run = bool(ss.exhibitors) and bool(query) and key_ready
+if not can_run:
+    st.caption("データ取得・コメント入力・API キーが揃うと実行できます。")
+
+# 判定済みキャッシュを読み込む（コメントが変われば別キャッシュ＝再評価される）。
+# 手元に無ければ GCS から復元する（Cloud Run 再起動後も結果が残る）。
 done_map: dict = {}
-if ss.exhibitors:
-    run_id = _run_id(ss.exhibitors, ss.themes, query)
+pending: list[dict] = []
+if ss.exhibitors and query:
+    run_id = _run_id(ss.exhibitors, query)
     cache_path = _cache_path(run_id)
     if not os.path.exists(cache_path) and data_store.pull_assessment_cache(run_id, cache_path):
-        st.caption("☁️ 保存済みの判定結果を復元しました。")
+        st.caption("☁️ 保存済みの結果を復元しました。")
     done_map = _load_cache(cache_path)
     pending = [ex for ex in ss.exhibitors if finder.exhibitor_key(ex) not in done_map]
     c1, c2, c3 = st.columns([2, 2, 1])
     c1.metric("判定済み", f"{len(done_map)} 社")
     c2.metric("未判定", f"{len(pending)} 社")
-    if c3.button("キャッシュ削除", help="この条件（クエリ/テーマ）の判定結果を消して最初からやり直します"):
+    if c3.button("結果を消す", help="このコメントの判定結果を消して最初からやり直します"):
         data_store.delete_assessment_cache(run_id, cache_path)
-        ss.assessments = None
         st.rerun()
-    if query:
-        st.caption("🔎 クエリ指定中: 結果は『クエリ適合』の高い順に並びます。")
-else:
-    pending = []
 
 limit = st.number_input(
     "今回判定する社数（未判定の先頭から / コスト・時間調整用）",
@@ -225,7 +197,7 @@ limit = st.number_input(
     value=min(20, len(pending)) if pending else 1,
 )
 
-btn_label = "未判定を続きから判定する" if done_map else "関連度を判定する"
+btn_label = "未判定を続きから判定する" if done_map else "近い企業を探す"
 if st.button(btn_label, type="primary", disabled=not (can_run and pending)):
     targets = pending[: int(limit)]
     bar = st.progress(0.0, text="判定中…")
@@ -238,12 +210,12 @@ if st.button(btn_label, type="primary", disabled=not (can_run and pending)):
     # 1 社完了ごとにローカルへ追記し、数件ごとに GCS へミラー（途中切断にも強い）。
     sync = {"n": 0}
 
-    def _on_result(key, ex, assessment):
-        _append_cache(cache_path, key, assessment)
+    def _on_result(key, ex, match):
+        _append_cache(cache_path, key, match)
         sync["n"] += 1
         if sync["n"] % 5 == 0:
             data_store.push_assessment_cache(run_id, cache_path)
-        live.caption(f"✓ {assessment.company} まで保存済み")
+        live.caption(f"✓ {match.company} まで保存済み")
 
     err_count = {"n": 0}
 
@@ -252,7 +224,7 @@ if st.button(btn_label, type="primary", disabled=not (can_run and pending)):
 
     try:
         finder.assess_many(
-            cli, targets, ss.themes, model, query=query or None,
+            cli, targets, query, model,
             on_result=_on_result, on_error=_on_error, progress=_prog,
         )
     except Exception as e:  # noqa: BLE001
@@ -265,57 +237,31 @@ if st.button(btn_label, type="primary", disabled=not (can_run and pending)):
         st.warning(f"{err_count['n']} 社でエラー（スキップ）。再クリックで再試行されます。")
     st.rerun()  # キャッシュを読み直して結果表示を最新化
 
-
-def _rank_value(a) -> int:
-    """並べ替え・フィルタの基準値。クエリ指定時はクエリ適合、無ければ最高スコア。"""
-    if query and a.query_score is not None:
-        return a.query_score
-    return a.max_score
-
-
 # --- Step 4: 結果 ------------------------------------------------------------
 # 表示は常にキャッシュ（=確定保存分）から組み立てる。中断していても残っている。
-ss.assessments = sorted(done_map.values(), key=_rank_value, reverse=True) if done_map else None
+results = sorted(done_map.values(), key=lambda a: a.score, reverse=True) if done_map else None
 
-if ss.assessments:
-    st.header("④ 結果（関連度ランキング）")
-    theme_names = [t["name"] for t in ss.themes]
+if results:
+    st.header("④ 結果（近い順）")
+    rows = [
+        {"企業": a.company, "近さ": a.score, "要約": a.summary, "根拠": a.rationale}
+        for a in results
+    ]
+    df = pd.DataFrame(rows).sort_values("近さ", ascending=False)
 
-    rows = []
-    for a in ss.assessments:
-        row = {"企業": a.company}
-        if query:
-            row["クエリ適合"] = a.query_score if a.query_score is not None else ""
-        row["最高スコア"] = a.max_score
-        row["主テーマ"] = a.top_theme
-        score_map = {s.theme: s.score for s in a.theme_scores}
-        for tn in theme_names:
-            row[tn] = score_map.get(tn, "")
-        row["要約"] = a.summary
-        rows.append(row)
-    sort_col = "クエリ適合" if query else "最高スコア"
-    df = pd.DataFrame(rows).sort_values(sort_col, ascending=False)
-
-    label = "クエリ適合" if query else "最高スコア"
-    min_score = st.slider(f"{label}の下限でフィルタ", 0, 100, 50, step=5)
-    shown = df[df[sort_col].apply(lambda v: isinstance(v, (int, float)) and v >= min_score)]
+    min_score = st.slider("近さの下限でフィルタ", 0, 100, 50, step=5)
+    shown = df[df["近さ"] >= min_score]
     st.dataframe(shown, use_container_width=True, hide_index=True)
 
     csv = shown.to_csv(index=False).encode("utf-8-sig")
-    st.download_button("CSV をダウンロード", data=csv, file_name="exhibitor_ranking.csv", mime="text/csv")
+    st.download_button("CSV をダウンロード", data=csv, file_name="exhibitor_matches.csv", mime="text/csv")
 
     st.subheader("根拠の詳細")
-    for a in sorted(ss.assessments, key=_rank_value, reverse=True):
-        if _rank_value(a) < min_score:
+    for a in results:
+        if a.score < min_score:
             continue
-        head = f"{a.company} — "
-        head += f"クエリ適合 {a.query_score}" if (query and a.query_score is not None) else f"最高 {a.max_score}（{a.top_theme}）"
-        with st.expander(head):
+        with st.expander(f"{a.company} — 近さ {a.score}"):
             st.write(a.summary)
-            if query and a.query_rationale:
-                st.markdown(f"**クエリ適合 {a.query_score}**  \n{a.query_rationale}")
-                st.divider()
-            for s in sorted(a.theme_scores, key=lambda x: x.score, reverse=True):
-                st.markdown(f"**{s.theme}: {s.score}**  \n{s.rationale}")
-                if s.signals:
-                    st.caption("シグナル: " + " / ".join(s.signals))
+            st.markdown(a.rationale)
+            if a.signals:
+                st.caption("手がかり: " + " / ".join(a.signals))
