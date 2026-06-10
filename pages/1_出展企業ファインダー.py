@@ -32,9 +32,9 @@ def _run_id(exhibitors: list[dict], themes: list[dict], query: str) -> str:
     return hashlib.sha1(sig.encode("utf-8")).hexdigest()[:12]
 
 
-def _cache_path(exhibitors: list[dict], themes: list[dict], query: str) -> str:
+def _cache_path(run_id: str) -> str:
     os.makedirs(CACHE_DIR, exist_ok=True)
-    return os.path.join(CACHE_DIR, f"{_run_id(exhibitors, themes, query)}.jsonl")
+    return os.path.join(CACHE_DIR, f"{run_id}.jsonl")
 
 
 def _load_cache(path: str) -> dict:
@@ -197,17 +197,20 @@ query = st.text_area(
 ).strip()
 
 # 判定済みキャッシュを読み込む（クエリ/テーマが変われば別キャッシュ＝再評価される）。
+# 手元に無ければ GCS から復元する（Cloud Run 再起動後も判定結果が残る）。
 done_map: dict = {}
 if ss.exhibitors:
-    cache_path = _cache_path(ss.exhibitors, ss.themes, query)
+    run_id = _run_id(ss.exhibitors, ss.themes, query)
+    cache_path = _cache_path(run_id)
+    if not os.path.exists(cache_path) and data_store.pull_assessment_cache(run_id, cache_path):
+        st.caption("☁️ 保存済みの判定結果を復元しました。")
     done_map = _load_cache(cache_path)
     pending = [ex for ex in ss.exhibitors if finder.exhibitor_key(ex) not in done_map]
     c1, c2, c3 = st.columns([2, 2, 1])
     c1.metric("判定済み", f"{len(done_map)} 社")
     c2.metric("未判定", f"{len(pending)} 社")
     if c3.button("キャッシュ削除", help="この条件（クエリ/テーマ）の判定結果を消して最初からやり直します"):
-        if os.path.exists(cache_path):
-            os.remove(cache_path)
+        data_store.delete_assessment_cache(run_id, cache_path)
         ss.assessments = None
         st.rerun()
     if query:
@@ -232,9 +235,14 @@ if st.button(btn_label, type="primary", disabled=not (can_run and pending)):
     def _prog(done, total, name):
         bar.progress(min(done / total, 1.0), text=f"{done}/{total}  {name}")
 
-    # 1 社完了ごとにキャッシュへ追記 → 途中で切れても完了分は失われない。
+    # 1 社完了ごとにローカルへ追記し、数件ごとに GCS へミラー（途中切断にも強い）。
+    sync = {"n": 0}
+
     def _on_result(key, ex, assessment):
         _append_cache(cache_path, key, assessment)
+        sync["n"] += 1
+        if sync["n"] % 5 == 0:
+            data_store.push_assessment_cache(run_id, cache_path)
         live.caption(f"✓ {assessment.company} まで保存済み")
 
     err_count = {"n": 0}
@@ -249,6 +257,9 @@ if st.button(btn_label, type="primary", disabled=not (can_run and pending)):
         )
     except Exception as e:  # noqa: BLE001
         st.error(f"判定が中断しました（完了分は保存済み・再開できます）: {claude_client.format_api_error(e)}")
+    finally:
+        # 完了・中断いずれでも最新のローカル内容を GCS に確実に反映。
+        data_store.push_assessment_cache(run_id, cache_path)
     bar.empty()
     if err_count["n"]:
         st.warning(f"{err_count['n']} 社でエラー（スキップ）。再クリックで再試行されます。")

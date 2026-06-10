@@ -16,13 +16,22 @@ import config
 
 LOCAL_PATH = os.environ.get("EXHIBITOR_DATA_PATH", ".exhibitor_data/exhibitors.json")
 GCS_OBJECT = os.environ.get("EXHIBITOR_DATA_OBJECT", "exhibitor-finder/exhibitors.json")
+# 判定結果キャッシュ（run_id ごとの JSONL）の GCS 配置先プレフィクス。
+ASSESS_PREFIX = os.environ.get("ASSESSMENT_OBJECT_PREFIX", "exhibitor-finder/assessments")
+
+
+def _bucket():
+    from google.cloud import storage
+
+    return storage.Client().bucket(config.GCS_BUCKET)
 
 
 def _gcs_blob():
-    from google.cloud import storage
+    return _bucket().blob(GCS_OBJECT)
 
-    client = storage.Client()
-    return client.bucket(config.GCS_BUCKET).blob(GCS_OBJECT)
+
+def _assess_blob(run_id: str):
+    return _bucket().blob(f"{ASSESS_PREFIX}/{run_id}.jsonl")
 
 
 def save_exhibitors(data: list[dict]) -> str:
@@ -71,3 +80,48 @@ def has_saved() -> bool:
         except Exception:  # noqa: BLE001
             pass
     return os.path.exists(LOCAL_PATH)
+
+
+# --- 判定結果キャッシュ（run_id 単位の JSONL）の GCS ミラー -------------------
+# ローカル JSONL を正本として逐次追記し、その内容を GCS にミラーする。
+# Cloud Run はディスクが揮発するため、GCS に置くことでインスタンス入替後も残る。
+
+def push_assessment_cache(run_id: str, local_path: str) -> bool:
+    """ローカル JSONL の現在の内容を GCS にアップロード（上書き）。"""
+    if not config.GCS_BUCKET or not os.path.exists(local_path):
+        return False
+    try:
+        with open(local_path, "rb") as fh:
+            data = fh.read()
+        _assess_blob(run_id).upload_from_string(data, content_type="application/x-ndjson")
+        return True
+    except Exception:  # noqa: BLE001
+        return False
+
+
+def pull_assessment_cache(run_id: str, local_path: str) -> bool:
+    """GCS に保存済みで手元に無ければダウンロードして復元。復元したら True。"""
+    if not config.GCS_BUCKET:
+        return False
+    try:
+        blob = _assess_blob(run_id)
+        if not blob.exists():
+            return False
+        os.makedirs(os.path.dirname(local_path) or ".", exist_ok=True)
+        blob.download_to_filename(local_path)
+        return True
+    except Exception:  # noqa: BLE001
+        return False
+
+
+def delete_assessment_cache(run_id: str, local_path: str) -> None:
+    """ローカルと GCS の両方の判定結果キャッシュを削除。"""
+    if os.path.exists(local_path):
+        os.remove(local_path)
+    if config.GCS_BUCKET:
+        try:
+            blob = _assess_blob(run_id)
+            if blob.exists():
+                blob.delete()
+        except Exception:  # noqa: BLE001
+            pass
