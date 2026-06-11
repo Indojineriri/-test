@@ -35,6 +35,7 @@ BULLET_FONT_SIZE_PT = 12
 
 R_NS = "http://schemas.openxmlformats.org/officeDocument/2006/relationships"
 A_NS = "http://schemas.openxmlformats.org/drawingml/2006/main"
+P_NS = "http://schemas.openxmlformats.org/presentationml/2006/main"
 
 
 def _find_shape(slide, name: str):
@@ -144,7 +145,23 @@ def _replace_media_with_picture(slide, media_shape, image_bytes: bytes) -> None:
         pass
 
 
+def _strip_timing(slide) -> None:
+    """Remove <p:timing> from the slide.
+
+    The template's timing block triggers animations on the original
+    IMG_0026 media shape (spid 26). Once we rewrite the slide and
+    swap that shape for a still picture, the timing references go
+    stale and PowerPoint refuses to open the file. We don't need
+    animations on the rebuilt slide either, so drop the whole block.
+    """
+    sld = slide.element
+    for timing in sld.findall(f"{{{P_NS}}}timing"):
+        sld.remove(timing)
+
+
 def _fill_slide(slide, vendor: VendorCase) -> None:
+    _strip_timing(slide)
+
     title = _find_shape(slide, SHAPE_TITLE)
     if title is not None:
         _set_single_text(title, f"各出展者紹介-{vendor.company}-")
