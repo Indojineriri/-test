@@ -6,7 +6,7 @@ import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 
-from models import Case
+from models import Case, VendorCase
 
 GCS_BUCKET = os.getenv("GCS_BUCKET", "test_reseach")
 GCS_PREFIX = os.getenv("RESEARCH_HISTORY_PREFIX", "research-history")
@@ -38,19 +38,31 @@ def save_entry(
     model: str,
     user_name: str,
     user_email: str,
-    cases: list[Case],
+    cases: list = None,
+    vendors: list = None,
+    kind: str = "case",
 ) -> dict:
-    """Persist one research run. Returns the saved entry (with `_storage`)."""
+    """Persist one research run. Returns the saved entry (with `_storage`).
+
+    `kind` is either 'case' (technical case research) or 'vendor' (vendor research).
+    Pass `cases=` for kind=case, `vendors=` for kind=vendor.
+    """
+    payload: list[dict] = []
+    if vendors is not None:
+        payload = [v.model_dump() for v in vendors]
+    elif cases is not None:
+        payload = [c.model_dump() for c in cases]
     entry = {
         "id": str(uuid.uuid4()),
         "created_at": _now_iso(),
+        "kind": kind,
         "theme": theme.strip(),
         "mode": mode,
         "model": model,
         "user_name": (user_name or "").strip(),
         "user_email": (user_email or "").strip(),
-        "n_cases": len(cases),
-        "cases": [c.model_dump() for c in cases],
+        "n_cases": len(payload),
+        "cases": payload,
     }
     blob_name = _filename(entry["id"], entry["created_at"])
     data = json.dumps(entry, ensure_ascii=False, indent=2).encode("utf-8")
@@ -115,5 +127,10 @@ def storage_status() -> str:
 
 
 def cases_from_dict(entry: dict) -> list[Case]:
-    """Reconstruct Case objects from a stored entry."""
+    """Reconstruct Case objects from a stored entry (kind='case')."""
     return [Case.model_validate(c) for c in entry.get("cases", [])]
+
+
+def vendors_from_dict(entry: dict) -> list[VendorCase]:
+    """Reconstruct VendorCase objects from a stored entry (kind='vendor')."""
+    return [VendorCase.model_validate(c) for c in entry.get("cases", [])]

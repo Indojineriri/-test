@@ -3,7 +3,7 @@ from __future__ import annotations
 import csv
 import io
 
-from models import Case
+from models import Case, VendorCase
 
 CSV_COLUMNS = [
     "title",
@@ -38,4 +38,38 @@ def to_csv_bytes(cases: list[Case]) -> bytes:
             }
         )
     # BOM so Excel opens UTF-8 cleanly.
+    return ("﻿" + buf.getvalue()).encode("utf-8")
+
+
+VENDOR_CSV_COLUMNS = [
+    "company",
+    "product",
+    "focus_tech",
+    "summary",
+    "features",
+    "problems_solved",
+    "use_cases",
+    "url",
+    "image_url",
+]
+
+
+def vendors_to_csv_bytes(vendors: list[VendorCase]) -> bytes:
+    buf = io.StringIO()
+    writer = csv.DictWriter(buf, fieldnames=VENDOR_CSV_COLUMNS, quoting=csv.QUOTE_ALL)
+    writer.writeheader()
+    for v in vendors:
+        writer.writerow(
+            {
+                "company": v.company,
+                "product": v.product,
+                "focus_tech": v.focus_tech or "",
+                "summary": v.summary,
+                "features": "\n".join(f"・{x}" for x in v.features),
+                "problems_solved": "\n".join(f"・{x}" for x in v.problems_solved),
+                "use_cases": "\n".join(f"・{x}" for x in v.use_cases),
+                "url": v.url,
+                "image_url": v.image_url or "",
+            }
+        )
     return ("﻿" + buf.getvalue()).encode("utf-8")

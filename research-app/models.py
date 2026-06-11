@@ -31,3 +31,38 @@ class Case(BaseModel):
 
 class CaseList(BaseModel):
     cases: list[Case]
+
+
+class VendorCase(BaseModel):
+    """One vendor research case row for vendor-focused slides."""
+
+    company: str = Field(description="出展者・企業名。例: '株式会社モーションリブ'")
+    product: str = Field(description="製品名・サービス名。例: 'SPX4(仮称)'")
+    summary: str = Field(
+        description=(
+            "スライド上部の 1〜2 文の要約。"
+            "『{社名}の「{製品名}」は…』の文に続く本文として使われる。"
+        ),
+    )
+    features: list[str] = Field(
+        description="製品の特長。最大 3 個、各 40〜70 文字の箇条書き。"
+    )
+    problems_solved: list[str] = Field(
+        description="解決する課題。最大 3 個、各 30〜50 文字の箇条書き。"
+    )
+    use_cases: list[str] = Field(
+        description=(
+            "活用例。最大 3 個。各項目は『見出し: 説明』形式が望ましい。"
+            "例: '品質・耐久試験: ボタンの押し込みや扉の開閉など、実機を操作するような繰り返しテスト'"
+        ),
+    )
+    url: str = Field(description="ベンダーの一次情報源 URL（公式ページ、製品ページ、プレスリリース等）。")
+    image_url: str | None = Field(default=None, description="製品画像の URL。og:image を優先。")
+    focus_tech: str | None = Field(
+        default=None,
+        description="ユーザーが指定した注目技術（あれば）。リサーチの焦点として記録。",
+    )
+
+
+class VendorCaseList(BaseModel):
+    vendors: list[VendorCase]

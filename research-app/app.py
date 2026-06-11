@@ -9,7 +9,9 @@ import history
 import ppt_export
 import research
 import scraper
-from models import Case
+import vendor_ppt
+import vendor_research
+from models import Case, VendorCase
 
 st.set_page_config(page_title="リサーチ資料作成", page_icon="🔎", layout="wide")
 
@@ -20,6 +22,8 @@ ss.setdefault("arxiv_used", None)
 ss.setdefault("user_name", "")
 ss.setdefault("user_email", "")
 ss.setdefault("last_saved_id", None)
+ss.setdefault("vendors", None)
+ss.setdefault("vendor_pptx_bytes", None)
 
 AVAILABLE_MODELS = ["claude-opus-4-7", "claude-sonnet-4-6"]
 
@@ -102,7 +106,9 @@ def _autosave_if_possible(theme_text: str) -> None:
 st.title("🔎 リサーチ資料作成")
 st.caption("テーマを入力 → Claude + Web 検索 + arXiv でリサーチ → CSV / PPT でダウンロード → 履歴を共有")
 
-tab_new, tab_history = st.tabs(["🆕 新規リサーチ", "📚 履歴"])
+tab_new, tab_vendor, tab_history = st.tabs(
+    ["🆕 新規リサーチ", "🏢 ベンダーリサーチ", "📚 履歴"]
+)
 
 
 # ============================================================================
@@ -299,6 +305,167 @@ with tab_new:
 
 
 # ============================================================================
+# Tab: ベンダーリサーチ
+# ============================================================================
+with tab_vendor:
+    st.header("🏢 ベンダーリサーチ")
+    st.caption(
+        "ベンダー名（必要なら注目技術も）を 1 行 1 社で入力すると、各ベンダーごとに"
+        "公式情報を中心に調査し、添付フォーマットのスライドを生成します。"
+    )
+
+    st.subheader("① 調査対象ベンダー")
+    st.caption(
+        "形式: `ベンダー名` または `ベンダー名 | 注目技術`（1 行 1 社）。"
+        "注目技術は省略可能。"
+    )
+    vendor_text = st.text_area(
+        "ベンダーリスト",
+        height=160,
+        placeholder=(
+            "例)\n"
+            "株式会社モーションリブ | ダイレクトティーチング\n"
+            "ファナック\n"
+            "ABB Robotics | 協働ロボット"
+        ),
+        key="vendor_input",
+    )
+
+    def _parse_vendor_list(text: str) -> list[tuple[str, str | None]]:
+        out: list[tuple[str, str | None]] = []
+        for raw in text.splitlines():
+            line = raw.strip()
+            if not line:
+                continue
+            if "|" in line:
+                name, _, tech = line.partition("|")
+                out.append((name.strip(), tech.strip() or None))
+            else:
+                out.append((line, None))
+        return out
+
+    parsed_vendors = _parse_vendor_list(vendor_text)
+    if parsed_vendors:
+        st.caption(f"対象: {len(parsed_vendors)} 社")
+
+    st.subheader("② リサーチ実行")
+    vendor_max_iters = st.slider(
+        "最大ループ回数", 5, 40, 20, key="vendor_max_iters",
+        help="ベンダー 1 社につき 2〜3 ターン使うので、社数 × 3 程度が目安。",
+    )
+    vendor_max_web = st.slider("Web 検索の最大回数", 5, 60, 30, key="vendor_max_web")
+
+    if st.button(
+        "ベンダーリサーチを実行",
+        type="primary",
+        disabled=not (parsed_vendors and key_ready),
+        key="run_vendor",
+    ):
+        progress_box = st.empty()
+        log_lines: list[str] = []
+
+        def _on_vendor_progress(p: vendor_research.Progress) -> None:
+            icon = {
+                "think": "💭",
+                "web_search": "🔍",
+                "fetch": "📄",
+                "submit": "✅",
+                "nudge": "↪️",
+            }.get(p.kind, "•")
+            detail = (p.detail or "").replace("\n", " ")
+            if len(detail) > 200:
+                detail = detail[:200] + "…"
+            log_lines.append(f"{icon} **[{p.iteration}] {p.kind}** — {detail}")
+            progress_box.markdown("\n\n".join(log_lines[-25:]))
+
+        try:
+            vendor_list, usages = vendor_research.research_vendors(
+                client(),
+                vendors=parsed_vendors,
+                model=model,
+                max_iters=vendor_max_iters,
+                max_web_uses=vendor_max_web,
+                on_progress=_on_vendor_progress,
+            )
+            ss.vendors = vendor_list.vendors
+            ss.vendor_pptx_bytes = None
+            total_in = sum(u.input_tokens for u in usages)
+            total_out = sum(u.output_tokens for u in usages)
+            st.success(
+                f"ベンダーリサーチ完了 — {len(usages)} ターン / "
+                f"tokens in:{total_in} out:{total_out}"
+            )
+            # Auto-save to history.
+            if ss.user_name.strip():
+                try:
+                    entry = history.save_entry(
+                        theme=", ".join(f"{n}" + (f"({t})" if t else "") for n, t in parsed_vendors)[:200],
+                        mode="ベンダーリサーチ",
+                        model=model,
+                        user_name=ss.user_name,
+                        user_email=ss.user_email,
+                        vendors=ss.vendors,
+                        kind="vendor",
+                    )
+                    st.info(f"履歴に保存しました（id: {entry['id'][:8]}…）")
+                except Exception as e:
+                    st.warning(f"履歴保存に失敗: {e}")
+        except Exception as e:
+            st.error(f"ベンダーリサーチに失敗しました: {research.format_api_error(e)}")
+
+    if ss.vendors:
+        st.subheader("③ 結果プレビュー")
+        st.success(f"{len(ss.vendors)} 社の情報を取得しました。")
+        for i, v in enumerate(ss.vendors):
+            with st.expander(f"{i+1}. {v.company} — {v.product}"):
+                st.markdown(f"**要約**: {v.summary}")
+                st.markdown("**製品の特長**")
+                for x in v.features[:3]:
+                    st.markdown(f"- {x}")
+                st.markdown("**解決する課題**")
+                for x in v.problems_solved[:3]:
+                    st.markdown(f"- {x}")
+                st.markdown("**活用例**")
+                for x in v.use_cases[:3]:
+                    st.markdown(f"- {x}")
+                st.markdown(f"**URL**: {v.url}")
+                new_url = st.text_input(
+                    "画像 URL（手動オーバーライド）",
+                    value=v.image_url or "",
+                    key=f"vendor_img_{i}",
+                )
+                if new_url != (v.image_url or ""):
+                    v.image_url = new_url or None
+
+        st.subheader("④ 出力")
+        col1, col2 = st.columns(2)
+        with col1:
+            csv_bytes = csv_export.vendors_to_csv_bytes(ss.vendors)
+            st.download_button(
+                "CSV をダウンロード",
+                data=csv_bytes,
+                file_name="vendors.csv",
+                mime="text/csv",
+                key="dl_vendor_csv",
+            )
+        with col2:
+            if st.button("PPT を生成", type="primary", key="gen_vendor_ppt"):
+                with st.spinner("PPT 生成中..."):
+                    try:
+                        ss.vendor_pptx_bytes = vendor_ppt.build_vendor_pptx(ss.vendors)
+                    except Exception as e:
+                        st.error(f"PPT 生成に失敗しました: {e}")
+            if ss.vendor_pptx_bytes:
+                st.download_button(
+                    "PPT をダウンロード",
+                    data=ss.vendor_pptx_bytes,
+                    file_name="vendor_research.pptx",
+                    mime="application/vnd.openxmlformats-officedocument.presentationml.presentation",
+                    key="dl_vendor_pptx",
+                )
+
+
+# ============================================================================
 # Tab: 履歴
 # ============================================================================
 with tab_history:
@@ -339,8 +506,10 @@ with tab_history:
             created = entry.get("created_at", "")
             mode_str = entry.get("mode", "?")
             ncases = entry.get("n_cases", 0)
+            kind = entry.get("kind", "case")
+            icon = "🏢" if kind == "vendor" else "📝"
 
-            label = f"📝 {theme_str[:60]}  ·  {name}  ·  {created[:16].replace('T',' ')}  ·  {ncases}件 / {mode_str}"
+            label = f"{icon} {theme_str[:60]}  ·  {name}  ·  {created[:16].replace('T',' ')}  ·  {ncases}件 / {mode_str}"
             with st.expander(label):
                 col1, col2 = st.columns([3, 2])
                 with col1:
@@ -353,30 +522,62 @@ with tab_history:
                     st.markdown(f"**モデル**: {entry.get('model', '?')}  / **モード**: {mode_str}")
                     st.markdown(f"**実行日時**: {created}")
                 with col2:
-                    try:
-                        case_objs = history.cases_from_dict(entry)
-                    except Exception:
-                        case_objs = []
-                    if case_objs:
-                        csv_bytes = csv_export.to_csv_bytes(case_objs)
-                        st.download_button(
-                            "CSV をダウンロード",
-                            data=csv_bytes,
-                            file_name=f"cases_{entry['id'][:8]}.csv",
-                            mime="text/csv",
-                            key=f"dl_csv_{entry['id']}",
-                        )
-                        if st.button(
-                            "このリサーチを新規タブに読み込む",
-                            key=f"load_{entry['id']}",
-                        ):
-                            ss.cases = case_objs
-                            ss.findings = None
-                            st.success("読み込みました。『新規リサーチ』タブで編集・再出力できます。")
+                    if kind == "vendor":
+                        try:
+                            vendor_objs = history.vendors_from_dict(entry)
+                        except Exception:
+                            vendor_objs = []
+                        if vendor_objs:
+                            csv_bytes = csv_export.vendors_to_csv_bytes(vendor_objs)
+                            st.download_button(
+                                "CSV をダウンロード",
+                                data=csv_bytes,
+                                file_name=f"vendors_{entry['id'][:8]}.csv",
+                                mime="text/csv",
+                                key=f"dl_csv_{entry['id']}",
+                            )
+                            if st.button(
+                                "ベンダータブに読み込む",
+                                key=f"load_{entry['id']}",
+                            ):
+                                ss.vendors = vendor_objs
+                                ss.vendor_pptx_bytes = None
+                                st.success(
+                                    "読み込みました。『ベンダーリサーチ』タブで編集・再出力できます。"
+                                )
+                    else:
+                        try:
+                            case_objs = history.cases_from_dict(entry)
+                        except Exception:
+                            case_objs = []
+                        if case_objs:
+                            csv_bytes = csv_export.to_csv_bytes(case_objs)
+                            st.download_button(
+                                "CSV をダウンロード",
+                                data=csv_bytes,
+                                file_name=f"cases_{entry['id'][:8]}.csv",
+                                mime="text/csv",
+                                key=f"dl_csv_{entry['id']}",
+                            )
+                            if st.button(
+                                "このリサーチを新規タブに読み込む",
+                                key=f"load_{entry['id']}",
+                            ):
+                                ss.cases = case_objs
+                                ss.findings = None
+                                st.success("読み込みました。『新規リサーチ』タブで編集・再出力できます。")
 
-                st.markdown("**事例一覧**")
-                for c in entry.get("cases", []):
-                    st.markdown(
-                        f"- **{c.get('title', '')}** — {c.get('organization', '')} "
-                        f"({c.get('year') or '?'})  \n  {c.get('subtitle', '')}"
-                    )
+                if kind == "vendor":
+                    st.markdown("**ベンダー一覧**")
+                    for v in entry.get("cases", []):
+                        st.markdown(
+                            f"- **{v.get('company', '')}** — {v.get('product', '')}  \n"
+                            f"  {v.get('summary', '')}"
+                        )
+                else:
+                    st.markdown("**事例一覧**")
+                    for c in entry.get("cases", []):
+                        st.markdown(
+                            f"- **{c.get('title', '')}** — {c.get('organization', '')} "
+                            f"({c.get('year') or '?'})  \n  {c.get('subtitle', '')}"
+                        )
