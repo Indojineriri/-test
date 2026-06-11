@@ -31,7 +31,10 @@ SHAPE_USECASES = "正方形/長方形 24"   # 活用例
 SHAPE_MEDIA = "IMG_0026"            # 製品画像（MEDIA type）
 
 MAX_BULLETS = 3
-BULLET_FONT_SIZE_PT = 12
+BULLET_FONT_SIZE_PT = 11
+SUBTITLE_FONT_SIZE_PT = 12
+REFERENCES_FONT_SIZE_PT = 9
+MAX_REFERENCES = 3
 
 R_NS = "http://schemas.openxmlformats.org/officeDocument/2006/relationships"
 A_NS = "http://schemas.openxmlformats.org/drawingml/2006/main"
@@ -83,7 +86,7 @@ def _apply_rPr(run, template_rPr, font_size_pt: int | None = None) -> None:
     r.insert(0, rPr)
 
 
-def _set_single_text(shape, text: str) -> None:
+def _set_single_text(shape, text: str, font_size_pt: int | None = None) -> None:
     tf = shape.text_frame
     template_pPr, template_rPr = _snapshot_template_runs(tf)
     tf.clear()
@@ -95,7 +98,12 @@ def _set_single_text(shape, text: str) -> None:
         p._p.insert(0, deepcopy(template_pPr))
     run = p.add_run()
     run.text = text
-    _apply_rPr(run, template_rPr)
+    _apply_rPr(run, template_rPr, font_size_pt=font_size_pt)
+    try:
+        tf.word_wrap = True
+        tf.auto_size = MSO_AUTO_SIZE.TEXT_TO_FIT_SHAPE
+    except Exception:
+        pass
 
 
 def _set_bullets(shape, lines: list[str], font_size_pt: int = BULLET_FONT_SIZE_PT) -> None:
@@ -168,7 +176,11 @@ def _fill_slide(slide, vendor: VendorCase) -> None:
 
     subtitle = _find_shape(slide, SHAPE_SUBTITLE)
     if subtitle is not None:
-        _set_single_text(subtitle, f"{vendor.company}の「{vendor.product}」は{vendor.summary}")
+        _set_single_text(
+            subtitle,
+            f"{vendor.company}の「{vendor.product}」は{vendor.summary}",
+            font_size_pt=SUBTITLE_FONT_SIZE_PT,
+        )
 
     company = _find_shape(slide, SHAPE_COMPANY)
     if company is not None:
@@ -199,6 +211,59 @@ def _fill_slide(slide, vendor: VendorCase) -> None:
             # No image: remove the placeholder so the template's stale
             # media doesn't leak into every generated slide.
             media.element.getparent().remove(media.element)
+
+    _add_references_box(slide, vendor)
+
+
+def _add_references_box(slide, vendor: VendorCase) -> None:
+    """Add a small '参考リンク' text box pinned to the bottom of the slide.
+
+    Lists vendor.url plus up to MAX_REFERENCES extras from vendor.references,
+    each as a hyperlinked run. Uses a small font so it never competes with
+    the main content.
+    """
+    urls: list[str] = []
+    if vendor.url:
+        urls.append(vendor.url)
+    for u in (vendor.references or []):
+        if u and u not in urls:
+            urls.append(u)
+        if len(urls) >= 1 + MAX_REFERENCES:
+            break
+    if not urls:
+        return
+
+    from pptx.util import Inches, Emu
+
+    slide_width = slide.part.package.presentation_part.presentation.slide_width
+    slide_height = slide.part.package.presentation_part.presentation.slide_height
+    left = Inches(0.4)
+    height = Inches(0.5)
+    width = Emu(slide_width - Inches(0.8))
+    top = Emu(slide_height - height - Inches(0.05))
+
+    txbox = slide.shapes.add_textbox(left, top, width, height)
+    tf = txbox.text_frame
+    tf.word_wrap = True
+
+    p = tf.paragraphs[0]
+    lead = p.add_run()
+    lead.text = "参考リンク: "
+    lead.font.size = Pt(REFERENCES_FONT_SIZE_PT)
+    lead.font.bold = True
+
+    for i, u in enumerate(urls):
+        if i > 0:
+            sep = p.add_run()
+            sep.text = "   "
+            sep.font.size = Pt(REFERENCES_FONT_SIZE_PT)
+        run = p.add_run()
+        run.text = u
+        run.font.size = Pt(REFERENCES_FONT_SIZE_PT)
+        try:
+            run.hyperlink.address = u
+        except Exception:
+            pass
 
 
 def build_vendor_pptx(vendors: list[VendorCase], template_path: Path = TEMPLATE_PATH) -> bytes:

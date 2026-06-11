@@ -58,6 +58,14 @@ class VendorCase(BaseModel):
     )
     url: str = Field(description="ベンダーの一次情報源 URL（公式ページ、製品ページ、プレスリリース等）。")
     image_url: str | None = Field(default=None, description="製品画像の URL。og:image を優先。")
+    references: list[str] = Field(
+        default_factory=list,
+        description=(
+            "スライド下部に『参考リンク』として表示する補足 URL のリスト。"
+            "最大 3 件。製品ページ、技術ホワイトペーパー、デモ動画、"
+            "プレスリリース等から最も有益なものを選ぶ。"
+        ),
+    )
     focus_tech: str | None = Field(
         default=None,
         description="ユーザーが指定した注目技術（あれば）。リサーチの焦点として記録。",
