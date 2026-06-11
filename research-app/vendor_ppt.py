@@ -1,169 +1,243 @@
-"""Slide generator for vendor research, recreating the screenshot layout from scratch.
+"""Template-based slide generator for vendor research.
 
-The slide structure mirrors the reference image:
-    ┌──────────────────────────────────────────────────────┐
-    │ {社名}の「{製品名}」は{summary}                       │
-    ├─────┬──────────────────────────┬─────────────────────┤
-    │ 出展者│ {company}                │                     │
-    │ 製品名│ {product}                │                     │
-    │ 製品の│ • feature 1              │   [ product photo ] │
-    │ 特長 │ • feature 2              │                     │
-    │      │ • feature 3              │                     │
-    │ 解決 │ • problem 1              │                     │
-    │ する │ • problem 2              │                     │
-    │ 課題 │                          │                     │
-    │ 活用 │ • 見出し: 説明           │                     │
-    │ 例   │ • 見出し: 説明           │                     │
-    └─────┴──────────────────────────┴─────────────────────┘
-
-When the user provides a real .pptx template we will switch to template-based
-generation (same approach as ppt_export.py).
+Mirrors the approach in ppt_export.py: open the supplied .pptx template,
+fill the first case into the existing slide, then clone the pristine
+slide XML (with rId remapping) for subsequent cases.
 """
 
 from __future__ import annotations
 
 import io
+from copy import deepcopy
+from pathlib import Path
 
 from pptx import Presentation
-from pptx.dml.color import RGBColor
-from pptx.enum.shapes import MSO_SHAPE
-from pptx.enum.text import MSO_ANCHOR, PP_ALIGN
-from pptx.util import Emu, Inches, Pt
+from pptx.enum.text import MSO_AUTO_SIZE
+from pptx.util import Pt
 
 from models import VendorCase
 import scraper
 
-SLIDE_W = Inches(13.333)
-SLIDE_H = Inches(7.5)
+TEMPLATE_PATH = Path(__file__).parent / "templates" / "vendor_template.pptx"
 
-LABEL_FILL = RGBColor(0xDC, 0xDC, 0xDC)
-LABEL_BORDER = RGBColor(0xA0, 0xA0, 0xA0)
-ROW_BORDER = RGBColor(0xC0, 0xC0, 0xC0)
+# Shape names in the template (Japanese; do not rename in the .pptx).
+SHAPE_TITLE = "タイトル 2"          # 各出展者紹介-{社名}-
+SHAPE_SUBTITLE = "字幕 1"           # {社名}の「{製品名}」は{summary}
+SHAPE_COMPANY = "正方形/長方形 7"   # 出展者の値
+SHAPE_PRODUCT = "正方形/長方形 9"   # 製品名の値
+SHAPE_FEATURES = "正方形/長方形 28"   # 製品の特長
+SHAPE_PROBLEMS = "正方形/長方形 21"   # 解決する課題
+SHAPE_USECASES = "正方形/長方形 24"   # 活用例
+SHAPE_MEDIA = "IMG_0026"            # 製品画像（MEDIA type）
 
-LABEL_X = Inches(0.4)
-LABEL_W = Inches(1.1)
-CONTENT_X = Inches(1.6)
-CONTENT_W = Inches(5.6)
-IMAGE_X = Inches(7.6)
-IMAGE_Y = Inches(1.4)
-IMAGE_W = Inches(5.4)
-IMAGE_H = Inches(5.4)
+MAX_BULLETS = 3
+BULLET_FONT_SIZE_PT = 12
+
+R_NS = "http://schemas.openxmlformats.org/officeDocument/2006/relationships"
+A_NS = "http://schemas.openxmlformats.org/drawingml/2006/main"
 
 
-def _add_title_band(slide, vendor: VendorCase) -> None:
-    box = slide.shapes.add_textbox(Inches(0.4), Inches(0.15), Inches(12.5), Inches(0.9))
-    tf = box.text_frame
-    tf.word_wrap = True
+def _find_shape(slide, name: str):
+    """Find a shape by name, recursing into groups."""
+    def walk(shapes):
+        for shp in shapes:
+            if shp.name == name:
+                return shp
+            if shp.shape_type == 6:  # GROUP
+                try:
+                    found = walk(shp.shapes)
+                    if found is not None:
+                        return found
+                except Exception:
+                    pass
+        return None
+    return walk(slide.shapes)
+
+
+def _snapshot_template_runs(text_frame):
+    if not text_frame.paragraphs:
+        return None, None
+    p0 = text_frame.paragraphs[0]
+    pPr = deepcopy(p0._pPr) if p0._pPr is not None else None
+    rPr = None
+    if p0.runs:
+        rPr_el = p0.runs[0]._r.find(f"{{{A_NS}}}rPr")
+        if rPr_el is not None:
+            rPr = deepcopy(rPr_el)
+    return pPr, rPr
+
+
+def _apply_rPr(run, template_rPr, font_size_pt: int | None = None) -> None:
+    if template_rPr is None:
+        if font_size_pt is not None:
+            run.font.size = Pt(font_size_pt)
+        return
+    r = run._r
+    existing = r.find(f"{{{A_NS}}}rPr")
+    if existing is not None:
+        r.remove(existing)
+    rPr = deepcopy(template_rPr)
+    if font_size_pt is not None:
+        rPr.set("sz", str(font_size_pt * 100))
+    r.insert(0, rPr)
+
+
+def _set_single_text(shape, text: str) -> None:
+    tf = shape.text_frame
+    template_pPr, template_rPr = _snapshot_template_runs(tf)
+    tf.clear()
     p = tf.paragraphs[0]
-    run = p.add_run()
-    run.text = f"{vendor.company}の「{vendor.product}」は{vendor.summary}"
-    run.font.size = Pt(14)
-    run.font.bold = True
-
-    # Section header "内容".
-    hdr = slide.shapes.add_textbox(CONTENT_X, Inches(1.05), CONTENT_W, Inches(0.3))
-    tf = hdr.text_frame
-    p = tf.paragraphs[0]
-    p.alignment = PP_ALIGN.CENTER
-    run = p.add_run()
-    run.text = "内容"
-    run.font.size = Pt(11)
-    run.font.bold = True
-
-
-def _add_label_box(slide, y: int, h: int, text: str):
-    shp = slide.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, LABEL_X, y, LABEL_W, h)
-    shp.fill.solid()
-    shp.fill.fore_color.rgb = LABEL_FILL
-    shp.line.color.rgb = LABEL_BORDER
-    shp.line.width = Pt(0.5)
-    tf = shp.text_frame
-    tf.word_wrap = True
-    tf.vertical_anchor = MSO_ANCHOR.MIDDLE
-    p = tf.paragraphs[0]
-    p.alignment = PP_ALIGN.CENTER
+    if template_pPr is not None:
+        existing = p._pPr
+        if existing is not None:
+            p._p.remove(existing)
+        p._p.insert(0, deepcopy(template_pPr))
     run = p.add_run()
     run.text = text
-    run.font.size = Pt(11)
-    run.font.bold = True
-    run.font.color.rgb = RGBColor(0x20, 0x20, 0x20)
-    return shp
+    _apply_rPr(run, template_rPr)
 
 
-def _add_content_box(
-    slide,
-    y: int,
-    h: int,
-    lines: list[str],
-    *,
-    bulleted: bool = True,
-    font_size_pt: int = 11,
-) -> None:
-    txbox = slide.shapes.add_textbox(CONTENT_X, y, CONTENT_W, h)
-    tf = txbox.text_frame
-    tf.word_wrap = True
-    tf.vertical_anchor = MSO_ANCHOR.TOP
-    for i, line in enumerate(lines):
+def _set_bullets(shape, lines: list[str], font_size_pt: int = BULLET_FONT_SIZE_PT) -> None:
+    """Rewrite the text frame to `lines` (truncated to MAX_BULLETS), preserving
+    paragraph + run formatting from the template's first paragraph/run."""
+    items = [s.strip() for s in (lines or []) if s and s.strip()][:MAX_BULLETS]
+    if not items:
+        items = ["(情報なし)"]
+
+    tf = shape.text_frame
+    template_pPr, template_rPr = _snapshot_template_runs(tf)
+
+    tf.clear()
+    for i, line in enumerate(items):
         p = tf.paragraphs[0] if i == 0 else tf.add_paragraph()
-        p.space_after = Pt(2)
-        prefix = "・ " if bulleted else ""
-        # Support "見出し: 説明" with bold header (matches the screenshot's 活用例 style).
-        if bulleted and (":" in line or "：" in line):
-            sep = "：" if "：" in line else ":"
-            header, _, rest = line.partition(sep)
-            if rest.strip():
-                head_run = p.add_run()
-                head_run.text = f"{prefix}{header}{sep}"
-                head_run.font.size = Pt(font_size_pt)
-                head_run.font.bold = True
-                body_run = p.add_run()
-                body_run.text = rest.strip()
-                body_run.font.size = Pt(font_size_pt)
-                continue
+        if template_pPr is not None:
+            existing = p._pPr
+            if existing is not None:
+                p._p.remove(existing)
+            p._p.insert(0, deepcopy(template_pPr))
         run = p.add_run()
-        run.text = f"{prefix}{line}"
-        run.font.size = Pt(font_size_pt)
+        run.text = line
+        _apply_rPr(run, template_rPr, font_size_pt=font_size_pt)
 
-
-def _add_image(slide, vendor: VendorCase) -> None:
-    img = scraper.get_case_image(vendor.url, vendor.image_url)
-    if img is None:
-        return
     try:
-        slide.shapes.add_picture(io.BytesIO(img[0]), IMAGE_X, IMAGE_Y, IMAGE_W, IMAGE_H)
+        tf.word_wrap = True
+        tf.auto_size = MSO_AUTO_SIZE.TEXT_TO_FIT_SHAPE
     except Exception:
         pass
 
 
-def _build_slide(prs, vendor: VendorCase) -> None:
-    blank = prs.slide_layouts[6]
-    slide = prs.slides.add_slide(blank)
+def _replace_media_with_picture(slide, media_shape, image_bytes: bytes) -> None:
+    """Replace the template's MEDIA placeholder with a Picture at the same box.
 
-    _add_title_band(slide, vendor)
-
-    # 5 rows, with heights matching the screenshot proportions.
-    rows = [
-        ("出展者", [vendor.company], Inches(1.45), Inches(0.55), False),
-        ("製品名", [vendor.product], Inches(2.05), Inches(0.55), False),
-        ("製品の特長", vendor.features[:3] or ["(情報なし)"], Inches(2.65), Inches(1.65), True),
-        ("解決する課題", vendor.problems_solved[:3] or ["(情報なし)"], Inches(4.35), Inches(1.05), True),
-        ("活用例", vendor.use_cases[:3] or ["(情報なし)"], Inches(5.45), Inches(1.55), True),
-    ]
-    for label, content, y, h, bulleted in rows:
-        _add_label_box(slide, y, h, label)
-        _add_content_box(slide, y, h, content, bulleted=bulleted)
-
-    _add_image(slide, vendor)
+    The template uses a MEDIA shape (video/animated) for the product slot. To
+    swap in a still image we remove the MEDIA shape and drop a Picture at the
+    same position and size.
+    """
+    left, top = media_shape.left, media_shape.top
+    width, height = media_shape.width, media_shape.height
+    media_shape.element.getparent().remove(media_shape.element)
+    try:
+        slide.shapes.add_picture(
+            io.BytesIO(image_bytes), left, top, width=width, height=height
+        )
+    except Exception:
+        pass
 
 
-def build_vendor_pptx(vendors: list[VendorCase]) -> bytes:
+def _fill_slide(slide, vendor: VendorCase) -> None:
+    title = _find_shape(slide, SHAPE_TITLE)
+    if title is not None:
+        _set_single_text(title, f"各出展者紹介-{vendor.company}-")
+
+    subtitle = _find_shape(slide, SHAPE_SUBTITLE)
+    if subtitle is not None:
+        _set_single_text(subtitle, f"{vendor.company}の「{vendor.product}」は{vendor.summary}")
+
+    company = _find_shape(slide, SHAPE_COMPANY)
+    if company is not None:
+        _set_single_text(company, vendor.company)
+
+    product = _find_shape(slide, SHAPE_PRODUCT)
+    if product is not None:
+        _set_single_text(product, vendor.product)
+
+    features = _find_shape(slide, SHAPE_FEATURES)
+    if features is not None:
+        _set_bullets(features, vendor.features)
+
+    problems = _find_shape(slide, SHAPE_PROBLEMS)
+    if problems is not None:
+        _set_bullets(problems, vendor.problems_solved)
+
+    usecases = _find_shape(slide, SHAPE_USECASES)
+    if usecases is not None:
+        _set_bullets(usecases, vendor.use_cases)
+
+    media = _find_shape(slide, SHAPE_MEDIA)
+    if media is not None:
+        img = scraper.get_case_image(vendor.url, vendor.image_url)
+        if img is not None:
+            _replace_media_with_picture(slide, media, img[0])
+        else:
+            # No image: remove the placeholder so the template's stale
+            # media doesn't leak into every generated slide.
+            media.element.getparent().remove(media.element)
+
+
+def build_vendor_pptx(vendors: list[VendorCase], template_path: Path = TEMPLATE_PATH) -> bytes:
+    """Build a single .pptx with one slide per vendor.
+
+    The template's slide 1 is the canonical layout. Slide 2 (if any) is
+    discarded so we don't carry over reviewer commentary.
+    """
     if not vendors:
         raise ValueError("vendors must not be empty")
-    prs = Presentation()
-    prs.slide_width = SLIDE_W
-    prs.slide_height = SLIDE_H
-    for v in vendors:
-        _build_slide(prs, v)
+
+    prs = Presentation(str(template_path))
+
+    # Drop everything except the first slide (templates may ship with
+    # extra example slides we don't want in the output).
+    sldIdLst = prs.slides._sldIdLst
+    extras = list(sldIdLst)[1:]
+    for sldId in extras:
+        rId = sldId.get(f"{{{R_NS}}}id")
+        prs.part.drop_rel(rId)
+        sldIdLst.remove(sldId)
+
+    src_slide = prs.slides[0]
+
+    # Snapshot pristine shapes + rels before mutating the first slide.
+    original_shape_xmls = [deepcopy(shp.element) for shp in src_slide.shapes]
+    original_rels = {rId: rel for rId, rel in src_slide.part.rels.items()}
+
+    _fill_slide(src_slide, vendors[0])
+
+    rid_attrs = (f"{{{R_NS}}}embed", f"{{{R_NS}}}link", f"{{{R_NS}}}id")
+    for vendor in vendors[1:]:
+        new_slide = prs.slides.add_slide(src_slide.slide_layout)
+        for shp in list(new_slide.shapes):
+            shp.element.getparent().remove(shp.element)
+
+        rid_map: dict[str, str] = {}
+        for src_rId, rel in original_rels.items():
+            if rel.is_external:
+                new_rId = new_slide.part.relate_to(rel.target_ref, rel.reltype, is_external=True)
+            else:
+                new_rId = new_slide.part.relate_to(rel.target_part, rel.reltype)
+            rid_map[src_rId] = new_rId
+
+        for shp_xml in original_shape_xmls:
+            new_el = deepcopy(shp_xml)
+            for el in new_el.iter():
+                for attr in rid_attrs:
+                    if attr in el.attrib:
+                        old = el.attrib[attr]
+                        if old in rid_map:
+                            el.attrib[attr] = rid_map[old]
+            new_slide.shapes._spTree.append(new_el)
+
+        _fill_slide(new_slide, vendor)
+
     bio = io.BytesIO()
     prs.save(bio)
     return bio.getvalue()
