@@ -271,6 +271,31 @@ def test_default_train_ids_for_same_race(tmp, monkeypatch):
     assert len(items2) == 2
 
 
+def test_takarazuka_registered():
+    """宝塚記念の race_id（年で開催日目が異なる）がレジストリに登録されている。"""
+    from keiba.data.races import KNOWN_RACES, registry_family_ids, normalize_race_name
+    for rid in ["201709030811", "202109030411", "202609030411"]:
+        assert KNOWN_RACES[rid]["race_key"] == "宝塚記念"
+    assert len(registry_family_ids("202609030411")) == 8
+    assert normalize_race_name("第67回宝塚記念(GⅠ)") == "宝塚記念"
+
+
+def test_active_races_filter_hides_others(tmp, monkeypatch):
+    """KEIBA_ACTIVE_RACES を設定すると、そのレースだけが画面に出る。"""
+    monkeypatch.setenv("KEIBA_STORAGE_URI", str(tmp / "act"))
+    monkeypatch.setenv("KEIBA_ACTIVE_RACES", "宝塚記念")
+    store = LocalStorage(tmp / "act")
+    _seed_derby(store, "202309030811", seed=1, race_name="宝塚記念(GI)")   # 過去
+    _seed_derby(store, "202609030411", seed=2, race_name="宝塚記念(GI)")   # 対象
+    _seed_derby(store, "202405030211", seed=3, race_name="安田記念(GI)")   # 別レース
+    (tmp / "act/races/202609030411/actual.csv").unlink()  # 対象は未施行扱い
+
+    from keiba.web import app as webmod
+    html = webmod.app.test_client().get("/").get_data(as_text=True)
+    assert "宝塚記念" in html
+    assert "安田記念" not in html  # 別レースは非表示
+
+
 def test_entrants_has_distance_and_time_features(tmp, monkeypatch):
     """馬柱(entrants) JSON に持ちタイム・同距離複勝率・距離増減が含まれる。"""
     monkeypatch.setenv("KEIBA_STORAGE_URI", str(tmp / "ent"))

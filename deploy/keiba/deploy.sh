@@ -22,6 +22,9 @@ BUCKET="${BUCKET:-keiba_shohei}"
 STORAGE_URI="${STORAGE_URI:-gs://${BUCKET}/keiba}"
 # 共有 Secret 名（生成AI フェーズで使用。存在すれば自動で注入）
 ANTHROPIC_SECRET="${ANTHROPIC_SECRET:-anthropic-api-key}"
+# 画面に出すレース（カンマ区切りのレース名）。今扱うレースだけに絞る。
+# レースを切り替えるときはこの1行（or 環境変数 KEIBA_ACTIVE_RACES）を変更する。
+ACTIVE_RACES="${KEIBA_ACTIVE_RACES:-宝塚記念}"
 
 # スクリプトの場所から root を特定して移動（ビルドコンテキストが root のため）
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -110,7 +113,7 @@ gcloud run deploy "$SERVICE" \
     --cpu 1 \
     --timeout 600 \
     --concurrency 4 \
-    --set-env-vars "KEIBA_STORAGE_URI=${STORAGE_URI},KEIBA_FETCH_WAIT=1.5" \
+    --set-env-vars "KEIBA_STORAGE_URI=${STORAGE_URI},KEIBA_FETCH_WAIT=1.5,KEIBA_ACTIVE_RACES=${ACTIVE_RACES}" \
     "${SECRET_ARGS[@]}"
 
 echo "==> Done. Service URL:"

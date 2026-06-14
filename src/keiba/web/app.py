@@ -16,6 +16,8 @@ Cloud Run 上で動く WSGI アプリ。エントリポイントは `keiba.web.a
     KEIBA_MAX_HISTORY   1頭あたり遡る過去レース数の上限（既定 無制限）
     KEIBA_FETCH_TOKEN   設定すると取得系に ?token= or X-Auth-Token を要求（簡易保護）
     KEIBA_PROXY         外向きプロキシ URL（取得有効時のみ。通常は使わない）
+    KEIBA_ACTIVE_RACES  画面に出すレース名（カンマ区切り）。例 "宝塚記念"。
+                        設定すると、そのレースだけをトップに表示（他は非表示）。未設定なら全件。
 
 エンドポイント（参照・予想 + 任意の取得系）:
     GET  /healthz                     ヘルスチェック
@@ -97,26 +99,34 @@ def diag():
 @app.get("/")
 def index():
     from ..service import load_actual, load_meta
+    from ..data.races import normalize_race_name
     store = _store()
     races = list_races(store)
     genai_on = bool(os.environ.get("ANTHROPIC_API_KEY"))
 
+    # KEIBA_ACTIVE_RACES（カンマ区切りのレース名）が設定されていれば、その
+    # レースだけを画面に出す。例: "宝塚記念" や "宝塚記念,安田記念"。未設定なら全件。
+    active = os.environ.get("KEIBA_ACTIVE_RACES", "").strip()
+    active_set = ({normalize_race_name(x) for x in active.split(",") if x.strip()}
+                  if active else None)
+
     # 予想対象（actual.csv が無い＝未施行）と、過去データ（actual.csv あり）に分ける。
-    # レースは固定せず、保存されているものをそのまま扱う（ダービー・安田記念など何でも）。
+    # レースは固定せず、保存されているものをそのまま扱う（安田記念・宝塚記念など何でも）。
     upcoming, past = [], []
     for r in races:
         meta = load_meta(r, store) or {}
         name = (meta.get("race_meta") or {}).get("race_name") or r
         date = (meta.get("race_meta") or {}).get("date") or ""
+        if active_set is not None and normalize_race_name(name) not in active_set:
+            continue  # 今扱うレース以外は画面に出さない
         info = {"id": r, "name": name, "date": date}
         if load_actual(r, store) is not None:
             past.append(info)
         else:
             upcoming.append(info)
 
-    # 結果一覧は「予想対象と同じレース」だけに絞る（例: 安田記念を予想中なら
-    # ダービー等の別レースは出さない）。予想対象が無いときは全件を出す。
-    from ..data.races import normalize_race_name
+    # 結果一覧は「予想対象と同じレース」だけに絞る（例: 宝塚記念を予想中なら
+    # 別レースは出さない）。予想対象が無いときは全件を出す。
     up_names = {normalize_race_name(u["name"]) for u in upcoming}
     if up_names:
         past = [p for p in past if normalize_race_name(p["name"]) in up_names]

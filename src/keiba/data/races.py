@@ -33,12 +33,27 @@ YASUDA_KINEN = {
     "202605030211": {"year": 2026, "winner": None, "date": "2026-06-07"},
 }
 
+# --- 宝塚記念（阪神・芝2200m・GI。race_id の開催日目は年で異なるので個別登録） ---
+# ユーザ提供の race_id をそのまま登録（…030411 と …030811 が年で混在する）。
+TAKARAZUKA_KINEN = {
+    "201709030811": {"year": 2017, "winner": "サトノクラウン", "date": "2017-06-25"},
+    "201809030811": {"year": 2018, "winner": "ミッキーロケット", "date": "2018-06-24"},
+    "201909030811": {"year": 2019, "winner": "リスグラシュー", "date": "2019-06-23"},
+    "202109030411": {"year": 2021, "winner": "クロノジェネシス", "date": "2021-06-27"},
+    "202209030411": {"year": 2022, "winner": "タイトルホルダー", "date": "2022-06-26"},
+    "202309030811": {"year": 2023, "winner": "イクイノックス", "date": "2023-06-25"},
+    "202509030411": {"year": 2025, "winner": None, "date": "2025-06-29"},
+    "202609030411": {"year": 2026, "winner": None, "date": "2026-06-28"},
+}
+
 # race_id -> {year, winner, date}。複数レース分を統合した既知表。
 KNOWN_RACES: dict[str, dict] = {}
 KNOWN_RACES.update({rid: dict(info, race_key="東京優駿")
                     for rid, info in DERBY_RACES.items()})
 KNOWN_RACES.update({rid: dict(info, race_key="安田記念")
                     for rid, info in YASUDA_KINEN.items()})
+KNOWN_RACES.update({rid: dict(info, race_key="宝塚記念")
+                    for rid, info in TAKARAZUKA_KINEN.items()})
 
 
 # 正規化のときに落とす装飾（グレード表記・回次・括弧書き・空白）
