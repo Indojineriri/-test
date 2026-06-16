@@ -17,8 +17,23 @@ import mahjong_store
 
 st.set_page_config(page_title="麻雀 日程調整", page_icon="🀄", layout="wide")
 
-# 回答の選択肢。クリックするたびにこの順で循環する（"" = 未回答）。
-STATUS_CYCLE = ["", "○", "△", "×"]
+# 見やすさ向上のためのスタイル。成立枠（primaryボタン）を緑にする。
+st.markdown(
+    """
+    <style>
+      div.stButton > button[kind="primary"] {
+          background-color:#2e7d32; border-color:#2e7d32; color:#fff;
+      }
+      div.stButton > button[kind="primary"]:hover {
+          background-color:#1b5e20; border-color:#1b5e20;
+      }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
+
+# 状態色（参加○=緑 / たぶん△=黄 / 不可×=赤）。
+COLORS = {"○": "#2e7d32", "△": "#f9a825", "×": "#c62828"}
 SLOTS = [("day", "昼"), ("night", "夜")]
 WEEKDAY_LABELS = ["月", "火", "水", "木", "金", "土", "日"]
 
@@ -26,6 +41,7 @@ ss = st.session_state
 ss.setdefault("state", mahjong_store.load())
 ss.setdefault("me", "")
 ss.setdefault("my_email", "")
+ss.setdefault("selected", None)  # クリックで選択中の枠（slot_key 文字列）
 # 表示中の年月（その月の1日を保持）。
 ss.setdefault("ym", datetime.date.today().replace(day=1))
 
@@ -95,7 +111,6 @@ with st.sidebar:
 
     st.divider()
     st.caption("凡例: ○=参加 / △=たぶん / ×=不可")
-    st.caption(f"保存先 — {mahjong_store.location_label()}")
     if st.button("最新の状態に更新"):
         ss.state = mahjong_store.load()
         st.rerun()
@@ -103,7 +118,9 @@ with st.sidebar:
 
 st.title("🀄 麻雀 日程調整")
 if not ss.me:
-    st.info("まずはサイドバーで自分の名前を選択（または入力）してください。")
+    st.info("まずはサイドバーにお名前を入力してください。")
+else:
+    st.caption("土日の枠をクリックすると、参加者の確認とあなたの回答ができます。")
 
 # --- Month navigation --------------------------------------------------------
 ym = ss.ym
@@ -138,39 +155,98 @@ for week in cal.monthdatescalendar(ym.year, ym.month):
             in_month = d.month == ym.month
             is_weekend = d.weekday() >= 5
 
-            # 日付の見出し（当月外は薄く、今日は太字）。
-            num = f"**{d.day}**" if d == today else str(d.day)
+            # 日付の見出し（土=青/日=赤、当月外は薄く、今日は背景強調）。
             if not in_month:
-                col.markdown(
-                    f"<span style='color:#bbb'>{d.day}</span>",
-                    unsafe_allow_html=True,
-                )
+                day_color = "#cfcfcf"
+            elif d.weekday() == 5:
+                day_color = "#1565c0"
+            elif d.weekday() == 6:
+                day_color = "#c62828"
             else:
-                col.markdown(num)
+                day_color = "inherit"
+            bg = "background:#fff3cd;border-radius:4px;" if d == today else ""
+            col.markdown(
+                f"<div style='text-align:center;font-weight:bold;color:{day_color};{bg}'>"
+                f"{d.day}</div>",
+                unsafe_allow_html=True,
+            )
 
             if not (in_month and is_weekend):
                 continue
 
             for slot, slot_label in SLOTS:
+                key = slot_key(d, slot)
                 c = counts(d, slot)
                 ok = c["○"] >= threshold
-                mark = my_status(d, slot) or "－"
-                btn_label = f"{slot_label} {mark}"
+                mark = my_status(d, slot) or "・"
+                selected = ss.selected == key
+                btn_label = f"{'📍' if selected else ''}{slot_label} {mark}"
                 if st.button(
                     btn_label,
-                    key=slot_key(d, slot),
+                    key=key,
                     use_container_width=True,
-                    disabled=not ss.me,
                     type="primary" if ok else "secondary",
                 ):
-                    cur = my_status(d, slot)
-                    nxt = STATUS_CYCLE[(STATUS_CYCLE.index(cur) + 1) % len(STATUS_CYCLE)]
-                    set_my_status(d, slot, nxt)
+                    ss.selected = key
                     st.rerun()
-                badge = "✅ " if ok else ""
-                st.caption(f"{badge}○{c['○']} △{c['△']} ×{c['×']}")
+                # 人数の内訳を色付きで表示（成立枠は✅）。
+                badge = "✅" if ok else ""
+                col.markdown(
+                    f"<div style='text-align:center;font-size:0.8em'>{badge}"
+                    f"<span style='color:{COLORS['○']}'>○{c['○']}</span> "
+                    f"<span style='color:{COLORS['△']}'>△{c['△']}</span> "
+                    f"<span style='color:{COLORS['×']}'>×{c['×']}</span></div>",
+                    unsafe_allow_html=True,
+                )
 
 st.divider()
+
+# --- Selected slot: participants & my answer ---------------------------------
+if ss.selected:
+    d = datetime.date.fromisoformat(ss.selected.split("|")[0])
+    slot = ss.selected.split("|")[1]
+    slot_label = dict(SLOTS)[slot]
+    wd = WEEKDAY_LABELS[d.weekday()]
+    entry = state["responses"].get(ss.selected, {})
+    contacts = state["contacts"]
+
+    st.subheader(f"📋 {d.month}/{d.day}（{wd}）{slot_label} の参加状況")
+
+    # 状態ごとに参加者名を表示（○はメールがあれば mailto リンク）。
+    for mk, label in [("○", "参加"), ("△", "たぶん"), ("×", "不可")]:
+        people = []
+        for n, v in entry.items():
+            if v != mk:
+                continue
+            mail = contacts.get(n)
+            if mk == "○" and mail:
+                subject = f"麻雀 {d.month}/{d.day}（{wd}）{slot_label}"
+                people.append(f"[{n}](mailto:{mail}?subject={subject})")
+            else:
+                people.append(n)
+        body = "、".join(people) if people else "なし"
+        st.markdown(
+            f"<span style='color:{COLORS[mk]};font-weight:bold'>{mk} {label}"
+            f"（{len(people)}）</span>: {body}",
+            unsafe_allow_html=True,
+        )
+
+    # 自分の回答を設定。
+    if ss.me:
+        st.write(f"**あなた（{ss.me}）の回答:**")
+        cur = entry.get(ss.me, "")
+        bcols = st.columns(4)
+        for col_btn, (val, lab) in zip(
+            bcols, [("○", "○ 参加"), ("△", "△ たぶん"), ("×", "× 不可"), ("", "クリア")]
+        ):
+            shown = f"✅ {lab}" if val and cur == val else lab
+            if col_btn.button(shown, key=f"ans_{val}", use_container_width=True):
+                set_my_status(d, slot, val)
+                st.rerun()
+    else:
+        st.info("サイドバーにお名前を入力すると回答できます。")
+
+    st.divider()
 
 # --- Candidate slots ---------------------------------------------------------
 st.subheader("✅ 成立候補（○が必要人数以上）")
