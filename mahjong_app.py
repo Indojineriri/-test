@@ -231,18 +231,23 @@ if ss.selected:
             unsafe_allow_html=True,
         )
 
-    # 自分の回答を設定。
+    # 自分の回答を選択肢から選ぶ（ラジオ）。選ぶと即保存する。
     if ss.me:
-        st.write(f"**あなた（{ss.me}）の回答:**")
-        cur = entry.get(ss.me, "")
-        bcols = st.columns(4)
-        for col_btn, (val, lab) in zip(
-            bcols, [("○", "○ 参加"), ("△", "△ たぶん"), ("×", "× 不可"), ("", "クリア")]
-        ):
-            shown = f"✅ {lab}" if val and cur == val else lab
-            if col_btn.button(shown, key=f"ans_{val}", use_container_width=True):
-                set_my_status(d, slot, val)
-                st.rerun()
+        options = ["未回答", "○", "△", "×"]
+        labels = {"未回答": "未回答", "○": "○ 参加", "△": "△ たぶん", "×": "× 不可"}
+        cur = entry.get(ss.me, "") or "未回答"
+        choice = st.radio(
+            f"あなた（{ss.me}）の回答",
+            options,
+            index=options.index(cur),
+            format_func=lambda x: labels[x],
+            horizontal=True,
+            key=f"radio_{ss.selected}",
+        )
+        new_val = "" if choice == "未回答" else choice
+        if new_val != entry.get(ss.me, ""):
+            set_my_status(d, slot, new_val)
+            st.rerun()
     else:
         st.info("サイドバーにお名前を入力すると回答できます。")
 
