@@ -32,8 +32,12 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-# 状態色（参加○=緑 / たぶん△=黄 / 不可×=赤）。
+# 状態色（参加○=緑 / 未定△=黄 / 不参加×=赤）。
 COLORS = {"○": "#2e7d32", "△": "#f9a825", "×": "#c62828"}
+# 出欠プルダウンの選択肢。表示ラベル → 内部値（"" = 未回答）。
+ATTEND_OPTIONS = ["未回答", "⭕ 参加", "🔺 未定", "❌ 不参加"]
+LABEL_TO_VALUE = {"未回答": "", "⭕ 参加": "○", "🔺 未定": "△", "❌ 不参加": "×"}
+VALUE_TO_LABEL = {v: k for k, v in LABEL_TO_VALUE.items()}
 SLOTS = [("day", "昼"), ("night", "夜")]
 WEEKDAY_LABELS = ["月", "火", "水", "木", "金", "土", "日"]
 
@@ -120,7 +124,7 @@ st.title("🀄 麻雀 日程調整")
 if not ss.me:
     st.info("まずはサイドバーにお名前を入力してください。")
 else:
-    st.caption("土日の枠をクリックすると、参加者の確認とあなたの回答ができます。")
+    st.caption("各枠のプルダウンで出欠を選ぶだけ。「詳細」で参加者を確認できます。")
 
 # --- Month navigation --------------------------------------------------------
 ym = ss.ym
@@ -137,83 +141,16 @@ if nav_next.button("次の月 ▶", use_container_width=True):
     ss.ym = next_month
     st.rerun()
 
-# --- Calendar grid -----------------------------------------------------------
-header_cols = st.columns(7)
-for i, label in enumerate(WEEKDAY_LABELS):
-    color = {5: "#1565c0", 6: "#c62828"}.get(i, "inherit")  # 土=青, 日=赤
-    header_cols[i].markdown(
-        f"<div style='text-align:center;font-weight:bold;color:{color}'>{label}</div>",
-        unsafe_allow_html=True,
-    )
-
+# --- Attendance list (this month's weekends) ---------------------------------
 today = datetime.date.today()
-cal = calendar.Calendar(firstweekday=0)  # 月曜始まり
-for week in cal.monthdatescalendar(ym.year, ym.month):
-    cols = st.columns(7)
-    for col, d in zip(cols, week):
-        with col:
-            in_month = d.month == ym.month
-            is_weekend = d.weekday() >= 5
 
-            # 日付の見出し（土=青/日=赤、当月外は薄く、今日は背景強調）。
-            if not in_month:
-                day_color = "#cfcfcf"
-            elif d.weekday() == 5:
-                day_color = "#1565c0"
-            elif d.weekday() == 6:
-                day_color = "#c62828"
-            else:
-                day_color = "inherit"
-            bg = "background:#fff3cd;border-radius:4px;" if d == today else ""
-            col.markdown(
-                f"<div style='text-align:center;font-weight:bold;color:{day_color};{bg}'>"
-                f"{d.day}</div>",
-                unsafe_allow_html=True,
-            )
 
-            if not (in_month and is_weekend):
-                continue
-
-            for slot, slot_label in SLOTS:
-                key = slot_key(d, slot)
-                c = counts(d, slot)
-                ok = c["○"] >= threshold
-                mark = my_status(d, slot) or "・"
-                selected = ss.selected == key
-                btn_label = f"{'📍' if selected else ''}{slot_label} {mark}"
-                if st.button(
-                    btn_label,
-                    key=key,
-                    use_container_width=True,
-                    type="primary" if ok else "secondary",
-                ):
-                    ss.selected = key
-                    st.rerun()
-                # 人数の内訳を色付きで表示（成立枠は✅）。
-                badge = "✅" if ok else ""
-                col.markdown(
-                    f"<div style='text-align:center;font-size:0.8em'>{badge}"
-                    f"<span style='color:{COLORS['○']}'>○{c['○']}</span> "
-                    f"<span style='color:{COLORS['△']}'>△{c['△']}</span> "
-                    f"<span style='color:{COLORS['×']}'>×{c['×']}</span></div>",
-                    unsafe_allow_html=True,
-                )
-
-st.divider()
-
-# --- Selected slot: participants & my answer ---------------------------------
-if ss.selected:
-    d = datetime.date.fromisoformat(ss.selected.split("|")[0])
-    slot = ss.selected.split("|")[1]
-    slot_label = dict(SLOTS)[slot]
-    wd = WEEKDAY_LABELS[d.weekday()]
-    entry = state["responses"].get(ss.selected, {})
+def render_detail(key: str, d: datetime.date, slot_label: str) -> None:
+    """枠の参加者内訳（○/△/× 別の名前）を表示する。"""
+    entry = state["responses"].get(key, {})
     contacts = state["contacts"]
-
-    st.subheader(f"📋 {d.month}/{d.day}（{wd}）{slot_label} の参加状況")
-
-    # 状態ごとに参加者名を表示（○はメールがあれば mailto リンク）。
-    for mk, label in [("○", "参加"), ("△", "たぶん"), ("×", "不可")]:
+    wd = WEEKDAY_LABELS[d.weekday()]
+    for mk, label in [("○", "参加"), ("△", "未定"), ("×", "不参加")]:
         people = []
         for n, v in entry.items():
             if v != mk:
@@ -231,27 +168,67 @@ if ss.selected:
             unsafe_allow_html=True,
         )
 
-    # 自分の回答を選択肢から選ぶ（ラジオ）。選ぶと即保存する。
-    if ss.me:
-        options = ["未回答", "○", "△", "×"]
-        labels = {"未回答": "未回答", "○": "○ 参加", "△": "△ たぶん", "×": "× 不可"}
-        cur = entry.get(ss.me, "") or "未回答"
-        choice = st.radio(
-            f"あなた（{ss.me}）の回答",
-            options,
-            index=options.index(cur),
-            format_func=lambda x: labels[x],
-            horizontal=True,
-            key=f"radio_{ss.selected}",
-        )
-        new_val = "" if choice == "未回答" else choice
-        if new_val != entry.get(ss.me, ""):
-            set_my_status(d, slot, new_val)
-            st.rerun()
-    else:
-        st.info("サイドバーにお名前を入力すると回答できます。")
 
-    st.divider()
+# その月の土日を取得。
+weekend_days = [
+    datetime.date(ym.year, ym.month, day)
+    for day in range(1, calendar.monthrange(ym.year, ym.month)[1] + 1)
+    if datetime.date(ym.year, ym.month, day).weekday() >= 5
+]
+
+if not weekend_days:
+    st.caption("この月に土日はありません。")
+
+for d in weekend_days:
+    wd = WEEKDAY_LABELS[d.weekday()]
+    day_color = "#1565c0" if d.weekday() == 5 else "#c62828"
+    today_tag = " 🟡今日" if d == today else ""
+    st.markdown(
+        f"<h4 style='margin:0.6em 0 0.2em;color:{day_color}'>"
+        f"{d.month}/{d.day}（{wd}）{today_tag}</h4>",
+        unsafe_allow_html=True,
+    )
+
+    for slot, slot_label in SLOTS:
+        key = slot_key(d, slot)
+        c = counts(d, slot)
+        ok = c["○"] >= threshold
+
+        c_slot, c_count, c_select, c_detail = st.columns([1, 2, 2, 1])
+        c_slot.markdown(f"**{slot_label}**")
+        c_count.markdown(
+            f"{'✅ ' if ok else ''}"
+            f"<span style='color:{COLORS['○']}'>⭕{c['○']}</span> "
+            f"<span style='color:{COLORS['△']}'>🔺{c['△']}</span> "
+            f"<span style='color:{COLORS['×']}'>❌{c['×']}</span>",
+            unsafe_allow_html=True,
+        )
+
+        if ss.me:
+            cur_label = VALUE_TO_LABEL.get(my_status(d, slot), "未回答")
+            choice = c_select.selectbox(
+                "出欠",
+                ATTEND_OPTIONS,
+                index=ATTEND_OPTIONS.index(cur_label),
+                key=f"sel_{key}",
+                label_visibility="collapsed",
+            )
+            new_val = LABEL_TO_VALUE[choice]
+            if new_val != my_status(d, slot):
+                set_my_status(d, slot, new_val)
+                st.rerun()
+        else:
+            c_select.caption("名前未入力")
+
+        if c_detail.button("詳細", key=f"detail_{key}", use_container_width=True):
+            ss.selected = None if ss.selected == key else key
+            st.rerun()
+
+        if ss.selected == key:
+            with st.container(border=True):
+                render_detail(key, d, slot_label)
+
+st.divider()
 
 # --- Candidate slots ---------------------------------------------------------
 st.subheader("✅ 成立候補（○が必要人数以上）")
