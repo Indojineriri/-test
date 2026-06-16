@@ -1,8 +1,8 @@
-"""麻雀の日程調整ツール（月表示カレンダー）。
+"""麻雀の日程調整ツール（出欠リスト）。
 
-毎週の土日 × 昼/夜 の固定枠に対して、各メンバーが ○/△/× を入力する。
-月めくりのカレンダー上で土日のマスをタップして回答し、必要人数（既定4人）の
-○が集まった枠を自動でハイライトする。
+毎週の土日 × 昼/夜 の固定枠について、各メンバーが出欠（○参加 / △未定 / ×欠席）を
+プルダウンで選ぶ。月ごとに土日が一覧表示され、必要人数（既定4人）の○がそろった
+枠を成立候補として自動でハイライトする。
 
 起動:
     streamlit run mahjong_app.py
@@ -10,6 +10,7 @@
 
 import calendar
 import datetime
+import urllib.parse
 
 import streamlit as st
 
@@ -32,12 +33,13 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-# 状態色（参加○=緑 / 未定△=黄 / 不参加×=赤）。
+# 状態色（参加○=緑 / 未定△=黄 / 欠席×=赤）。
 COLORS = {"○": "#2e7d32", "△": "#f9a825", "×": "#c62828"}
 # 出欠プルダウンの選択肢。表示ラベル → 内部値（"" = 未回答）。
-ATTEND_OPTIONS = ["未回答", "⭕ 参加", "🔺 未定", "❌ 不参加"]
-LABEL_TO_VALUE = {"未回答": "", "⭕ 参加": "○", "🔺 未定": "△", "❌ 不参加": "×"}
+ATTEND_OPTIONS = ["未回答", "○ 参加", "△ 未定", "× 欠席"]
+LABEL_TO_VALUE = {"未回答": "", "○ 参加": "○", "△ 未定": "△", "× 欠席": "×"}
 VALUE_TO_LABEL = {v: k for k, v in LABEL_TO_VALUE.items()}
+STATUS_NAMES = {"○": "参加", "△": "未定", "×": "欠席"}
 SLOTS = [("day", "昼"), ("night", "夜")]
 WEEKDAY_LABELS = ["月", "火", "水", "木", "金", "土", "日"]
 
@@ -61,15 +63,26 @@ def my_status(d: datetime.date, slot: str) -> str:
 
 
 def set_my_status(d: datetime.date, slot: str, value: str) -> None:
+    """自分の出欠を保存する。保存前に最新を読み直すので同時更新に強い。"""
     key = slot_key(d, slot)
-    entry = state["responses"].setdefault(key, {})
-    if value:
-        entry[ss.me] = value
-    else:
-        entry.pop(ss.me, None)  # 未回答に戻したら削除しておく
-        if not entry:
-            state["responses"].pop(key, None)
-    mahjong_store.save(state)
+
+    def mutate(st_state):
+        entry = st_state["responses"].setdefault(key, {})
+        if value:
+            entry[ss.me] = value
+        else:
+            entry.pop(ss.me, None)  # 未回答に戻したら削除しておく
+            if not entry:
+                st_state["responses"].pop(key, None)
+
+    ss.state = mahjong_store.update(mutate)
+
+
+def mailto(name: str, email: str, d: datetime.date, slot_label: str) -> str:
+    """日本語を含む件名を URL エンコードした mailto リンクを返す。"""
+    wd = WEEKDAY_LABELS[d.weekday()]
+    subject = urllib.parse.quote(f"麻雀のお誘い {d.month}/{d.day}（{wd}）{slot_label}")
+    return f"[{name}](mailto:{email}?subject={subject})"
 
 
 def counts(d: datetime.date, slot: str) -> dict:
@@ -91,22 +104,25 @@ with st.sidebar:
         "メールアドレス（任意）",
         value=ss.my_email,
         placeholder="例）yamada@example.com",
-        help="入れておくと、他のメンバーが成立候補からあなたに連絡できます。",
+        help="入れておくと、他のメンバーが「詳細」からあなたに連絡できます。",
     ).strip()
     ss.me = name
     ss.my_email = email
 
-    # 名前・メールが変わったら登録内容を更新して保存。
-    if name:
-        changed = False
-        if name not in state["members"]:
-            state["members"].append(name)
-            changed = True
-        if email and state["contacts"].get(name) != email:
-            state["contacts"][name] = email
-            changed = True
-        if changed:
-            mahjong_store.save(state)
+    # 名前・メールが変わったら登録内容を更新して保存（最新を読み直してマージ）。
+    needs_register = name and (
+        name not in state["members"]
+        or (email and state["contacts"].get(name) != email)
+    )
+    if needs_register:
+        def register(st_state):
+            if name not in st_state["members"]:
+                st_state["members"].append(name)
+            if email:
+                st_state["contacts"][name] = email
+
+        ss.state = mahjong_store.update(register)
+        state = ss.state
 
     threshold = st.number_input(
         "成立に必要な人数", min_value=2, max_value=8, value=4, step=1,
@@ -114,7 +130,7 @@ with st.sidebar:
     )
 
     st.divider()
-    st.caption("凡例: ○=参加 / △=たぶん / ×=不可")
+    st.caption("凡例: ○=参加 / △=未定 / ×=欠席")
     if st.button("最新の状態に更新"):
         ss.state = mahjong_store.load()
         st.rerun()
@@ -149,18 +165,13 @@ def render_detail(key: str, d: datetime.date, slot_label: str) -> None:
     """枠の参加者内訳（○/△/× 別の名前）を表示する。"""
     entry = state["responses"].get(key, {})
     contacts = state["contacts"]
-    wd = WEEKDAY_LABELS[d.weekday()]
-    for mk, label in [("○", "参加"), ("△", "未定"), ("×", "不参加")]:
+    for mk, label in STATUS_NAMES.items():
         people = []
         for n, v in entry.items():
             if v != mk:
                 continue
             mail = contacts.get(n)
-            if mk == "○" and mail:
-                subject = f"麻雀 {d.month}/{d.day}（{wd}）{slot_label}"
-                people.append(f"[{n}](mailto:{mail}?subject={subject})")
-            else:
-                people.append(n)
+            people.append(mailto(n, mail, d, slot_label) if mail else n)
         body = "、".join(people) if people else "なし"
         st.markdown(
             f"<span style='color:{COLORS[mk]};font-weight:bold'>{mk} {label}"
@@ -169,15 +180,16 @@ def render_detail(key: str, d: datetime.date, slot_label: str) -> None:
         )
 
 
-# その月の土日を取得。
+# その月の土日のうち、今日以降のものを取得（過ぎた日は出さない）。
 weekend_days = [
     datetime.date(ym.year, ym.month, day)
     for day in range(1, calendar.monthrange(ym.year, ym.month)[1] + 1)
     if datetime.date(ym.year, ym.month, day).weekday() >= 5
+    and datetime.date(ym.year, ym.month, day) >= today
 ]
 
 if not weekend_days:
-    st.caption("この月に土日はありません。")
+    st.caption("この月に調整できる土日はありません。「次の月 ▶」で来月を確認してください。")
 
 for d in weekend_days:
     wd = WEEKDAY_LABELS[d.weekday()]
@@ -196,11 +208,19 @@ for d in weekend_days:
 
         c_slot, c_count, c_select, c_detail = st.columns([1, 2, 2, 1])
         c_slot.markdown(f"**{slot_label}**")
+
+        # 成立済みは✅、あと1〜2人なら「あとX人」を表示。
+        if ok:
+            hint = "✅ 成立"
+        elif 0 < threshold - c["○"] <= 2 and c["○"] > 0:
+            hint = f"あと{threshold - c['○']}人"
+        else:
+            hint = ""
         c_count.markdown(
-            f"{'✅ ' if ok else ''}"
-            f"<span style='color:{COLORS['○']}'>⭕{c['○']}</span> "
-            f"<span style='color:{COLORS['△']}'>🔺{c['△']}</span> "
-            f"<span style='color:{COLORS['×']}'>❌{c['×']}</span>",
+            f"<span style='color:{COLORS['○']}'>○{c['○']}</span> "
+            f"<span style='color:{COLORS['△']}'>△{c['△']}</span> "
+            f"<span style='color:{COLORS['×']}'>×{c['×']}</span>"
+            f"<span style='color:#888;font-size:0.85em'> {hint}</span>",
             unsafe_allow_html=True,
         )
 
@@ -249,16 +269,11 @@ else:
         slot_label = dict(SLOTS)[slot]
         wd = WEEKDAY_LABELS[d.weekday()]
         # ○の人はメールがあれば mailto リンクにして連絡しやすくする。
-        names = []
-        for n, v in entry.items():
-            if v != "○":
-                continue
-            mail = contacts.get(n)
-            if mail:
-                subject = f"麻雀 {d.month}/{d.day}（{wd}）{slot_label}"
-                names.append(f"[{n}](mailto:{mail}?subject={subject})")
-            else:
-                names.append(n)
+        names = [
+            mailto(n, contacts[n], d, slot_label) if contacts.get(n) else n
+            for n, v in entry.items()
+            if v == "○"
+        ]
         st.markdown(
             f"- **{d.month}/{d.day}（{wd}）{slot_label}** — ○{o}人: " + "、".join(names)
         )

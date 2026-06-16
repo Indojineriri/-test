@@ -77,6 +77,19 @@ def save(state: dict) -> None:
         f.write(payload)
 
 
+def update(mutator) -> dict:
+    """最新の状態を読み直し、mutator で変更を適用してから保存する。
+
+    保存前に毎回ディスク/GCS の最新版を読むので、他メンバーの同時更新を
+    まるごと上書きしてしまう事故を防げる（自分が触った部分だけが反映される）。
+    更新後の状態を返す。
+    """
+    state = load()
+    mutator(state)
+    save(state)
+    return state
+
+
 def location_label() -> str:
     """Human-readable description of where data is being stored."""
     if config.GCS_BUCKET:
