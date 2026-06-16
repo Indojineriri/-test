@@ -25,6 +25,7 @@ WEEKDAY_LABELS = ["月", "火", "水", "木", "金", "土", "日"]
 ss = st.session_state
 ss.setdefault("state", mahjong_store.load())
 ss.setdefault("me", "")
+ss.setdefault("my_email", "")
 # 表示中の年月（その月の1日を保持）。
 ss.setdefault("ym", datetime.date.today().replace(day=1))
 
@@ -64,20 +65,28 @@ def counts(d: datetime.date, slot: str) -> dict:
 with st.sidebar:
     st.header("設定")
 
-    members = state["members"]
-    options = ["（新しい名前を入力）"] + members
-    default_idx = options.index(ss.me) if ss.me in members else 0
-    choice = st.selectbox("自分の名前", options, index=default_idx)
-    if choice == "（新しい名前を入力）":
-        new_name = st.text_input("名前を入力してEnter")
-        if new_name and new_name not in members:
-            members.append(new_name)
+    # 名前は手入力。メールは任意（入れておくと履歴から連絡を取りやすい）。
+    name = st.text_input("お名前", value=ss.me, placeholder="例）山田").strip()
+    email = st.text_input(
+        "メールアドレス（任意）",
+        value=ss.my_email,
+        placeholder="例）yamada@example.com",
+        help="入れておくと、他のメンバーが成立候補からあなたに連絡できます。",
+    ).strip()
+    ss.me = name
+    ss.my_email = email
+
+    # 名前・メールが変わったら登録内容を更新して保存。
+    if name:
+        changed = False
+        if name not in state["members"]:
+            state["members"].append(name)
+            changed = True
+        if email and state["contacts"].get(name) != email:
+            state["contacts"][name] = email
+            changed = True
+        if changed:
             mahjong_store.save(state)
-            ss.me = new_name
-            st.rerun()
-        ss.me = new_name or ""
-    else:
-        ss.me = choice
 
     threshold = st.number_input(
         "成立に必要な人数", min_value=2, max_value=8, value=4, step=1,
@@ -177,8 +186,21 @@ for key, entry in state["responses"].items():
 if not candidates:
     st.caption("まだ成立候補はありません。")
 else:
+    contacts = state["contacts"]
     for d, slot, o, entry in sorted(candidates, key=lambda x: (x[0], x[1])):
         slot_label = dict(SLOTS)[slot]
         wd = WEEKDAY_LABELS[d.weekday()]
-        yes = "、".join(n for n, v in entry.items() if v == "○")
-        st.markdown(f"- **{d.month}/{d.day}（{wd}）{slot_label}** — ○{o}人: {yes}")
+        # ○の人はメールがあれば mailto リンクにして連絡しやすくする。
+        names = []
+        for n, v in entry.items():
+            if v != "○":
+                continue
+            mail = contacts.get(n)
+            if mail:
+                subject = f"麻雀 {d.month}/{d.day}（{wd}）{slot_label}"
+                names.append(f"[{n}](mailto:{mail}?subject={subject})")
+            else:
+                names.append(n)
+        st.markdown(
+            f"- **{d.month}/{d.day}（{wd}）{slot_label}** — ○{o}人: " + "、".join(names)
+        )

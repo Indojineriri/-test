@@ -19,7 +19,10 @@ RUN pip install -r requirements.txt
 COPY . .
 
 # Cloud Run injects $PORT (default 8080); Streamlit must bind 0.0.0.0:$PORT.
-ENV PORT=8080
+# APP_FILE selects which Streamlit app to run (app.py by default, or
+# mahjong_app.py for the mahjong scheduler) so one image serves both.
+ENV PORT=8080 \
+    APP_FILE=app.py
 EXPOSE 8080
 
-CMD ["sh", "-c", "streamlit run app.py --server.port=${PORT} --server.address=0.0.0.0 --server.headless=true --browser.gatherUsageStats=false"]
+CMD ["sh", "-c", "streamlit run ${APP_FILE} --server.port=${PORT} --server.address=0.0.0.0 --server.headless=true --browser.gatherUsageStats=false"]

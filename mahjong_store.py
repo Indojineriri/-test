@@ -8,6 +8,7 @@ Document shape::
 
     {
       "members": ["あき", "ぼぶ", ...],
+      "contacts": {"あき": "aki@example.com", ...},   # メールは任意
       "responses": {
         "2026-06-20|day":   {"あき": "○", "ぼぶ": "×"},
         "2026-06-20|night": {"あき": "△"},
@@ -21,10 +22,13 @@ import os
 
 import config
 
-_BLOB_NAME = "mahjong/availability.json"
+# Folder (prefix) inside the GCS bucket. The schedule lives in a single JSON
+# under this folder, e.g. gs://test_reseach/mahjong/availability.json.
+_GCS_PREFIX = os.getenv("MAHJONG_GCS_PREFIX", "mahjong").strip("/")
+_BLOB_NAME = f"{_GCS_PREFIX}/availability.json" if _GCS_PREFIX else "availability.json"
 _LOCAL_PATH = os.getenv("MAHJONG_LOCAL_PATH", "data/mahjong.json")
 
-EMPTY = {"members": [], "responses": {}}
+EMPTY = {"members": [], "contacts": {}, "responses": {}}
 
 
 def _gcs_blob():
@@ -43,12 +47,20 @@ def load() -> dict:
     if blob is not None:
         if not blob.exists():
             return json.loads(json.dumps(EMPTY))
-        return json.loads(blob.download_as_text())
+        return _migrate(json.loads(blob.download_as_text()))
 
     if os.path.exists(_LOCAL_PATH):
         with open(_LOCAL_PATH, encoding="utf-8") as f:
-            return json.load(f)
+            return _migrate(json.load(f))
     return json.loads(json.dumps(EMPTY))
+
+
+def _migrate(state: dict) -> dict:
+    """Backfill keys added after the first version so old documents still load."""
+    state.setdefault("members", [])
+    state.setdefault("contacts", {})
+    state.setdefault("responses", {})
+    return state
 
 
 def save(state: dict) -> None:
