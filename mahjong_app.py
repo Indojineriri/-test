@@ -10,7 +10,6 @@
 
 import calendar
 import datetime
-import urllib.parse
 
 import streamlit as st
 
@@ -46,7 +45,6 @@ WEEKDAY_LABELS = ["月", "火", "水", "木", "金", "土", "日"]
 ss = st.session_state
 ss.setdefault("state", mahjong_store.load())
 ss.setdefault("me", "")
-ss.setdefault("my_email", "")
 ss.setdefault("selected", None)  # クリックで選択中の枠（slot_key 文字列）
 # 表示中の年月（その月の1日を保持）。
 ss.setdefault("ym", datetime.date.today().replace(day=1))
@@ -78,13 +76,6 @@ def set_my_status(d: datetime.date, slot: str, value: str) -> None:
     ss.state = mahjong_store.update(mutate)
 
 
-def mailto(name: str, email: str, d: datetime.date, slot_label: str) -> str:
-    """日本語を含む件名を URL エンコードした mailto リンクを返す。"""
-    wd = WEEKDAY_LABELS[d.weekday()]
-    subject = urllib.parse.quote(f"麻雀のお誘い {d.month}/{d.day}（{wd}）{slot_label}")
-    return f"[{name}](mailto:{email}?subject={subject})"
-
-
 def counts(d: datetime.date, slot: str) -> dict:
     entry = state["responses"].get(slot_key(d, slot), {})
     return {
@@ -98,30 +89,17 @@ def counts(d: datetime.date, slot: str) -> dict:
 with st.sidebar:
     st.header("設定")
 
-    # 名前は手入力。メールは任意（入れておくと履歴から連絡を取りやすい）。
+    # 名前は手入力。
     name = st.text_input("お名前", value=ss.me, placeholder="例）山田").strip()
-    email = st.text_input(
-        "メールアドレス（任意）",
-        value=ss.my_email,
-        placeholder="例）yamada@example.com",
-        help="入れておくと、他のメンバーが「詳細」からあなたに連絡できます。",
-    ).strip()
     ss.me = name
-    ss.my_email = email
 
-    # 名前・メールが変わったら登録内容を更新して保存（最新を読み直してマージ）。
-    needs_register = name and (
-        name not in state["members"]
-        or (email and state["contacts"].get(name) != email)
-    )
-    if needs_register:
-        def register(st_state):
-            if name not in st_state["members"]:
-                st_state["members"].append(name)
-            if email:
-                st_state["contacts"][name] = email
-
-        ss.state = mahjong_store.update(register)
+    # 未登録の名前なら登録して保存（最新を読み直してマージ）。
+    if name and name not in state["members"]:
+        ss.state = mahjong_store.update(
+            lambda st_state: st_state["members"].append(name)
+            if name not in st_state["members"]
+            else None
+        )
         state = ss.state
 
     threshold = st.number_input(
@@ -161,17 +139,11 @@ if nav_next.button("次の月 ▶", use_container_width=True):
 today = datetime.date.today()
 
 
-def render_detail(key: str, d: datetime.date, slot_label: str) -> None:
+def render_detail(key: str) -> None:
     """枠の参加者内訳（○/△/× 別の名前）を表示する。"""
     entry = state["responses"].get(key, {})
-    contacts = state["contacts"]
     for mk, label in STATUS_NAMES.items():
-        people = []
-        for n, v in entry.items():
-            if v != mk:
-                continue
-            mail = contacts.get(n)
-            people.append(mailto(n, mail, d, slot_label) if mail else n)
+        people = [n for n, v in entry.items() if v == mk]
         body = "、".join(people) if people else "なし"
         st.markdown(
             f"<span style='color:{COLORS[mk]};font-weight:bold'>{mk} {label}"
@@ -246,7 +218,7 @@ for d in weekend_days:
 
         if ss.selected == key:
             with st.container(border=True):
-                render_detail(key, d, slot_label)
+                render_detail(key)
 
 st.divider()
 
@@ -264,16 +236,10 @@ for key, entry in state["responses"].items():
 if not candidates:
     st.caption("まだ成立候補はありません。")
 else:
-    contacts = state["contacts"]
     for d, slot, o, entry in sorted(candidates, key=lambda x: (x[0], x[1])):
         slot_label = dict(SLOTS)[slot]
         wd = WEEKDAY_LABELS[d.weekday()]
-        # ○の人はメールがあれば mailto リンクにして連絡しやすくする。
-        names = [
-            mailto(n, contacts[n], d, slot_label) if contacts.get(n) else n
-            for n, v in entry.items()
-            if v == "○"
-        ]
+        names = "、".join(n for n, v in entry.items() if v == "○")
         st.markdown(
-            f"- **{d.month}/{d.day}（{wd}）{slot_label}** — ○{o}人: " + "、".join(names)
+            f"- **{d.month}/{d.day}（{wd}）{slot_label}** — ○{o}人: {names}"
         )
