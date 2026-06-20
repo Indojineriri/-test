@@ -94,40 +94,37 @@ def counts(d: datetime.date, slot: str) -> dict:
     }
 
 
-# --- Sidebar -----------------------------------------------------------------
-with st.sidebar:
-    st.header("設定")
+# --- Header: name input lives in the main body (sidebar is hidden on mobile) --
+st.title("🀄 麻雀 日程調整")
 
-    # 名前は手入力。
-    name = st.text_input("お名前", value=ss.me, placeholder="例）山田").strip()
-    ss.me = name
+# 名前は手入力。スマホでサイドバーが埋もれないよう本文の最上部に置く。
+name = st.text_input("お名前を入力してください", value=ss.me, placeholder="例）山田").strip()
+ss.me = name
 
-    # 未登録の名前なら登録して保存（最新を読み直してマージ）。
-    if name and name not in state["members"]:
-        ss.state = mahjong_store.update(
-            lambda st_state: st_state["members"].append(name)
-            if name not in st_state["members"]
-            else None
-        )
-        state = ss.state
+# 未登録の名前なら登録して保存（最新を読み直してマージ）。
+if name and name not in state["members"]:
+    ss.state = mahjong_store.update(
+        lambda st_state: st_state["members"].append(name)
+        if name not in st_state["members"]
+        else None
+    )
+    state = ss.state
 
+if not ss.me:
+    st.info("お名前を入力すると出欠を登録できます。")
+else:
+    st.caption(f"こんにちは、{ss.me} さん。各枠のプルダウンで出欠を選んでください。")
+
+# 設定（必要人数・更新）は折りたたみで本文に。
+with st.expander("⚙️ 設定"):
     threshold = st.number_input(
         "成立に必要な人数", min_value=2, max_value=8, value=4, step=1,
         help="○ がこの人数以上そろった枠を成立候補としてハイライトします。",
     )
-
-    st.divider()
     st.caption("凡例: ○=参加 / △=未定 / ×=欠席")
     if st.button("最新の状態に更新"):
         ss.state = mahjong_store.load()
         st.rerun()
-
-
-st.title("🀄 麻雀 日程調整")
-if not ss.me:
-    st.info("まずはサイドバーにお名前を入力してください。")
-else:
-    st.caption("各枠のプルダウンで出欠を選ぶだけ。「参加状況を見る」で参加者を確認できます。")
 
 # --- Month navigation --------------------------------------------------------
 ym = ss.ym
