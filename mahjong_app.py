@@ -55,7 +55,6 @@ def day_slots(d: datetime.date):
 ss = st.session_state
 ss.setdefault("state", mahjong_store.load())
 ss.setdefault("me", "")
-ss.setdefault("selected", None)  # クリックで選択中の枠（slot_key 文字列）
 # 表示中の年月（その月の1日を保持）。
 ss.setdefault("ym", datetime.date.today().replace(day=1))
 
@@ -128,7 +127,7 @@ st.title("🀄 麻雀 日程調整")
 if not ss.me:
     st.info("まずはサイドバーにお名前を入力してください。")
 else:
-    st.caption("各枠のプルダウンで出欠を選ぶだけ。「詳細」で参加者を確認できます。")
+    st.caption("各枠のプルダウンで出欠を選ぶだけ。「参加状況を見る」で参加者を確認できます。")
 
 # --- Month navigation --------------------------------------------------------
 ym = ss.ym
@@ -145,8 +144,9 @@ if nav_next.button("次の月 ▶", use_container_width=True):
     ss.ym = next_month
     st.rerun()
 
-# --- Calendar grid -----------------------------------------------------------
+# --- Upcoming candidate days (mobile-friendly vertical list) -----------------
 today = datetime.date.today()
+weekday_colors = {4: "#00897b", 5: "#1565c0", 6: "#c62828"}  # 金=緑/土=青/日=赤
 
 
 def render_detail(key: str) -> None:
@@ -162,93 +162,67 @@ def render_detail(key: str) -> None:
         )
 
 
-def render_slot(d: datetime.date, slot: str) -> None:
-    """カレンダーのマス内に1枠分（出欠プルダウン＋集計＋詳細）を描く。"""
-    key = slot_key(d, slot)
-    c = counts(d, slot)
-    ok = c["○"] >= threshold
-    label = SLOT_LABEL[slot]
+st.caption("候補は 金=夜 / 土日=昼・夜。プルダウンで出欠を選ぶだけです。")
 
-    if d < today:
-        # 過ぎた枠は読み取り専用で集計だけ薄く表示。
+# その月の候補日（金・土・日）のうち、今日以降のものを並べる。
+days = [
+    d
+    for day in range(1, calendar.monthrange(ym.year, ym.month)[1] + 1)
+    for d in [datetime.date(ym.year, ym.month, day)]
+    if day_slots(d) and d >= today
+]
+
+if not days:
+    st.info("この月に調整できる日はありません。「次の月 ▶」で来月を確認してください。")
+
+for d in days:
+    wd = WEEKDAY_LABELS[d.weekday()]
+    color = weekday_colors[d.weekday()]
+    today_tag = "（今日）" if d == today else ""
+    st.markdown(
+        f"<h4 style='margin:0.9em 0 0.1em;color:{color}'>"
+        f"{d.month}/{d.day}（{wd}）{today_tag}</h4>",
+        unsafe_allow_html=True,
+    )
+
+    for slot in day_slots(d):
+        key = slot_key(d, slot)
+        c = counts(d, slot)
+        ok = c["○"] >= threshold
+
+        cur_label = VALUE_TO_LABEL.get(my_status(d, slot), "未回答")
+        choice = st.selectbox(
+            SLOT_LABEL[slot],
+            ATTEND_OPTIONS,
+            index=ATTEND_OPTIONS.index(cur_label),
+            key=f"sel_{key}",
+            disabled=not ss.me,
+        )
+        if ss.me and LABEL_TO_VALUE[choice] != my_status(d, slot):
+            set_my_status(d, slot, LABEL_TO_VALUE[choice])
+            st.rerun()
+
+        if ok:
+            hint = "　✅ 成立"
+        elif 0 < threshold - c["○"] <= 2 and c["○"] > 0:
+            hint = f"　あと{threshold - c['○']}人"
+        else:
+            hint = ""
         st.markdown(
-            f"<div style='color:#aaa;font-size:0.8em'>{label} ○{c['○']} △{c['△']} ×{c['×']}</div>",
+            f"<div style='margin:-0.4em 0 0.2em'>"
+            f"<span style='color:{COLORS['○']}'>○{c['○']}</span>　"
+            f"<span style='color:{COLORS['△']}'>△{c['△']}</span>　"
+            f"<span style='color:{COLORS['×']}'>×{c['×']}</span>"
+            f"<span style='color:#888'>{hint}</span></div>",
             unsafe_allow_html=True,
         )
-        return
 
-    cur_label = VALUE_TO_LABEL.get(my_status(d, slot), "未回答")
-    choice = st.selectbox(
-        label,
-        ATTEND_OPTIONS,
-        index=ATTEND_OPTIONS.index(cur_label),
-        key=f"sel_{key}",
-        disabled=not ss.me,
-    )
-    if ss.me and LABEL_TO_VALUE[choice] != my_status(d, slot):
-        set_my_status(d, slot, LABEL_TO_VALUE[choice])
-        st.rerun()
-
-    if ok:
-        hint = " ✅"
-    elif 0 < threshold - c["○"] <= 2 and c["○"] > 0:
-        hint = f" あと{threshold - c['○']}"
-    else:
-        hint = ""
-    st.markdown(
-        f"<div style='font-size:0.8em'>"
-        f"<span style='color:{COLORS['○']}'>○{c['○']}</span> "
-        f"<span style='color:{COLORS['△']}'>△{c['△']}</span> "
-        f"<span style='color:{COLORS['×']}'>×{c['×']}</span>"
-        f"<span style='color:#888'>{hint}</span></div>",
-        unsafe_allow_html=True,
-    )
-    if sum(c.values()) > 0 and st.button(
-        "詳細", key=f"detail_{key}", use_container_width=True
-    ):
-        ss.selected = None if ss.selected == key else key
-        st.rerun()
-
-
-st.caption("候補は **金曜の夜 / 土・日の昼・夜**。各マスのプルダウンで出欠を選びます。")
-
-# 曜日見出し（金=緑 / 土=青 / 日=赤）。
-weekday_colors = {4: "#00897b", 5: "#1565c0", 6: "#c62828"}
-header_cols = st.columns(7)
-for i, lab in enumerate(WEEKDAY_LABELS):
-    color = weekday_colors.get(i, "#555")
-    header_cols[i].markdown(
-        f"<div style='text-align:center;font-weight:bold;color:{color}'>{lab}</div>",
-        unsafe_allow_html=True,
-    )
-
-cal = calendar.Calendar(firstweekday=0)  # 月曜始まり
-for week in cal.monthdatescalendar(ym.year, ym.month):
-    cols = st.columns(7)
-    for col, d in zip(cols, week):
-        with col:
-            in_month = d.month == ym.month
-            color = weekday_colors.get(d.weekday(), "#333")
-            if not in_month:
-                color = "#cfcfcf"
-            bg = "background:#fff3cd;border-radius:4px;" if d == today else ""
-            st.markdown(
-                f"<div style='text-align:center;font-weight:bold;color:{color};{bg}'>"
-                f"{d.day}</div>",
-                unsafe_allow_html=True,
-            )
-            if in_month:
-                for slot in day_slots(d):
-                    render_slot(d, slot)
-
-# 選択中の枠があれば、カレンダー下に参加者の詳細を表示。
-if ss.selected:
-    sd = datetime.date.fromisoformat(ss.selected.split("|")[0])
-    sslot = ss.selected.split("|")[1]
-    swd = WEEKDAY_LABELS[sd.weekday()]
-    st.divider()
-    st.subheader(f"📋 {sd.month}/{sd.day}（{swd}）{SLOT_LABEL[sslot]} の参加状況")
-    render_detail(ss.selected)
+    # 参加者の内訳は折りたたみで（回答があるときだけ）。
+    if any(sum(counts(d, s).values()) > 0 for s in day_slots(d)):
+        with st.expander("👥 参加状況を見る"):
+            for slot in day_slots(d):
+                st.markdown(f"**{SLOT_LABEL[slot]}**")
+                render_detail(slot_key(d, slot))
 
 st.divider()
 
